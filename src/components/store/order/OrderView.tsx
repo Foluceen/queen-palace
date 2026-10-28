@@ -49,7 +49,7 @@ export function OrderView({ order }: { order: Order }) {
               <dt>Account number</dt>
               <dd className="transfer__number">
                 {order.bankTransfer.accountNumber}
-                <button type="button" className="link-btn small" onClick={() => void navigator.clipboard?.writeText(order.bankTransfer!.accountNumber)}>
+                <button type="button" className="link-btn small" onClick={() => void navigator.clipboard?.writeText(order.bankTransfer!.accountNumber).catch(() => {})}>
                   Copy
                 </button>
               </dd>

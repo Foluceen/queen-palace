@@ -184,9 +184,14 @@ export function ProductExperience({ product, initialVariantId, collection }: { p
   // Keep ?variant= in sync without a navigation, so the URL is shareable.
   useEffect(() => {
     if (!variant) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("variant", variant.id);
-    window.history.replaceState(window.history.state, "", url);
+    if (process.env.NEXT_PUBLIC_PREVIEW_BUNDLE === "1") return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("variant", variant.id);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      /* some embedded frames refuse URL changes; the selection still works */
+    }
   }, [variant]);
 
   // Variant feedback: the price ticks over when the selection changes.
