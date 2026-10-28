@@ -44,3 +44,6 @@ export function useParams<T extends Record<string, string>>() {
 }
 
 export { getLoc };
+
+/** The preview has no Next control-flow errors to pass through. */
+export function unstable_rethrow(_err: unknown): void {}
