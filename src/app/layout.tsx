@@ -2,10 +2,12 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { MotionTierScript } from "@/components/motion/MotionTierScript";
 import { siteUrl } from "@/lib/api/config";
+import { getSettings } from "@/lib/data/storefront";
+import { themeScript } from "@/lib/theme";
 import "./globals.css";
 
 /* Self-hosted variable fonts (copied from @fontsource by scripts/copy-fonts.mjs).
-   Latin is preloaded; the latin-ext files (which hold ₦) load only when a glyph needs them. */
+   Latin is preloaded; latin-ext files (which hold ₦) load only when a glyph needs them. */
 const manrope = localFont({
   src: [{ path: "./fonts/manrope-latin.woff2", weight: "200 800", style: "normal" }],
   variable: "--font-manrope",
@@ -20,39 +22,50 @@ const manropeExt = localFont({
   adjustFontFallback: false,
   fallback: [],
 });
-const bricolage = localFont({
-  src: [{ path: "./fonts/bricolage-latin.woff2", weight: "200 800", style: "normal" }],
-  variable: "--font-bricolage",
+const fraunces = localFont({
+  src: [{ path: "./fonts/fraunces-latin.woff2", weight: "100 900", style: "normal" }],
+  variable: "--font-fraunces",
   display: "swap",
   preload: true,
+  adjustFontFallback: "Times New Roman",
 });
-const bricolageExt = localFont({
-  src: [{ path: "./fonts/bricolage-latin-ext.woff2", weight: "200 800", style: "normal" }],
-  variable: "--font-bricolage-ext",
+const frauncesExt = localFont({
+  src: [{ path: "./fonts/fraunces-latin-ext.woff2", weight: "100 900", style: "normal" }],
+  variable: "--font-fraunces-ext",
   display: "swap",
   preload: false,
   adjustFontFallback: false,
   fallback: [],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: { default: "Ìrun — Luxury hair, delivered across Nigeria", template: "%s | Ìrun" },
-  description: "Double-drawn bone straight, Futura wigs, factory wigs, braiding hair and care essentials. Same-day dispatch in Lagos.",
-  openGraph: { type: "website", locale: "en_NG", siteName: "Ìrun" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await getSettings();
+  return {
+    metadataBase: new URL(siteUrl),
+    title: { default: `${s.name}: ${s.tagline}`, template: `%s | ${s.name}` },
+    description: s.metaDescription,
+    applicationName: s.name,
+    openGraph: { type: "website", locale: "en_NG", siteName: s.name },
+    icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" }], apple: "/apple-icon.png" },
+    manifest: "/manifest.webmanifest",
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0b0709",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf6ef" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0b0c" },
+  ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const settings = await getSettings();
   return (
-    <html lang="en-NG" className={`${manrope.variable} ${manropeExt.variable} ${bricolage.variable} ${bricolageExt.variable}`} suppressHydrationWarning>
+    <html lang="en-NG" className={`${manrope.variable} ${manropeExt.variable} ${fraunces.variable} ${frauncesExt.variable}`} suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript(settings.theme.defaultMode) }} />
         <MotionTierScript />
       </head>
       <body>{children}</body>

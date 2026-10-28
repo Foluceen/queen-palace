@@ -3,7 +3,7 @@ import type { ProductQuery, ProductSort } from "@/lib/types";
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
 
-const sorts: ProductSort[] = ["featured", "newest", "price_asc", "price_desc", "rating"];
+const sorts: ProductSort[] = ["featured", "best_selling", "newest", "price_asc", "price_desc", "rating"];
 
 export const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -11,7 +11,9 @@ export const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v
 export function listingQuery(sp: RawSearchParams): Omit<ProductQuery, "collection"> {
   const sort = first(sp.sort) as ProductSort | undefined;
   const page = Number(first(sp.page) ?? 1);
+  const q = first(sp.q)?.trim();
   return {
+    q: q || undefined,
     sort: sort && sorts.includes(sort) ? sort : undefined,
     page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,
     pageSize: 12,

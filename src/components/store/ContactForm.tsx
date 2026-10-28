@@ -61,7 +61,7 @@ export function ContactForm() {
           <option value="wholesale">Wholesale or salon orders</option>
           <option value="other">Something else</option>
         </SelectField>
-        {form.topic === "order" ? <TextField label="Order number" value={form.orderNumber} onChange={set("orderNumber")} placeholder="IR-10412" wrapperClassName="span-2" /> : null}
+        {form.topic === "order" ? <TextField label="Order number" value={form.orderNumber} onChange={set("orderNumber")} placeholder="QP-10412" wrapperClassName="span-2" /> : null}
       </div>
       <TextAreaField label="Message" value={form.message} onChange={set("message")} error={fields.message} required rows={6} />
       {error ? (

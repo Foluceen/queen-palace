@@ -43,6 +43,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       ) : null}
 
       <Suspense>
+        <h2 className="sr-only">Products</h2>
         <ListingControls facets={q ? [] : listing.facets} total={listing.total}>
           {listing.items.length ? (
             <ProductGrid products={listing.items} replayKey={JSON.stringify(sp)} priorityCount={2} />

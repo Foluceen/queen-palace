@@ -4,9 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api } from "@/lib/api/browser";
 import { Icon } from "@/components/ui/Icon";
 
-const KEY = "irun.wishlist";
+const KEY = "qp.wishlist";
 /** Non-sensitive hint set by the account page after sign-in; the session itself is an httpOnly cookie. */
-export const SIGNED_IN_KEY = "irun.signedIn";
+export const SIGNED_IN_KEY = "qp.signedIn";
 
 interface WishlistValue {
   ids: string[];

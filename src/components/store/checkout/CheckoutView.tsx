@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/store/cart/CartProvider";
 import { DiscountForm } from "@/components/store/cart/CartLines";
+import { SIGNED_IN_KEY } from "@/components/store/WishlistProvider";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { Price } from "@/components/ui/Price";
 import { EmptyState, ErrorState } from "@/components/ui/States";
@@ -13,9 +14,15 @@ import { api } from "@/lib/api/browser";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 import { formatEta } from "@/lib/format";
-import { NIGERIAN_STATES, type Address, type PaymentMethod, type PublicPaymentOptions, type ShippingQuote } from "@/lib/types";
+import { PHONE_HINT } from "@/lib/phone";
+import { NIGERIAN_STATES, type Address, type PaymentMethod, type PublicPaymentOptions, type SavedAddress, type ShippingQuote } from "@/lib/types";
 
 const emptyAddress: Address = { firstName: "", lastName: "", phone: "", line1: "", line2: "", city: "", state: "", landmark: "", country: "NG" };
+
+function toAddress(a: SavedAddress): Address {
+  const { id: _id, label: _label, isDefault: _d, ...rest } = a;
+  return { ...emptyAddress, ...rest };
+}
 
 function newKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -38,6 +45,37 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
   const [placing, setPlacing] = useState(false);
   const [idempotencyKey] = useState(newKey);
   const [quoteNonce, setQuoteNonce] = useState(0);
+  const [saved, setSaved] = useState<SavedAddress[]>([]);
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Signed-in shoppers get their email and default address filled in. Guests see nothing different.
+  useEffect(() => {
+    let active = true;
+    let hinted = false;
+    try {
+      hinted = localStorage.getItem(SIGNED_IN_KEY) === "1";
+    } catch {}
+    // Only ask for the account when this browser has signed in before (avoids a needless 401 for guests).
+    if (!hinted) return;
+    void (async () => {
+      try {
+        const { customer } = await api().call("getCustomer");
+        if (!active) return;
+        setSignedIn(true);
+        setEmail((e) => e || customer.email);
+        const list = await api().call("listAddresses");
+        if (!active) return;
+        setSaved(list);
+        const def = list.find((a) => a.isDefault) ?? list[0];
+        if (def) setAddress((a) => (a.line1 ? a : toAddress(def)));
+      } catch {
+        /* guest checkout */
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const quoteKey = `${cart?.id}|${cart?.updatedAt}|${address.state}|${address.city.trim().toLowerCase()}|${quoteNonce}`;
 
@@ -130,12 +168,14 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           <h2 id="co-contact" className="checkout__heading">
             Contact
           </h2>
-          <p className="small muted">
-            Have an account? <Link href="/account?next=/checkout">Sign in</Link>. Otherwise, check out as a guest.
-          </p>
+          {signedIn ? null : (
+            <p className="small muted">
+              Have an account? <Link href="/account?next=/checkout">Sign in</Link>. Otherwise, check out as a guest. No account needed.
+            </p>
+          )}
           <div className="form-grid">
             <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} error={fields.email} required autoComplete="email" hint="We'll send your receipt and tracking here." />
-            <TextField label="Phone" type="tel" value={address.phone} onChange={setA("phone")} error={fields.phone} required autoComplete="tel" inputMode="tel" placeholder="080..." hint="Our rider calls this number on delivery." />
+            <TextField label="Phone" type="tel" value={address.phone} onChange={setA("phone")} error={fields.phone} required autoComplete="tel" inputMode="tel" placeholder="0803 123 4567" hint={`${PHONE_HINT} We call this number about delivery.`} />
           </div>
           <label className="checkbox">
             <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} /> Email me when new textures arrive
@@ -146,12 +186,29 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           <h2 id="co-address" className="checkout__heading">
             Delivery address
           </h2>
+          {saved.length ? (
+            <SelectField
+              label="Saved addresses"
+              value={saved.find((a) => a.line1 === address.line1 && a.city === address.city && a.state === address.state)?.id ?? ""}
+              onChange={(e) => {
+                const a = saved.find((x) => x.id === e.target.value);
+                setAddress(a ? toAddress(a) : { ...emptyAddress, phone: address.phone });
+              }}
+            >
+              <option value="">Use a new address</option>
+              {saved.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}: {a.line1}, {a.city}
+                </option>
+              ))}
+            </SelectField>
+          ) : null}
           <div className="form-grid">
             <TextField label="First name" value={address.firstName} onChange={setA("firstName")} error={fields.firstName} required autoComplete="given-name" />
             <TextField label="Last name" value={address.lastName} onChange={setA("lastName")} error={fields.lastName} required autoComplete="family-name" />
             <TextField label="Street address" value={address.line1} onChange={setA("line1")} error={fields.line1} required autoComplete="address-line1" wrapperClassName="span-2" />
             <TextField label="Apartment, estate or floor (optional)" value={address.line2} onChange={setA("line2")} autoComplete="address-line2" wrapperClassName="span-2" />
-            <TextField label="City or area" value={address.city} onChange={setA("city")} error={fields.city} required autoComplete="address-level2" placeholder="e.g. Lekki Phase 1" />
+            <TextField label="Town or city" value={address.city} onChange={setA("city")} error={fields.city} required autoComplete="address-level2" placeholder="e.g. Ilesha" />
             <SelectField label="State" value={address.state} onChange={setA("state")} error={fields.state} required autoComplete="address-level1">
               <option value="">Choose a state</option>
               {NIGERIAN_STATES.map((s) => (
@@ -258,7 +315,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           ) : null}
           <div>
             <dt>Delivery</dt>
-            <dd>{quote ? quote.totals.shippingTotal === 0 ? "Free" : <Price amount={quote.totals.shippingTotal} /> : <span className="muted">Add your address</span>}</dd>
+            <dd>{quote ? quote.totals.shippingTotal === 0 ? "Free" : <Price amount={quote.totals.shippingTotal} /> : <span className="muted">Choose your state</span>}</dd>
           </div>
           <div className="totals__grand">
             <dt>Total</dt>

@@ -1,13 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/brand/Logo";
 import type { Navigation, StoreSettings } from "@/lib/types";
 import { HeaderActions, MobileMenu } from "./HeaderClient";
 
+/** Uploaded logos when set (with an optional dark-mode version), otherwise the built-in vector logo. */
 export function Wordmark({ settings }: { settings: StoreSettings }) {
-  return settings.logo ? (
-    <Image src={settings.logo.url} alt={settings.name} width={settings.logo.width} height={settings.logo.height} className="wordmark__img" priority />
-  ) : (
-    <span className="wordmark">{settings.name}</span>
+  if (!settings.logo) return <Logo variant="horizontal" title={settings.name} className="site-header__mark" />;
+  const dark = settings.logoDark;
+  return (
+    <>
+      <Image src={settings.logo.url} alt={settings.name} width={settings.logo.width} height={settings.logo.height} className={`wordmark__img ${dark ? "only-light" : ""}`} priority />
+      {dark ? <Image src={dark.url} alt={settings.name} width={dark.width} height={dark.height} className="wordmark__img only-dark" priority /> : null}
+    </>
   );
 }
 
@@ -21,7 +26,7 @@ export function Header({ settings, navigation }: { settings: StoreSettings; navi
       ) : null}
       <div className="site-header__bar container">
         <MobileMenu navigation={navigation} storeName={settings.name} />
-        <Link href="/" className="site-header__logo" aria-label={`${settings.name} home`}>
+        <Link href="/" className="site-header__logo">
           <Wordmark settings={settings} />
         </Link>
         <nav className="site-nav" aria-label="Main">
@@ -41,7 +46,7 @@ export function Header({ settings, navigation }: { settings: StoreSettings; navi
                       ))}
                       <li>
                         <Link href={item.href} className="site-nav__all">
-                          Shop everything
+                          View all
                         </Link>
                       </li>
                     </ul>

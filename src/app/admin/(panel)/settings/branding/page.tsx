@@ -6,24 +6,50 @@ import { useResource, useUnsavedWarning } from "@/components/admin/hooks";
 import { ImageField } from "@/components/admin/MediaPicker";
 import { useToast } from "@/components/admin/Toast";
 import { LoadError, LoadingRows, MoneyInput, PageHeader, Panel, Switch } from "@/components/admin/ui";
-import { TextField } from "@/components/ui/Field";
+import { Logo } from "@/components/brand/Logo";
+import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
-import type { BrandColors, StoreSettings } from "@/lib/types";
+import type { BrandColors, StoreSettings, ThemeMode } from "@/lib/types";
+
+const DEFAULT_COLORS: BrandColors = { gold: "#C9A45C", burgundy: "#6B1630", lightBackground: "#FAF6EF", lightSurface: "#F4ECDF", darkBackground: "#0E0B0C", darkSurface: "#191516" };
 
 const colorFields: { key: keyof BrandColors; label: string; hint: string }[] = [
-  { key: "background", label: "Background", hint: "The page colour. Keep it very dark for this design." },
-  { key: "panel", label: "Panels", hint: "Cards, drawers and forms." },
-  { key: "primary", label: "Primary", hint: "Main buttons like Add to bag." },
-  { key: "highlight", label: "Highlight", hint: "Sale prices, stars and facts." },
-  { key: "soft", label: "Soft tint", hint: "Links and gentle accents." },
+  { key: "burgundy", label: "Burgundy", hint: "Light mode buttons, links and the wordmark." },
+  { key: "gold", label: "Champagne gold", hint: "Accents, the crown mark, dark mode buttons." },
+  { key: "lightBackground", label: "Light background", hint: "Warm ivory page colour." },
+  { key: "lightSurface", label: "Light surface", hint: "Cards, drawers and panels in light mode." },
+  { key: "darkBackground", label: "Dark background", hint: "Near-black page colour." },
+  { key: "darkSurface", label: "Dark surface", hint: "Cards and panels in dark mode." },
 ];
 
-const presets: { name: string; colors: BrandColors }[] = [
-  { name: "Noir pink and gold", colors: { background: "#0B0709", panel: "#161015", primary: "#FF4F9A", highlight: "#D8B25A", soft: "#F6B3CF" } },
-  { name: "Champagne night", colors: { background: "#0A0908", panel: "#16130F", primary: "#E9B872", highlight: "#F3D9A4", soft: "#F5C6D6" } },
-  { name: "Berry velvet", colors: { background: "#0C0610", panel: "#1A0F1E", primary: "#E0457B", highlight: "#C9A14A", soft: "#E8A6C8" } },
-];
+/** Blank strings are sent as null so unknown contact details stay hidden on the storefront. */
+const orNull = (v: string) => (v.trim() ? v : null);
+
+function Preview({ s, dark }: { s: StoreSettings; dark: boolean }) {
+  const c = s.branding.colors;
+  const bg = dark ? c.darkBackground : c.lightBackground;
+  const surface = dark ? c.darkSurface : c.lightSurface;
+  const text = dark ? "#F6EFE4" : "#231D1F";
+  const cta = dark ? c.gold : c.burgundy;
+  return (
+    <div className="abrand-preview" style={{ background: bg, color: text, ["--logo-mark" as string]: dark ? c.gold : "#A9833D", ["--logo-text" as string]: dark ? "#F6EFE4" : c.burgundy }}>
+      <Logo variant="horizontal" className="abrand-preview__logo" title="" />
+      <div className="abrand-preview__card" style={{ background: surface }}>
+        <p className="small" style={{ opacity: 0.7 }}>
+          Bone Straight
+        </p>
+        <p style={{ fontWeight: 700 }}>₦165,000</p>
+        <span className="abrand-preview__btn" style={{ background: cta, color: dark ? "#170F05" : "#FBF7F1", borderRadius: Math.min(s.branding.radius, 999) }}>
+          Add to bag
+        </span>
+      </div>
+      <span className="small" style={{ opacity: 0.6 }}>
+        {dark ? "Dark mode" : "Light mode"}
+      </span>
+    </div>
+  );
+}
 
 function BrandingPageInner() {
   const toast = useToast();
@@ -50,11 +76,11 @@ function BrandingPageInner() {
   const save = async () => {
     setSaving(true);
     try {
-      const { logo, ...rest } = s;
-      const saved = await api().call("adminUpdateStoreSettings", { body: { ...rest, logoId: logo?.id ?? null } });
+      const { logo, logoDark, ...rest } = s;
+      const saved = await api().call("adminUpdateStoreSettings", { body: { ...rest, logoId: logo?.id ?? null, logoDarkId: logoDark?.id ?? null } });
       setS(saved);
       setDirty(false);
-      toast("Store details saved. The storefront updates within a minute.");
+      toast("Store settings saved. The storefront updates within a minute.");
     } catch (err) {
       toast(errorMessage(err), "danger");
     } finally {
@@ -65,8 +91,8 @@ function BrandingPageInner() {
   return (
     <>
       <PageHeader
-        title="Branding and details"
-        description="Your name, colours, contact details and the announcement bar."
+        title="Branding and store details"
+        description="Name, logo, colours, theme, contact details and the notes shown on product pages."
         actions={
           <button type="button" className="btn" onClick={save} disabled={saving || !dirty}>
             {saving ? <span className="spinner" aria-hidden /> : null}
@@ -76,32 +102,10 @@ function BrandingPageInner() {
       />
       <div className="aeditor">
         <div className="aeditor__main">
-          <Panel title="Colours">
-            <div className="abrand-preview" style={{ background: c.background, color: "#FBF2F6" }}>
-              <div className="abrand-preview__card" style={{ background: c.panel }}>
-                <p className="abrand-preview__title" style={{ backgroundImage: `linear-gradient(115deg, ${c.primary}, ${c.soft} 45%, ${c.highlight})` }}>
-                  {s.name}
-                </p>
-                <p className="small" style={{ color: c.soft }}>
-                  Double Drawn Bone Straight
-                </p>
-                <p style={{ color: c.highlight, fontWeight: 800 }}>From ₦165,000</p>
-                <span className="abrand-preview__btn" style={{ background: c.primary }}>
-                  Add to bag
-                </span>
-              </div>
-            </div>
-            <div className="cluster apresets">
-              {presets.map((p) => (
-                <button key={p.name} type="button" className="chip" onClick={() => set({ branding: { ...s.branding, colors: p.colors } })}>
-                  <span className="apreset-dots" aria-hidden>
-                    {Object.values(p.colors).map((hex) => (
-                      <span key={hex} style={{ background: hex }} />
-                    ))}
-                  </span>
-                  {p.name}
-                </button>
-              ))}
+          <Panel title="Colours and theme">
+            <div className="abrand-previews">
+              <Preview s={s} dark={false} />
+              <Preview s={s} dark />
             </div>
             <div className="acolors">
               {colorFields.map((f) => (
@@ -116,46 +120,69 @@ function BrandingPageInner() {
                 </label>
               ))}
             </div>
-            <TextField
-              label="Button roundness (px)"
-              type="number"
-              min={0}
-              max={999}
-              value={String(s.branding.radius)}
-              onChange={(e) => set({ branding: { ...s.branding, radius: Math.max(0, Math.min(999, Number(e.target.value) || 0)) } })}
-              hint="999 gives fully rounded pill buttons."
-            />
+            <div className="aform-grid">
+              <SelectField label="Default theme for new visitors" value={s.theme.defaultMode} onChange={(e) => set({ theme: { defaultMode: e.target.value as ThemeMode } })} hint="Shoppers can still switch. Their choice is remembered on their device.">
+                <option value="system">Match the visitor's device</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </SelectField>
+              <TextField
+                label="Button corner radius (px)"
+                type="number"
+                min={0}
+                max={999}
+                value={String(s.branding.radius)}
+                onChange={(e) => set({ branding: { ...s.branding, radius: Math.max(0, Math.min(999, Number(e.target.value) || 0)) } })}
+                hint="6 is the house style. 999 gives pill buttons."
+              />
+            </div>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => set({ branding: { ...s.branding, colors: DEFAULT_COLORS, radius: 6 } })}>
+              Restore Queen Palace colours
+            </button>
           </Panel>
+
           <Panel title="Announcement bar">
             <div className="astack">
               <Switch checked={s.announcement.enabled} onChange={(v) => set({ announcement: { ...s.announcement, enabled: v } })} label="Show the announcement bar" />
               <TextField label="Message" value={s.announcement.message} onChange={(e) => set({ announcement: { ...s.announcement, message: e.target.value } })} />
-              <TextField label="Link (optional)" value={s.announcement.href ?? ""} onChange={(e) => set({ announcement: { ...s.announcement, href: e.target.value || null } })} />
+              <TextField label="Link (optional)" value={s.announcement.href ?? ""} onChange={(e) => set({ announcement: { ...s.announcement, href: e.target.value || null } })} placeholder="/collections/bone-straight" />
+            </div>
+          </Panel>
+
+          <Panel title="Product page notes">
+            <div className="astack">
+              <TextAreaField label="Delivery note" rows={3} value={s.productPageNotes.shipping} onChange={(e) => set({ productPageNotes: { ...s.productPageNotes, shipping: e.target.value } })} hint="Shown under Add to bag on every product. Leave empty to hide." />
+              <TextAreaField label="Returns note" rows={3} value={s.productPageNotes.returns} onChange={(e) => set({ productPageNotes: { ...s.productPageNotes, returns: e.target.value } })} hint="Links to your returns policy page." />
             </div>
           </Panel>
         </div>
+
         <aside className="aeditor__side">
           <Panel title="Store">
             <div className="astack">
               <TextField label="Store name" value={s.name} onChange={(e) => set({ name: e.target.value })} />
               <TextField label="Tagline" value={s.tagline} onChange={(e) => set({ tagline: e.target.value })} />
-              <ImageField label="Logo (optional)" value={s.logo} onChange={(logo) => set({ logo })} />
-              <p className="small muted">Without a logo, the store name is shown in the display font with the brand gradient.</p>
+              <TextAreaField label="Search engine description" rows={3} maxLength={170} value={s.metaDescription} onChange={(e) => set({ metaDescription: e.target.value })} hint={`${s.metaDescription.length}/160 characters recommended.`} />
+              <ImageField label="Uploaded logo for light mode (optional)" value={s.logo} onChange={(logo) => set({ logo })} />
+              <ImageField label="Uploaded logo for dark mode (optional)" value={s.logoDark} onChange={(logoDark) => set({ logoDark })} />
+              <p className="small muted">Without uploads, the built-in crown logo is used. It adapts to light and dark mode automatically.</p>
               <label className="field">
                 <span className="field__label">Free delivery threshold</span>
                 <MoneyInput value={s.freeShippingThreshold} onChange={(v) => set({ freeShippingThreshold: v })} placeholder="None" />
               </label>
             </div>
           </Panel>
-          <Panel title="Contact">
+          <Panel title="Contact details">
             <div className="astack">
-              <TextField label="Email" type="email" value={s.contactEmail} onChange={(e) => set({ contactEmail: e.target.value })} />
-              <TextField label="Phone" value={s.phone} onChange={(e) => set({ phone: e.target.value })} />
-              <TextField label="WhatsApp" value={s.whatsapp} onChange={(e) => set({ whatsapp: e.target.value })} hint="Used for the floating chat button." />
-              <TextField label="Address" value={s.address} onChange={(e) => set({ address: e.target.value })} />
-              <TextField label="Instagram URL" value={s.social.instagram ?? ""} onChange={(e) => set({ social: { ...s.social, instagram: e.target.value || null } })} />
-              <TextField label="TikTok URL" value={s.social.tiktok ?? ""} onChange={(e) => set({ social: { ...s.social, tiktok: e.target.value || null } })} />
-              <TextField label="Facebook URL" value={s.social.facebook ?? ""} onChange={(e) => set({ social: { ...s.social, facebook: e.target.value || null } })} />
+              <p className="small muted">Leave anything you don't want shown empty. Empty details are hidden on the storefront.</p>
+              <TextField label="Store address" value={s.address} onChange={(e) => set({ address: e.target.value })} />
+              <TextField label="Opening hours" value={s.openingHours ?? ""} onChange={(e) => set({ openingHours: orNull(e.target.value) })} placeholder="e.g. Monday to Saturday, 9am to 7pm" />
+              <TextField label="WhatsApp number" inputMode="tel" value={s.whatsapp ?? ""} onChange={(e) => set({ whatsapp: orNull(e.target.value) })} placeholder="+234…" hint="International format. Turns on WhatsApp buttons across the store." />
+              <TextField label="Phone" inputMode="tel" value={s.phone ?? ""} onChange={(e) => set({ phone: orNull(e.target.value) })} />
+              <TextField label="Email" type="email" value={s.contactEmail ?? ""} onChange={(e) => set({ contactEmail: orNull(e.target.value) })} />
+              <TextField label="Instagram URL" value={s.social.instagram ?? ""} onChange={(e) => set({ social: { ...s.social, instagram: orNull(e.target.value) } })} />
+              <TextField label="TikTok URL" value={s.social.tiktok ?? ""} onChange={(e) => set({ social: { ...s.social, tiktok: orNull(e.target.value) } })} />
+              <TextField label="Facebook URL" value={s.social.facebook ?? ""} onChange={(e) => set({ social: { ...s.social, facebook: orNull(e.target.value) } })} />
             </div>
           </Panel>
         </aside>

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/components/store/cart/CartProvider";
 import { QuantityStepper } from "@/components/store/cart/CartLines";
@@ -10,7 +11,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Price } from "@/components/ui/Price";
 import { availabilityLabel } from "@/lib/format";
 import { animate, interrupt } from "@/lib/motion/anime";
-import type { Media, Product, Variant } from "@/lib/types";
+import type { Media, Product, ProductVideo, Variant } from "@/lib/types";
 import { LengthRuler } from "./LengthRuler";
 
 const SHADE_HEX: Record<string, string> = { "1B": "#1E1614", "2": "#2C1D16", "4": "#4A2F22", "27": "#B47B3A", "613": "#E3C58F", "99J": "#5C1A2A", "350": "#A5482A", Plum: "#3B2340", Honey: "#C99A4B", Black: "#151012", Brown: "#5A3A28", Nude: "#C8A185" };
@@ -27,10 +28,33 @@ function initialOptions(product: Product, variantId: string | null): Record<stri
 
 /* ------------------------------------------------------------------ gallery */
 
-function Gallery({ media, activeId, title }: { media: Media[]; activeId: string | null; title: string }) {
-  const [index, setIndex] = useState(0);
+type Slide = { kind: "image"; media: Media } | { kind: "video"; video: ProductVideo };
+
+function VideoSlide({ video, active, title }: { video: ProductVideo; active: boolean; title: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!active) ref.current?.pause();
+  }, [active]);
+  return (
+    <>
+      {/* preload="none": nothing downloads until the shopper presses play. */}
+      <video ref={ref} className="gallery__video" src={video.url} poster={video.poster?.url} preload="none" playsInline controls={playing} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} aria-label={`${title} video`} />
+      {!playing ? (
+        <button type="button" className="gallery__play" onClick={() => void ref.current?.play()} aria-label="Play video" tabIndex={active ? 0 : -1}>
+          <Icon name="play" size={26} />
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function Gallery({ media, video, activeId, title }: { media: Media[]; video: ProductVideo | null; activeId: string | null; title: string }) {
+  const slides: Slide[] = useMemo(() => [...media.map((m) => ({ kind: "image" as const, media: m })), ...(video ? [{ kind: "video" as const, video }] : [])], [media, video]);
+  // Start on the selected variant's image so the server render and the hydrated view match (no jump, stable LCP).
+  const [index, setIndex] = useState(() => Math.max(0, media.findIndex((m) => m.id === activeId)));
   const stageRef = useRef<HTMLDivElement>(null);
-  const prevIndex = useRef(0);
+  const prevIndex = useRef(index);
 
   useEffect(() => {
     if (!activeId) return;
@@ -49,9 +73,10 @@ function Gallery({ media, activeId, title }: { media: Media[]; activeId: string 
     void animate(img, { opacity: [0, 1], translateX: [dir * 28, 0], scale: [1.03, 1], duration: 620, ease: "outExpo" }, "essential");
   }, [index]);
 
-  const go = useCallback((d: number) => setIndex((i) => (i + d + media.length) % media.length), [media.length]);
+  const count = slides.length;
+  const go = useCallback((d: number) => setIndex((i) => (i + d + count) % count), [count]);
 
-  if (!media.length) return <div className="gallery gallery--empty" aria-hidden />;
+  if (!count) return <div className="gallery gallery--empty" aria-hidden />;
 
   return (
     <section className="gallery" aria-roledescription="carousel" aria-label={`${title} images`}>
@@ -64,18 +89,22 @@ function Gallery({ media, activeId, title }: { media: Media[]; activeId: string 
           if (e.key === "ArrowLeft") go(-1);
         }}
       >
-        {media.map((m, i) => (
-          <div key={m.id} className={`gallery__slide ${i === index ? "is-active" : ""}`} data-slide={i} aria-hidden={i !== index} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${media.length}`}>
-            <Image src={m.url} alt={m.alt} fill priority={i === 0} quality={i === 0 ? 65 : 75} sizes="(min-width: 960px) 52vw, 100vw" className="gallery__img" />
+        {slides.map((sl, i) => (
+          <div key={sl.kind === "image" ? sl.media.id : "video"} className={`gallery__slide ${i === index ? "is-active" : ""}`} data-slide={i} aria-hidden={i !== index} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`}>
+            {sl.kind === "image" ? (
+              <Image src={sl.media.url} alt={sl.media.alt} fill priority={i === index} quality={i === index ? 65 : 75} sizes="(min-width: 960px) 52vw, 100vw" className="gallery__img" />
+            ) : (
+              <VideoSlide video={sl.video} active={i === index} title={title} />
+            )}
           </div>
         ))}
-        {media.length > 1 ? (
+        {count > 1 ? (
           <div className="gallery__nav">
             <button type="button" className="icon-btn icon-btn--glass" onClick={() => go(-1)} aria-label="Previous image">
               <Icon name="chevronLeft" />
             </button>
             <span className="gallery__count small" aria-live="polite">
-              {index + 1} / {media.length}
+              {index + 1} / {count}
             </span>
             <button type="button" className="icon-btn icon-btn--glass" onClick={() => go(1)} aria-label="Next image">
               <Icon name="chevronRight" />
@@ -83,11 +112,18 @@ function Gallery({ media, activeId, title }: { media: Media[]; activeId: string 
           </div>
         ) : null}
       </div>
-      {media.length > 1 ? (
+      {count > 1 ? (
         <div className="gallery__thumbs" role="tablist" aria-label="Choose image">
-          {media.map((m, i) => (
-            <button key={m.id} type="button" role="tab" aria-selected={i === index} className={`gallery__thumb ${i === index ? "is-active" : ""}`} onClick={() => setIndex(i)} aria-label={`Show image ${i + 1}`}>
-              <Image src={m.url} alt="" width={72} height={90} sizes="72px" />
+          {slides.map((sl, i) => (
+            <button key={sl.kind === "image" ? sl.media.id : "video"} type="button" role="tab" aria-selected={i === index} className={`gallery__thumb ${i === index ? "is-active" : ""}`} onClick={() => setIndex(i)} aria-label={sl.kind === "image" ? `Show image ${i + 1}` : "Show video"}>
+              {sl.kind === "image" ? (
+                <Image src={sl.media.url} alt="" width={72} height={90} sizes="72px" />
+              ) : (
+                <span className="gallery__thumb-video">
+                  {sl.video.poster ? <Image src={sl.video.poster.url} alt="" width={72} height={90} sizes="72px" /> : null}
+                  <Icon name="play" size={18} />
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -100,6 +136,8 @@ function Gallery({ media, activeId, title }: { media: Media[]; activeId: string 
 
 function AddToCart({ variant, title }: { variant: Variant | undefined; title: string }) {
   const { addItem, pending, openDrawer, error, clearError } = useCart();
+  const router = useRouter();
+  const [buying, setBuying] = useState(false);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const [barVisible, setBarVisible] = useState(false);
@@ -145,15 +183,30 @@ function AddToCart({ variant, title }: { variant: Variant | undefined; title: st
     }
   };
 
+  // Buy now: add to the same server cart, then go straight to checkout (the backend re-prices everything).
+  const buyNow = async () => {
+    clearError();
+    setBuying(true);
+    const ok = await addItem(variant.id, qty);
+    if (ok) router.push("/checkout");
+    else setBuying(false);
+  };
+
   return (
     <div className="buy" ref={boxRef}>
       <div className="buy__row">
         <QuantityStepper value={qty} max={max} onChange={(q) => setQty(Math.max(1, Math.min(max, q)))} disabled={soldOut || busy} label={`Quantity of ${title}`} />
         <button ref={btnRef} type="button" className={`btn btn--block buy__btn ${added ? "is-added" : ""}`} disabled={soldOut || busy} onClick={add}>
-          {busy ? <span className="spinner" aria-hidden /> : added ? <Icon name="check" size={18} /> : <Icon name="bag" size={18} />}
-          {label}
+          {busy && !buying ? <span className="spinner" aria-hidden /> : added ? <Icon name="check" size={18} /> : <Icon name="bag" size={18} />}
+          {buying ? "Add to bag" : label}
         </button>
       </div>
+      {!soldOut ? (
+        <button type="button" className="btn btn--ghost btn--block buy__now" disabled={busy} onClick={buyNow}>
+          {buying ? <span className="spinner" aria-hidden /> : <Icon name="bolt" size={18} />}
+          {buying ? "Going to checkout" : "Buy now"}
+        </button>
+      ) : null}
       {error ? (
         <p className="field__error" role="alert">
           {error}
@@ -176,7 +229,17 @@ function AddToCart({ variant, title }: { variant: Variant | undefined; title: st
 
 /* -------------------------------------------------------- the experience */
 
-export function ProductExperience({ product, initialVariantId, collection }: { product: Product; initialVariantId: string | null; collection: { handle: string; title: string } | null }) {
+interface ExperienceProps {
+  product: Product;
+  initialVariantId: string | null;
+  collection: { handle: string; title: string } | null;
+  /** Digits only; WhatsApp inquiry is hidden when the store has no number configured. */
+  whatsappNumber: string | null;
+  storeName: string;
+  notes: { shipping: string; returns: string };
+}
+
+export function ProductExperience({ product, initialVariantId, collection, whatsappNumber, storeName, notes }: ExperienceProps) {
   const [selected, setSelected] = useState<Record<string, string>>(() => initialOptions(product, initialVariantId));
   const variant = useMemo(() => product.variants.find((v) => product.options.every((o) => v.options[o.name] === selected[o.name])), [product, selected]);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -215,7 +278,7 @@ export function ProductExperience({ product, initialVariantId, collection }: { p
 
   return (
     <div className="pdp">
-      <Gallery media={product.media} activeId={variant?.mediaId ?? null} title={product.title} />
+      <Gallery media={product.media} video={product.video} activeId={variant?.mediaId ?? null} title={product.title} />
       <div className="pdp__panel" ref={panelRef}>
         <nav aria-label="Breadcrumb" className="crumbs small">
           <Link href="/collections">Collections</Link>
@@ -271,18 +334,40 @@ export function ProductExperience({ product, initialVariantId, collection }: { p
 
         <AddToCart variant={variant} title={product.title} />
 
-        <div className="pdp__aside cluster">
+        <div className="pdp__aside">
           <WishlistButton productId={product.id} title={product.title} className="wish-btn--inline" />
           <span className="small muted">Save for later</span>
+          {whatsappNumber ? (
+            <a
+              className="btn btn--whatsapp btn--sm pdp__wa"
+              target="_blank"
+              rel="noopener noreferrer"
+              href={`https://wa.me/${whatsappNumber}`}
+              onClick={(e) => {
+                const text = `Hi ${storeName}, I'm asking about ${product.title}${variant ? ` (${variant.title}, SKU ${variant.sku})` : ""}: ${window.location.href}`;
+                e.currentTarget.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
+              }}
+            >
+              <Icon name="whatsapp" size={16} /> Ask on WhatsApp
+            </a>
+          ) : null}
         </div>
+        {variant ? <p className="pdp__sku small muted">SKU {variant.sku}</p> : null}
 
         <ul className="pdp__assurances small">
-          <li>
-            <Icon name="truck" size={18} /> Lagos delivery in 1–2 days. Nationwide in 2–5.
-          </li>
-          <li>
-            <Icon name="box" size={18} /> Seven-day returns on unworn hair with lace uncut.
-          </li>
+          {notes.shipping ? (
+            <li>
+              <Icon name="truck" size={18} /> <span>{notes.shipping}</span>
+            </li>
+          ) : null}
+          {notes.returns ? (
+            <li>
+              <Icon name="box" size={18} />{" "}
+              <span>
+                {notes.returns} <Link href="/returns">Returns policy</Link>
+              </span>
+            </li>
+          ) : null}
         </ul>
       </div>
     </div>

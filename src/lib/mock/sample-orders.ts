@@ -1,36 +1,36 @@
 /**
  * Sample historical orders so the admin dashboard has something to show in mock mode.
- * These are labelled as sample data in the admin UI (mock banner). Orders placed through
- * the mock checkout are never marked paid.
+ * Every one is marked as sample data, and the admin shows a demo-data banner.
+ * Orders placed through the mock checkout are never marked paid.
  */
 import type { FulfillmentStatus, Order, PaymentMethod, PaymentStatus, Product } from "@/lib/types";
 
 const customers = [
-  ["Adaeze", "Okafor", "adaeze@example.com", "Lagos", "Lekki"],
-  ["Temitope", "Ade", "temi@example.com", "Oyo", "Ibadan"],
-  ["Hauwa", "Bello", "hauwa@example.com", "FCT - Abuja", "Wuse 2"],
-  ["Ngozi", "Eze", "ngozi@example.com", "Rivers", "Port Harcourt"],
-  ["Funke", "Lawal", "funke@example.com", "Lagos", "Ikeja"],
-  ["Chioma", "Nwosu", "chioma@example.com", "Enugu", "Independence Layout"],
-  ["Zainab", "Musa", "zainab@example.com", "Kano", "Nassarawa GRA"],
+  ["Adaeze", "O.", "sample.adaeze@example.com", "Osun", "Ilesha", 150000],
+  ["Temitope", "A.", "sample.temi@example.com", "Oyo", "Ibadan", 500000],
+  ["Hauwa", "B.", "sample.hauwa@example.com", "FCT - Abuja", "Wuse 2", 800000],
+  ["Ngozi", "E.", "sample.ngozi@example.com", "Ondo", "Akure", 500000],
+  ["Funke", "L.", "sample.funke@example.com", "Osun", "Osogbo", 300000],
+  ["Chioma", "N.", "sample.chioma@example.com", "Enugu", "Enugu", 800000],
+  ["Kemi", "J.", "sample.kemi@example.com", "Osun", "Ilesha", 0],
 ] as const;
 
 const states: [PaymentStatus, FulfillmentStatus, PaymentMethod][] = [
   ["paid", "delivered", "paystack"],
   ["paid", "shipped", "paystack"],
-  ["awaiting_transfer", "unfulfilled", "bank_transfer"],
-  ["paid", "processing", "bank_transfer"],
+  ["pending", "unfulfilled", "pay_on_delivery"],
+  ["paid", "processing", "paystack"],
   ["pending", "unfulfilled", "pay_on_delivery"],
   ["paid", "delivered", "paystack"],
   ["refunded", "returned", "paystack"],
   ["paid", "out_for_delivery", "paystack"],
   ["failed", "unfulfilled", "paystack"],
-  ["paid", "delivered", "bank_transfer"],
+  ["paid", "delivered", "pay_on_delivery"],
   ["paid", "delivered", "paystack"],
   ["paid", "unfulfilled", "paystack"],
   ["paid", "delivered", "pay_on_delivery"],
   ["paid", "processing", "paystack"],
-  ["awaiting_transfer", "unfulfilled", "bank_transfer"],
+  ["pending", "unfulfilled", "paystack"],
   ["paid", "delivered", "paystack"],
 ];
 
@@ -41,10 +41,7 @@ export function buildSampleOrders(products: Product[]): Order[] {
     const p2 = products[(i * 3 + 7) % products.length]!;
     const v1 = p1.variants[i % p1.variants.length]!;
     const v2 = p2.variants[(i + 1) % p2.variants.length]!;
-    const lines = [
-      { p: p1, v: v1, q: 1 },
-      ...(i % 3 === 0 ? [{ p: p2, v: v2, q: 1 + (i % 2) }] : []),
-    ].map(({ p, v, q }, li) => ({
+    const lines = [{ p: p1, v: v1, q: 1 }, ...(i % 3 === 0 ? [{ p: p2, v: v2, q: 1 + (i % 2) }] : [])].map(({ p, v, q }, li) => ({
       id: `ol_s${i}_${li}`,
       productId: p.id,
       variantId: v.id,
@@ -57,16 +54,18 @@ export function buildSampleOrders(products: Product[]): Order[] {
       lineTotal: v.price * q,
     }));
     const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
-    const shippingTotal = c[3] === "Lagos" ? 350000 : 850000;
+    const shippingTotal = c[5];
+    const pickup = shippingTotal === 0;
     const created = new Date(Date.UTC(2026, 9, 26, 9 + (i % 8), 0, 0));
     created.setUTCDate(created.getUTCDate() - Math.floor(i * 1.8));
-    const number = `IR-${10400 + i}`;
+    const number = `QP-${10400 + i}`;
     const createdAt = created.toISOString();
+    const shipped = ["shipped", "out_for_delivery", "delivered"].includes(fulfillmentStatus);
     return {
       id: `ord_s${i}`,
       number,
       accessToken: `sample-${i}`,
-      status: paymentStatus === "refunded" ? "completed" : fulfillmentStatus === "delivered" ? "completed" : "open",
+      status: paymentStatus === "refunded" || fulfillmentStatus === "delivered" ? "completed" : "open",
       paymentStatus,
       fulfillmentStatus,
       paymentMethod,
@@ -75,12 +74,12 @@ export function buildSampleOrders(products: Product[]): Order[] {
       itemCount: lines.reduce((s, l) => s + l.quantity, 0),
       createdAt,
       lines,
-      contact: { email: c[2], phone: "+234 800 000 00" + String(10 + i), marketingOptIn: i % 2 === 0 },
-      shippingAddress: { firstName: c[0], lastName: c[1], phone: "+234 800 000 00" + String(10 + i), line1: `${12 + i} Admiralty Road`, city: c[4], state: c[3], country: "NG" },
-      shippingRate: c[3] === "Lagos" ? { id: "rate_lagos_std", label: "Lagos dispatch rider", etaDays: [1, 2] } : { id: "rate_ng_std", label: "Nationwide courier", etaDays: [3, 5] },
+      contact: { email: c[2], phone: "08000000000", marketingOptIn: i % 2 === 0 },
+      shippingAddress: { firstName: c[0], lastName: c[1], phone: "08000000000", line1: "Sample address", city: c[4], state: c[3], country: "NG" },
+      shippingRate: pickup ? { id: "rate_ilesha_pickup", label: "Pick up in store", etaDays: [0, 1] } : c[3] === "Osun" ? { id: "rate_osun_std", label: "Osun courier", etaDays: [1, 2] } : { id: "rate_ng_std", label: "Nationwide courier", etaDays: [3, 6] },
       discounts: [],
-      trackingNumber: ["shipped", "out_for_delivery", "delivered"].includes(fulfillmentStatus) ? `GIG${700100 + i}` : null,
-      carrier: ["shipped", "out_for_delivery", "delivered"].includes(fulfillmentStatus) ? (c[3] === "Lagos" ? "Ìrun riders" : "GIG Logistics") : null,
+      trackingNumber: shipped && !pickup ? `SAMPLE${700100 + i}` : null,
+      carrier: shipped && !pickup ? "Courier" : null,
       note: null,
       bankTransfer: null,
       timeline: [{ id: `ev_s${i}_1`, type: "placed", message: "Order placed (sample data)", createdAt }],

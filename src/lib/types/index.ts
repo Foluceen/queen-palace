@@ -45,10 +45,14 @@ export interface Collection {
   /** Short line used on cards. */
   summary: string;
   description: string;
+  /** Card / tile image (portrait). */
   image: Media | null;
+  /** Wide banner for the collection page header. Falls back to `image`. */
+  banner: Media | null;
   status: PublishStatus;
   /** Sort position, ascending. Controlled by the vendor in admin. */
   position: number;
+  /** Published products in this collection (what shoppers see). */
   productCount: number;
   seo: Seo;
   updatedAt: ISODate;
@@ -91,9 +95,41 @@ export interface RatingSummary {
   count: number;
 }
 
-export interface ProductSpec {
+/** One field a product type asks for, e.g. "Lace type" for wigs or "Volume" for hair care. */
+export interface AttributeDefinition {
+  key: string;
   label: string;
+  /** text: one line. longtext: paragraph. list: one item per line (shown as bullets). */
+  kind: "text" | "longtext" | "list";
+  /** Where the storefront shows it: the details table, the care section, or how-to-use. */
+  group: "details" | "care" | "usage";
+  placeholder?: string;
+}
+
+/** Product types let different categories carry different fields without code changes. */
+export interface ProductType {
+  id: ID;
+  name: string;
+  description: string;
+  /** Suggested variant options for new products of this type, e.g. Length, Density. */
+  optionNames: string[];
+  attributes: AttributeDefinition[];
+  productCount: number;
+}
+
+/** An attribute resolved for display (label from the type, value from the product). */
+export interface ResolvedAttribute {
+  key: string;
+  label: string;
+  kind: AttributeDefinition["kind"];
+  group: AttributeDefinition["group"];
   value: string;
+}
+
+export interface ProductVideo {
+  /** Hosted MP4/WebM URL. Never autoplays on mobile data. */
+  url: string;
+  poster: Media | null;
 }
 
 export interface Product {
@@ -110,9 +146,10 @@ export interface Product {
   priceRange: { min: Kobo; max: Kobo };
   compareAtPriceRange: { min: Kobo; max: Kobo } | null;
   availability: Availability;
-  /** Industry details shown on the PDP: hair origin, texture, cap size, etc. */
-  specs: ProductSpec[];
-  careNotes: string[];
+  productTypeId: ID | null;
+  /** Values for the product type's attributes, keyed by AttributeDefinition.key. */
+  attributes: Record<string, string>;
+  video: ProductVideo | null;
   tags: string[];
   rating: RatingSummary;
   featured: boolean;
@@ -138,7 +175,7 @@ export interface ProductCard {
   badges: string[];
 }
 
-export type ProductSort = "featured" | "newest" | "price_asc" | "price_desc" | "rating";
+export type ProductSort = "featured" | "best_selling" | "newest" | "price_asc" | "price_desc" | "rating";
 
 export interface ProductQuery {
   collection?: string;
@@ -178,6 +215,9 @@ export interface CollectionWithProducts {
 
 export interface ProductDetail {
   product: Product;
+  productType: Pick<ProductType, "id" | "name"> | null;
+  /** Attributes in the type's order, with labels; empty values omitted. */
+  attributes: ResolvedAttribute[];
   collections: Pick<Collection, "id" | "handle" | "title">[];
   related: ProductCard[];
 }
@@ -436,6 +476,41 @@ export interface CustomerSession {
   customer: Customer;
 }
 
+export interface CustomerRegisterInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  password: string;
+  marketingOptIn: boolean;
+}
+
+export interface SavedAddress extends Address {
+  id: ID;
+  label: string;
+  isDefault: boolean;
+}
+
+/** Admin view of a customer. Guests (no account) are grouped by email from their orders. */
+export interface CustomerSummary {
+  id: ID;
+  name: string;
+  email: string;
+  phone: string | null;
+  hasAccount: boolean;
+  orderCount: number;
+  /** Sum of paid orders only. */
+  totalPaid: Kobo;
+  lastOrderAt: ISODate | null;
+  createdAt: ISODate;
+}
+
+export interface CustomerDetail extends CustomerSummary {
+  orders: OrderSummary[];
+  addresses: SavedAddress[];
+  marketingOptIn: boolean;
+}
+
 export interface Wishlist {
   productIds: ID[];
 }
@@ -468,8 +543,11 @@ export interface HeroSection extends SectionBase {
   secondaryCta: { label: string; href: string } | null;
   image: Media | null;
   layerImage: Media | null;
-  /** Facts shown under the hero, counted up on load. Use real numbers only. */
-  stats: { value: number; suffix: string; label: string }[];
+  /**
+   * Facts under the hero, counted up on load. `source` lets the backend fill the number
+   * from live data (collections or products) so it never goes stale; "custom" uses `value`.
+   */
+  stats: { source: "custom" | "collections" | "products"; value: number; suffix: string; label: string }[];
   /** Resolved by the backend: featured products shown as price tags on the hero art. */
   spotlight?: ProductCard[];
 }
@@ -500,9 +578,11 @@ export interface ProductRailSection extends SectionBase {
   type: "product_rail";
   heading: string;
   body: string;
-  source: { kind: "featured" } | { kind: "collection"; collectionId: ID } | { kind: "newest" };
+  source: { kind: "featured" } | { kind: "best_sellers" } | { kind: "collection"; collectionId: ID } | { kind: "newest" };
   limit: number;
   products?: ProductCard[];
+  /** Resolved by the backend: where "Shop all" leads for this rail. */
+  href?: string;
 }
 
 export interface EditorialSection extends SectionBase {
@@ -527,6 +607,48 @@ export interface ReviewsSection extends SectionBase {
   reviews?: Review[];
 }
 
+export interface PromoSection extends SectionBase {
+  type: "promo";
+  heading: string;
+  body: string;
+  cta: { label: string; href: string };
+  image: Media | null;
+  /** Optional discount code shown on the banner (the backend still validates it at checkout). */
+  code: string | null;
+  /** Hide the banner automatically after this time. */
+  endsAt: ISODate | null;
+  tone: "burgundy" | "gold" | "surface";
+}
+
+export interface TestimonialsSection extends SectionBase {
+  type: "testimonials";
+  heading: string;
+  /** Curated quotes entered by the store. Use only real customer words, with permission. */
+  items: { id: ID; quote: string; name: string; location: string }[];
+}
+
+export interface CareTipsSection extends SectionBase {
+  type: "care_tips";
+  heading: string;
+  body: string;
+  tips: { title: string; body: string }[];
+  cta: { label: string; href: string } | null;
+}
+
+export interface FaqSection extends SectionBase {
+  type: "faq";
+  heading: string;
+  /** How many questions to pull from the FAQ page. */
+  limit: number;
+  items?: { question: string; answer: string }[];
+}
+
+export interface NewsletterSection extends SectionBase {
+  type: "newsletter";
+  heading: string;
+  body: string;
+}
+
 export interface PromiseSection extends SectionBase {
   type: "promises";
   items: { title: string; body: string }[];
@@ -536,6 +658,11 @@ export type HomepageSection =
   | HeroSection
   | MarqueeSection
   | CtaBandSection
+  | PromoSection
+  | TestimonialsSection
+  | CareTipsSection
+  | FaqSection
+  | NewsletterSection
   | CollectionsSection
   | ProductRailSection
   | EditorialSection
@@ -557,9 +684,13 @@ export interface ContentPage {
   title: string;
   intro: string;
   /** Simple structured body so the backend can store it as JSON. */
-  blocks: ({ kind: "paragraph"; text: string } | { kind: "heading"; text: string } | { kind: "list"; items: string[] } | { kind: "qa"; question: string; answer: string })[];
+  blocks: ContentBlock[];
+  /** False for starter text the owner has not yet confirmed (admin shows "Needs review"). */
+  reviewed: boolean;
   updatedAt: ISODate;
 }
+
+export type ContentBlock = { kind: "paragraph"; text: string } | { kind: "heading"; text: string } | { kind: "list"; items: string[] } | { kind: "qa"; question: string; answer: string };
 
 export interface Announcement {
   enabled: boolean;
@@ -570,32 +701,44 @@ export interface Announcement {
 /* ---------------------------------------------------------------- settings */
 
 export interface BrandColors {
-  /** Page background (default near-black). */
-  background: string;
-  /** Raised panels and cards. */
-  panel: string;
-  /** Primary actions, e.g. Add to bag (default pink). */
-  primary: string;
-  /** Highlights, prices on sale, ratings (default gold). */
-  highlight: string;
-  /** Soft tint used for secondary accents (default blush). */
-  soft: string;
+  /** Champagne gold: accents, ratings, focus, dark-mode buttons. */
+  gold: string;
+  /** Deep burgundy: light-mode buttons, links and the wordmark. */
+  burgundy: string;
+  /** Light mode page background (warm ivory) and surface (soft cream). */
+  lightBackground: string;
+  lightSurface: string;
+  /** Dark mode page background (near black) and surface (charcoal). */
+  darkBackground: string;
+  darkSurface: string;
 }
+
+export type ThemeMode = "light" | "dark" | "system";
 
 export interface StoreSettings {
   name: string;
   tagline: string;
+  /** Used for search results and link previews. */
+  metaDescription: string;
+  /** Optional uploaded logos. When empty, the built-in vector logo is used. */
   logo: Media | null;
-  contactEmail: string;
-  phone: string;
-  whatsapp: string;
+  logoDark: Media | null;
+  /** Unknown contact details stay null and are hidden on the storefront. */
+  contactEmail: string | null;
+  phone: string | null;
+  /** WhatsApp number in international format, e.g. +2348012345678. Enables WhatsApp buttons. */
+  whatsapp: string | null;
   address: string;
+  openingHours: string | null;
   currency: CurrencyCode;
   branding: {
     colors: BrandColors;
     /** Corner radius scale in px for interactive controls. */
     radius: number;
   };
+  theme: { defaultMode: ThemeMode };
+  /** Short notes shown on every product page. */
+  productPageNotes: { shipping: string; returns: string };
   social: { instagram: string | null; tiktok: string | null; facebook: string | null };
   announcement: Announcement;
   freeShippingThreshold: Kobo | null;
@@ -604,7 +747,10 @@ export interface StoreSettings {
 export interface ShippingZone {
   id: ID;
   name: string;
+  /** Empty = every state not covered by another zone. */
   states: string[];
+  /** Optional: only these cities/towns within the states (case-insensitive). */
+  cities: string[];
   rates: (ShippingRate & { freeOver: Kobo | null })[];
 }
 
@@ -692,10 +838,12 @@ export const PERMISSIONS = [
   "orders:read",
   "orders:write",
   "orders:refund",
+  "customers:read",
   "content:write",
   "discounts:write",
   "reviews:moderate",
   "inquiries:respond",
+  "analytics:read",
   "settings:write",
   "staff:manage",
 ] as const;
@@ -774,15 +922,18 @@ export interface InventoryAdjustment {
  * Create/update payload. For variants that already exist (have an id), inventory.available
  * is ignored: stock changes go through POST /admin/inventory/adjustments so they're audited.
  */
-export type ProductInput = Omit<Product, "id" | "priceRange" | "compareAtPriceRange" | "availability" | "rating" | "createdAt" | "updatedAt" | "variants" | "media"> & {
+export type ProductInput = Omit<Product, "id" | "priceRange" | "compareAtPriceRange" | "availability" | "rating" | "createdAt" | "updatedAt" | "variants" | "media" | "video"> & {
   mediaIds: ID[];
+  video: { url: string; posterId: ID | null } | null;
   variants: (Omit<Variant, "id" | "productId" | "availability" | "inventory"> & {
     id?: ID;
     inventory: Omit<VariantInventory, "available"> & { available: number };
   })[];
 };
 
-export type CollectionInput = Omit<Collection, "id" | "productCount" | "updatedAt" | "image"> & { imageId: ID | null };
+export type CollectionInput = Omit<Collection, "id" | "productCount" | "updatedAt" | "image" | "banner"> & { imageId: ID | null; bannerId: ID | null };
+
+export type ProductTypeInput = Omit<ProductType, "id" | "productCount"> & { id?: ID };
 
 export type DiscountInput = Omit<Discount, "id" | "usageCount" | "status"> & { status: "active" | "disabled" };
 
@@ -797,7 +948,9 @@ export interface AdminOrderQuery {
 export interface AdminProductQuery {
   q?: string;
   status?: PublishStatus;
+  /** A collection id, or "none" for products in no collection. */
   collectionId?: ID;
+  productTypeId?: ID;
   page?: number;
   pageSize?: number;
 }
@@ -817,4 +970,30 @@ export interface ApiErrorBody {
     message: string;
     fields?: Record<string, string>;
   };
+}
+
+/* ---------------------------------------------------------------- analytics */
+
+export interface AnalyticsReport {
+  periodDays: number;
+  /** Paid orders only. */
+  revenue: Kobo;
+  paidOrders: number;
+  allOrders: number;
+  averageOrderValue: Kobo;
+  unitsSold: number;
+  series: { date: string; revenue: Kobo; orders: number }[];
+  byCollection: { collectionId: ID | null; title: string; revenue: Kobo; units: number }[];
+  byPaymentMethod: { method: PaymentMethod; orders: number; revenue: Kobo }[];
+  byState: { state: string; orders: number; revenue: Kobo }[];
+  topProducts: { productId: ID; title: string; unitsSold: number; revenue: Kobo }[];
+  discounts: { code: string; uses: number; amount: Kobo }[];
+  customers: { new: number; returning: number };
+}
+
+export interface AdminSearchResult {
+  products: { id: ID; title: string; subtitle: string }[];
+  orders: { id: ID; number: string; email: string }[];
+  customers: { id: ID; name: string; email: string }[];
+  collections: { id: ID; title: string }[];
 }

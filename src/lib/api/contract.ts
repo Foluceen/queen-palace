@@ -26,8 +26,17 @@ import type {
   CollectionInput,
   CollectionWithProducts,
   ContentPage,
+  ContentPage as ContentPageT,
   Customer,
+  CustomerDetail,
+  CustomerRegisterInput,
   CustomerSession,
+  CustomerSummary,
+  AnalyticsReport,
+  AdminSearchResult,
+  ProductType,
+  ProductTypeInput,
+  SavedAddress,
   DashboardSummary,
   Discount,
   DiscountInput,
@@ -124,6 +133,13 @@ export interface Contract {
   getWishlist: Endpoint<undefined, undefined, undefined, Wishlist>;
   replaceWishlist: Endpoint<undefined, undefined, Wishlist, Wishlist>;
   getCustomerAccount: Endpoint<undefined, undefined, undefined, Customer>;
+  customerRegister: Endpoint<undefined, undefined, CustomerRegisterInput, CustomerSession>;
+  /** Always returns ok (never reveals whether an email has an account). */
+  customerRequestPasswordReset: Endpoint<undefined, undefined, { email: string }, Ok>;
+  customerResetPassword: Endpoint<undefined, undefined, { token: string; password: string }, Ok>;
+  listAddresses: Endpoint<undefined, undefined, undefined, SavedAddress[]>;
+  saveAddress: Endpoint<undefined, undefined, Omit<SavedAddress, "id"> & { id?: string }, SavedAddress[]>;
+  deleteAddress: Endpoint<Id, undefined, undefined, SavedAddress[]>;
 
   /* ---------------------------------------------------------- admin auth */
   adminLogin: Endpoint<undefined, undefined, AdminLoginInput, AdminSession>;
@@ -138,6 +154,11 @@ export interface Contract {
   adminCreateProduct: Endpoint<undefined, undefined, ProductInput, Product>;
   adminUpdateProduct: Endpoint<Id, undefined, ProductInput, Product>;
   adminDeleteProduct: Endpoint<Id, undefined, undefined, Ok>;
+  /** Creates a draft copy with "(copy)" in the name, a unique URL and SKUs, and zero stock. */
+  adminDuplicateProduct: Endpoint<Id, undefined, undefined, Product>;
+  adminListProductTypes: Endpoint<undefined, undefined, undefined, ProductType[]>;
+  adminSaveProductType: Endpoint<undefined, undefined, ProductTypeInput, ProductType>;
+  adminDeleteProductType: Endpoint<Id, undefined, undefined, Ok>;
   adminUpdateVariant: Endpoint<{ productId: string; variantId: string }, undefined, Partial<Pick<Variant, "price" | "compareAtPrice" | "sku">>, Variant>;
 
   adminListInventory: Endpoint<undefined, { q?: string; lowOnly?: boolean }, undefined, InventoryRow[]>;
@@ -146,7 +167,8 @@ export interface Contract {
   adminListCollections: Endpoint<undefined, undefined, undefined, Collection[]>;
   adminCreateCollection: Endpoint<undefined, undefined, CollectionInput, Collection>;
   adminUpdateCollection: Endpoint<Id, undefined, Partial<CollectionInput>, Collection>;
-  adminDeleteCollection: Endpoint<Id, undefined, undefined, Ok>;
+  /** Products are never deleted with a collection. Products left in no collection are listed. */
+  adminDeleteCollection: Endpoint<Id, undefined, undefined, { ok: true; unassignedProductIds: string[] }>;
   adminReorderCollections: Endpoint<undefined, undefined, { ids: string[] }, Collection[]>;
 
   adminListMedia: Endpoint<undefined, { q?: string }, undefined, Media[]>;
@@ -168,7 +190,14 @@ export interface Contract {
 
   adminGetHomepage: Endpoint<undefined, undefined, undefined, Homepage>;
   adminUpdateHomepage: Endpoint<undefined, undefined, { sections: HomepageSection[] }, Homepage>;
+  adminGetNavigation: Endpoint<undefined, undefined, undefined, Navigation>;
   adminUpdateNavigation: Endpoint<undefined, undefined, Navigation, Navigation>;
+  adminListPages: Endpoint<undefined, undefined, undefined, ContentPageT[]>;
+  adminSavePage: Endpoint<{ slug: string }, undefined, Omit<ContentPageT, "slug" | "updatedAt">, ContentPageT>;
+  adminListCustomers: Endpoint<undefined, { q?: string; page?: number; pageSize?: number }, undefined, Paginated<CustomerSummary>>;
+  adminGetCustomer: Endpoint<Id, undefined, undefined, CustomerDetail>;
+  adminAnalytics: Endpoint<undefined, { days?: number }, undefined, AnalyticsReport>;
+  adminSearch: Endpoint<undefined, { q: string }, undefined, AdminSearchResult>;
 
   adminListDiscounts: Endpoint<undefined, undefined, undefined, Discount[]>;
   adminCreateDiscount: Endpoint<undefined, undefined, DiscountInput, Discount>;
@@ -185,7 +214,7 @@ export interface Contract {
   adminGetPaymentSettings: Endpoint<undefined, undefined, undefined, PaymentSettings>;
   adminUpdatePaymentSettings: Endpoint<undefined, undefined, PaymentSettings, PaymentSettings>;
   adminGetStoreSettings: Endpoint<undefined, undefined, undefined, StoreSettings>;
-  adminUpdateStoreSettings: Endpoint<undefined, undefined, Omit<StoreSettings, "logo"> & { logoId: string | null }, StoreSettings>;
+  adminUpdateStoreSettings: Endpoint<undefined, undefined, Omit<StoreSettings, "logo" | "logoDark"> & { logoId: string | null; logoDarkId: string | null }, StoreSettings>;
 
   adminListStaff: Endpoint<undefined, undefined, undefined, Staff[]>;
   adminInviteStaff: Endpoint<undefined, undefined, { name: string; email: string; roleId: string }, Staff>;
@@ -235,6 +264,12 @@ export const routes: { [K in EndpointName]: { method: HttpMethod; path: string; 
   getCustomerAccount: { method: "GET", path: "/customers/me", auth: "customer" },
   listCustomerOrders: { method: "GET", path: "/customers/me/orders", auth: "customer" },
   getWishlist: { method: "GET", path: "/customers/me/wishlist", auth: "customer" },
+  customerRegister: { method: "POST", path: "/customers/auth/register" },
+  customerRequestPasswordReset: { method: "POST", path: "/customers/auth/password-reset" },
+  customerResetPassword: { method: "POST", path: "/customers/auth/password-reset/confirm" },
+  listAddresses: { method: "GET", path: "/customers/me/addresses", auth: "customer" },
+  saveAddress: { method: "PUT", path: "/customers/me/addresses", auth: "customer" },
+  deleteAddress: { method: "DELETE", path: "/customers/me/addresses/:id", auth: "customer" },
   replaceWishlist: { method: "PUT", path: "/customers/me/wishlist", auth: "customer" },
 
   adminLogin: { method: "POST", path: "/admin/auth/login" },
@@ -247,6 +282,10 @@ export const routes: { [K in EndpointName]: { method: HttpMethod; path: string; 
   adminCreateProduct: { method: "POST", path: "/admin/products", auth: "admin" },
   adminUpdateProduct: { method: "PUT", path: "/admin/products/:id", auth: "admin" },
   adminDeleteProduct: { method: "DELETE", path: "/admin/products/:id", auth: "admin" },
+  adminDuplicateProduct: { method: "POST", path: "/admin/products/:id/duplicate", auth: "admin" },
+  adminListProductTypes: { method: "GET", path: "/admin/product-types", auth: "admin" },
+  adminSaveProductType: { method: "PUT", path: "/admin/product-types", auth: "admin" },
+  adminDeleteProductType: { method: "DELETE", path: "/admin/product-types/:id", auth: "admin" },
   adminUpdateVariant: { method: "PATCH", path: "/admin/products/:productId/variants/:variantId", auth: "admin" },
 
   adminListInventory: { method: "GET", path: "/admin/inventory", auth: "admin" },
@@ -273,7 +312,14 @@ export const routes: { [K in EndpointName]: { method: HttpMethod; path: string; 
 
   adminGetHomepage: { method: "GET", path: "/admin/content/homepage", auth: "admin" },
   adminUpdateHomepage: { method: "PUT", path: "/admin/content/homepage", auth: "admin" },
+  adminGetNavigation: { method: "GET", path: "/admin/content/navigation", auth: "admin" },
   adminUpdateNavigation: { method: "PUT", path: "/admin/content/navigation", auth: "admin" },
+  adminListPages: { method: "GET", path: "/admin/pages", auth: "admin" },
+  adminSavePage: { method: "PUT", path: "/admin/pages/:slug", auth: "admin" },
+  adminListCustomers: { method: "GET", path: "/admin/customers", auth: "admin" },
+  adminGetCustomer: { method: "GET", path: "/admin/customers/:id", auth: "admin" },
+  adminAnalytics: { method: "GET", path: "/admin/analytics", auth: "admin" },
+  adminSearch: { method: "GET", path: "/admin/search", auth: "admin" },
 
   adminListDiscounts: { method: "GET", path: "/admin/discounts", auth: "admin" },
   adminCreateDiscount: { method: "POST", path: "/admin/discounts", auth: "admin" },

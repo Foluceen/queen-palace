@@ -6,6 +6,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { isMockMode } from "@/lib/api/config";
 import type { Permission } from "@/lib/types";
+import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { AdminSearch } from "./AdminSearch";
 import { useAdmin } from "./AdminSession";
 
 interface NavItem {
@@ -18,14 +21,19 @@ interface NavItem {
 const groups: { label: string; items: NavItem[] }[] = [
   {
     label: "Overview",
-    items: [{ href: "/admin", label: "Dashboard", icon: "dashboard", permission: "dashboard:read" }],
+    items: [
+      { href: "/admin", label: "Dashboard", icon: "dashboard", permission: "dashboard:read" },
+      { href: "/admin/analytics", label: "Analytics", icon: "chart", permission: "analytics:read" },
+    ],
   },
   {
     label: "Sell",
     items: [
       { href: "/admin/orders", label: "Orders", icon: "receipt", permission: "orders:read" },
+      { href: "/admin/customers", label: "Customers", icon: "users", permission: "customers:read" },
+      { href: "/admin/inquiries", label: "Messages", icon: "chat", permission: "inquiries:respond" },
       { href: "/admin/discounts", label: "Discounts", icon: "tag", permission: "discounts:write" },
-      { href: "/admin/reviews", label: "Reviews and messages", icon: "chat", permission: "inquiries:respond" },
+      { href: "/admin/reviews", label: "Reviews", icon: "star", permission: "reviews:moderate" },
     ],
   },
   {
@@ -34,16 +42,24 @@ const groups: { label: string; items: NavItem[] }[] = [
       { href: "/admin/products", label: "Products", icon: "box", permission: "products:read" },
       { href: "/admin/inventory", label: "Inventory", icon: "layers", permission: "products:read" },
       { href: "/admin/collections", label: "Collections", icon: "grip", permission: "products:read" },
+      { href: "/admin/product-types", label: "Product types", icon: "sliders", permission: "products:read" },
       { href: "/admin/media", label: "Media library", icon: "image", permission: "products:read" },
     ],
   },
   {
-    label: "Store",
+    label: "Online store",
     items: [
-      { href: "/admin/storefront", label: "Homepage and menus", icon: "edit", permission: "content:write" },
+      { href: "/admin/storefront", label: "Homepage", icon: "edit", permission: "content:write" },
+      { href: "/admin/navigation", label: "Navigation", icon: "link", permission: "content:write" },
+      { href: "/admin/pages", label: "Pages", icon: "file", permission: "content:write" },
+      { href: "/admin/settings/branding", label: "Branding and store", icon: "palette", permission: "settings:write" },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
       { href: "/admin/settings/shipping-payments", label: "Shipping and payments", icon: "truck", permission: "settings:write" },
-      { href: "/admin/settings/branding", label: "Branding and details", icon: "palette", permission: "settings:write" },
-      { href: "/admin/staff", label: "Staff and roles", icon: "users", permission: "staff:manage" },
+      { href: "/admin/staff", label: "Staff and roles", icon: "settings", permission: "staff:manage" },
     ],
   },
 ];
@@ -60,14 +76,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className={`ashell ${open ? "is-nav-open" : ""}`}>
       <aside className="ashell__nav" aria-label="Admin">
         <div className="ashell__brand">
-          <Link href="/admin" className="wordmark">
-            Ìrun
+          <Link href="/admin" className="ashell__logo" aria-label="Queen Palace admin home">
+            <Logo variant="horizontal" title="" />
           </Link>
-          <span className="small muted">Admin</span>
         </div>
         <nav>
           {groups.map((g) => {
-            const items = g.items.filter((i) => can(i.permission) || (i.href === "/admin/reviews" && can("reviews:moderate")));
+            const items = g.items.filter((i) => can(i.permission));
             if (!items.length) return null;
             return (
               <div key={g.label} className="ashell__group">
@@ -101,18 +116,20 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <button type="button" className="icon-btn ashell__menu" onClick={() => setOpen((o) => !o)} aria-label="Toggle admin menu" aria-expanded={open}>
             <Icon name="menu" />
           </button>
-          {isMockMode ? (
-            <p className="ashell__mock small">
-              <strong>Demo data.</strong> Changes live in server memory and reset on restart. No emails are sent and no money moves.
-            </p>
-          ) : (
-            <span />
-          )}
-          <Link href="/" className="btn btn--ghost btn--sm" target="_blank">
-            View store
-            <Icon name="external" size={14} />
-          </Link>
+          <AdminSearch />
+          <div className="ashell__tools">
+            <ThemeToggle />
+            <Link href="/" className="btn btn--ghost btn--sm" target="_blank">
+              <span className="ashell__store-label">View store</span>
+              <Icon name="external" size={14} />
+            </Link>
+          </div>
         </div>
+        {isMockMode ? (
+          <p className="ashell__mock small" role="note">
+            <strong>Demo mode.</strong> Sample data in server memory, reset on restart. Figures are not real sales. No emails are sent and no money moves.
+          </p>
+        ) : null}
         <main id="admin-main" className="ashell__content">
           {children}
         </main>

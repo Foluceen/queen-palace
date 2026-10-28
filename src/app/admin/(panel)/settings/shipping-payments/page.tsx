@@ -99,7 +99,7 @@ function ShippingPaymentsPageInner() {
                 type="button"
                 className="btn btn--ghost btn--sm"
                 onClick={() => {
-                  setShip({ ...ship, zones: [...ship.zones, { id: rid("zone"), name: "New zone", states: [], rates: [{ id: rid("rate"), label: "Courier", description: "", amount: 0, etaDays: [2, 4], freeOver: null }] }] });
+                  setShip({ ...ship, zones: [...ship.zones, { id: rid("zone"), name: "New zone", states: [], cities: [], rates: [{ id: rid("rate"), label: "Courier", description: "", amount: 0, etaDays: [2, 4], freeOver: null }] }] });
                   setDirty(true);
                 }}
               >
@@ -114,8 +114,16 @@ function ShippingPaymentsPageInner() {
                     <TextField label="Zone name" value={z.name} onChange={(e) => setZone(i, { ...z, name: e.target.value })} />
                     <div className="field">
                       <span className="field__label">States</span>
-                      <StatePicker value={z.states} taken={ship.zones.flatMap((x) => x.states)} onChange={(states) => setZone(i, { ...z, states })} />
+                      <StatePicker value={z.states} taken={z.cities.length ? [] : ship.zones.filter((x) => x.id !== z.id && !x.cities.length).flatMap((x) => x.states)} onChange={(states) => setZone(i, { ...z, states })} />
                     </div>
+                    <TextField
+                      label="Only these towns (optional)"
+                      value={z.cities.join(", ")}
+                      onChange={(e) => setZone(i, { ...z, cities: e.target.value.split(",").map((c) => c.trimStart()).filter((c, k, arr) => c || k === arr.length - 1) })}
+                      onBlur={() => setZone(i, { ...z, cities: z.cities.map((c) => c.trim()).filter(Boolean) })}
+                      placeholder="Ilesha, Ijebu-Jesa"
+                      hint="Comma separated. A town zone is used before the state-wide zone."
+                    />
                     <button
                       type="button"
                       className="icon-btn"

@@ -32,7 +32,7 @@ export function TrackOrder() {
           }
         }}
       >
-        <TextField label="Order number" value={number} onChange={(e) => setNumber(e.target.value)} required placeholder="IR-10412" autoCapitalize="characters" />
+        <TextField label="Order number" value={number} onChange={(e) => setNumber(e.target.value)} required placeholder="QP-10412" autoCapitalize="characters" />
         <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         <button type="submit" className="btn" disabled={busy}>
           {busy ? <span className="spinner" aria-hidden /> : null}

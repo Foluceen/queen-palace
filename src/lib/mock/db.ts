@@ -5,6 +5,7 @@
 import type {
   Collection,
   ContentPage,
+  Customer,
   Discount,
   HomepageSection,
   Inquiry,
@@ -13,8 +14,10 @@ import type {
   Order,
   PaymentSettings,
   Product,
+  ProductType,
   Review,
   Role,
+  SavedAddress,
   ShippingSettings,
   Staff,
   StoreSettings,
@@ -22,6 +25,7 @@ import type {
 import {
   seedCollections,
   seedCustomer,
+  seedCustomerAddresses,
   seedDiscounts,
   seedHomepage,
   seedInquiries,
@@ -30,6 +34,7 @@ import {
   seedPages,
   seedPayments,
   seedProducts,
+  seedProductTypes,
   seedReviews,
   seedRoles,
   seedSettings,
@@ -47,10 +52,20 @@ export interface MockCart {
   updatedAt: string;
 }
 
+export interface MockCustomerAccount {
+  customer: Customer;
+  /** Mock only. A real backend stores an argon2id hash. */
+  password: string;
+  addresses: SavedAddress[];
+  wishlist: string[];
+  marketingOptIn: boolean;
+}
+
 export interface MockDb {
   media: Media[];
   collections: Collection[];
   products: Product[];
+  productTypes: ProductType[];
   reviews: Review[];
   carts: Map<string, MockCart>;
   orders: Order[];
@@ -67,9 +82,9 @@ export interface MockDb {
   roles: Role[];
   staffPasswords: Record<string, string>;
   adminSessions: Map<string, { staffId: string; expiresAt: number }>;
-  customer: typeof seedCustomer;
-  customerSessions: Set<string>;
-  wishlist: string[];
+  accounts: MockCustomerAccount[];
+  customerSessions: Map<string, string>;
+  passwordResets: Map<string, { customerId: string; expiresAt: number }>;
   newsletter: Set<string>;
   seq: number;
 }
@@ -81,6 +96,7 @@ function createDb(): MockDb {
     media: clone(seedMedia),
     collections: clone(seedCollections),
     products,
+    productTypes: clone(seedProductTypes),
     reviews: clone(seedReviews),
     carts: new Map(),
     orders: [],
@@ -97,9 +113,9 @@ function createDb(): MockDb {
     roles: clone(seedRoles),
     staffPasswords: { ...seedStaffPasswords },
     adminSessions: new Map(),
-    customer: clone(seedCustomer),
-    customerSessions: new Set(),
-    wishlist: [],
+    accounts: [{ customer: clone(seedCustomer.customer), password: seedCustomer.password, addresses: clone(seedCustomerAddresses), wishlist: [], marketingOptIn: false }],
+    customerSessions: new Map(),
+    passwordResets: new Map(),
     newsletter: new Set(),
     seq: 10400,
   };
@@ -108,11 +124,17 @@ function createDb(): MockDb {
   return db;
 }
 
-const g = globalThis as unknown as { __irunMockDb?: MockDb };
+const g = globalThis as unknown as { __qpMockDb?: MockDb };
 
 export function getDb(): MockDb {
-  if (!g.__irunMockDb) g.__irunMockDb = createDb();
-  return g.__irunMockDb;
+  if (!g.__qpMockDb) g.__qpMockDb = createDb();
+  return g.__qpMockDb;
+}
+
+/** Test helper: start from fresh seed data. */
+export function resetDb() {
+  g.__qpMockDb = createDb();
+  return g.__qpMockDb;
 }
 
 export function newId(prefix: string): string {

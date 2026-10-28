@@ -1,66 +1,160 @@
 /* ==========================================================================
-   Ìrun design system — black, pink and gold.
-   Brand colours are overridable from admin → Branding (see BrandStyle).
+   Queen Palace Beauty World — design system.
+   Layout idea: an editorial beauty house. Arched "palace window" frames for
+   campaign imagery, quiet surfaces, gold used only where it means something.
+
+   Theme model: light tokens on :root, dark tokens on [data-theme="dark"].
+   A pre-paint script (ThemeScript) resolves light / dark / system and sets
+   data-theme, so there is no flash. Without JS, the OS preference applies.
+   Brand colours can be overridden from admin → Branding (BrandStyle).
    ========================================================================== */
 
 :root {
-  /* Brand palette */
-  --bg: #0b0709;
-  --panel: #161015;
-  --pink: #ff4f9a;
-  --gold: #d8b25a;
-  --blush: #f6b3cf;
+  /* Brand (overridable) */
+  --gold: #c9a45c;
+  --burgundy: #6b1630;
+  --bg: #faf6ef;
+  --surface: #f4ecdf;
+  --surface-2: #eee2cc;
 
-  /* Derived surfaces and text */
-  --panel-2: color-mix(in srgb, var(--panel) 80%, #ffffff 6%);
-  --text: #fbf2f6;
-  --text-2: color-mix(in srgb, var(--text) 78%, var(--bg));
-  --muted: color-mix(in srgb, var(--text) 58%, var(--bg));
-  --line: rgb(255 255 255 / 0.09);
-  --line-strong: rgb(255 255 255 / 0.18);
-  --glass: rgb(22 16 21 / 0.62);
-  --gold-hi: color-mix(in srgb, var(--gold) 60%, #fff4cf);
-  --pink-deep: color-mix(in srgb, var(--pink) 78%, #5a0f33);
-  --glam: linear-gradient(115deg, var(--pink) 0%, var(--blush) 42%, var(--gold-hi) 70%, var(--gold) 100%);
-  --on-pink: #14060c;
-  --on-gold: #160f02;
+  /* Light theme, derived */
+  --field: #fffdf8;
+  --text: #231d1f;
+  --text-2: #4b4144;
+  --muted: #6a5d5e;
+  --line: #e6dbc9;
+  --line-strong: #d2c0a3;
+  --gold-ink: #87652a;
+  --burgundy-ink: var(--burgundy);
+  --on-gold: #1c1408;
+  --cta-bg: var(--burgundy);
+  --cta-fg: #fbf7f1;
+  --cta-hover: color-mix(in srgb, var(--burgundy) 84%, black);
+  --accent-soft: color-mix(in srgb, var(--burgundy) 8%, transparent);
+  --tint: rgb(35 29 31 / 0.045);
+  --tint-2: rgb(35 29 31 / 0.085);
+  --glass: color-mix(in srgb, var(--bg) 78%, transparent);
+  --scrim: rgb(28 18 20 / 0.48);
+  --shadow: 0 18px 44px -24px rgb(70 38 30 / 0.38);
+  --shadow-lg: 0 30px 70px -30px rgb(70 38 30 / 0.45);
+  --glow: 0 16px 36px -18px color-mix(in srgb, var(--burgundy) 70%, transparent);
+  --logo-mark: #a9833d;
+  --logo-text: var(--burgundy);
+  --image-bg: #eadfcd;
 
-  --danger: #ff6b7f;
-  --danger-bg: rgb(255 107 127 / 0.12);
-  --success: #6fdba7;
-  --success-bg: rgb(111 219 167 / 0.12);
-  --warning: #f3c36b;
-  --warning-bg: rgb(243 195 107 / 0.12);
-  --info: #9cc1ff;
-  --info-bg: rgb(156 193 255 / 0.12);
-  --focus: var(--gold-hi);
+  --danger: #a3283b;
+  --danger-bg: #f8e3e5;
+  --success: #2c6a4d;
+  --success-bg: #e2efe6;
+  --warning: #85570e;
+  --warning-bg: #f6ead1;
+  --info: #2e4d79;
+  --info-bg: #e4eaf4;
+  --focus: var(--burgundy);
 
   /* Type */
-  --font-display: var(--font-bricolage), var(--font-bricolage-ext), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), var(--font-fraunces-ext), "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --font-body: var(--font-manrope), var(--font-manrope-ext), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --step--1: 0.8125rem;
   --step-0: 1rem;
   --step-1: 1.1875rem;
   --step-2: 1.5rem;
-  --step-3: clamp(1.75rem, 1.3rem + 1.8vw, 2.6rem);
-  --step-4: clamp(2.3rem, 1.5rem + 3.4vw, 4.2rem);
-  --step-5: clamp(2.7rem, 1.2rem + 7vw, 6.6rem);
+  --step-3: clamp(1.75rem, 1.35rem + 1.7vw, 2.55rem);
+  --step-4: clamp(2.25rem, 1.5rem + 3.2vw, 4.1rem);
+  --step-5: clamp(2.6rem, 1.4rem + 5.6vw, 6.1rem);
 
   /* Space and shape */
   --gutter: clamp(16px, 4vw, 48px);
   --max: 1400px;
-  --section: clamp(64px, 9vw, 140px);
-  --radius-control: 999px;
-  --radius-sm: 12px;
-  --radius-field: 14px;
-  --radius: 22px;
-  --radius-lg: 30px;
-  --shadow: 0 24px 60px -24px rgb(0 0 0 / 0.7);
-  --glow-pink: 0 18px 50px -18px color-mix(in srgb, var(--pink) 65%, transparent);
+  --section: clamp(64px, 9vw, 136px);
+  --radius-control: 6px;
+  --radius-sm: 8px;
+  --radius-field: 10px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --arch: 999px 999px var(--radius) var(--radius);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --header-h: 68px;
+  --header-h: 72px;
+  color-scheme: light;
+}
+
+/* Dark theme: chosen explicitly, or resolved from "system" by ThemeScript. */
+:root[data-theme="dark"] {
+  --bg: #0e0b0c;
+  --surface: #191516;
+  --surface-2: #221d1f;
+  --gold: #d4b373;
+  --burgundy: #8c2242;
+  --field: #141011;
+  --text: #f6efe4;
+  --text-2: #d8cdbf;
+  --muted: #9e9289;
+  --line: #2b2427;
+  --line-strong: #4a3f33;
+  --gold-ink: #d9bc82;
+  --burgundy-ink: #dc9fb1;
+  --on-gold: #170f05;
+  --cta-bg: var(--gold);
+  --cta-fg: #170f05;
+  --cta-hover: color-mix(in srgb, var(--gold) 80%, white);
+  --accent-soft: color-mix(in srgb, var(--gold) 12%, transparent);
+  --tint: rgb(246 239 228 / 0.05);
+  --tint-2: rgb(246 239 228 / 0.09);
+  --scrim: rgb(0 0 0 / 0.64);
+  --shadow: 0 24px 60px -26px rgb(0 0 0 / 0.8);
+  --shadow-lg: 0 34px 80px -30px rgb(0 0 0 / 0.85);
+  --glow: 0 16px 40px -18px color-mix(in srgb, var(--gold) 55%, transparent);
+  --logo-mark: var(--gold);
+  --logo-text: #f6efe4;
+  --image-bg: #1f1a1b;
+  --danger: #ff8d9b;
+  --danger-bg: rgb(255 141 155 / 0.12);
+  --success: #80d6ad;
+  --success-bg: rgb(128 214 173 / 0.12);
+  --warning: #f0c477;
+  --warning-bg: rgb(240 196 119 / 0.12);
+  --info: #a9c3f0;
+  --info-bg: rgb(169 195 240 / 0.12);
+  --focus: var(--gold);
   color-scheme: dark;
+}
+
+/* No-JS fallback: follow the OS when the theme script never ran. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0e0b0c;
+    --surface: #191516;
+    --surface-2: #221d1f;
+    --gold: #d4b373;
+    --burgundy: #8c2242;
+    --field: #141011;
+    --text: #f6efe4;
+    --text-2: #d8cdbf;
+    --muted: #9e9289;
+    --line: #2b2427;
+    --line-strong: #4a3f33;
+    --gold-ink: #d9bc82;
+    --burgundy-ink: #dc9fb1;
+    --cta-bg: var(--gold);
+    --cta-fg: #170f05;
+    --cta-hover: color-mix(in srgb, var(--gold) 80%, white);
+    --accent-soft: color-mix(in srgb, var(--gold) 12%, transparent);
+    --tint: rgb(246 239 228 / 0.05);
+    --tint-2: rgb(246 239 228 / 0.09);
+    --scrim: rgb(0 0 0 / 0.64);
+    --logo-mark: var(--gold);
+    --logo-text: #f6efe4;
+    --image-bg: #1f1a1b;
+    --focus: var(--gold);
+    color-scheme: dark;
+  }
+}
+
+/* Theme switches cross-fade via the View Transitions API where supported. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.32s;
 }
 
 *,
@@ -100,8 +194,8 @@ h2,
 h3,
 h4 {
   margin: 0;
-  font-weight: 700;
-  line-height: 1.05;
+  font-weight: 600;
+  line-height: 1.08;
   text-wrap: balance;
 }
 
@@ -135,8 +229,8 @@ button {
 }
 
 ::selection {
-  background: var(--pink);
-  color: var(--on-pink);
+  background: var(--gold);
+  color: var(--on-gold);
 }
 
 .sr-only {
@@ -157,8 +251,8 @@ button {
   top: -60px;
   z-index: 100;
   padding: 10px 18px;
-  background: var(--pink);
-  color: var(--on-pink);
+  background: var(--cta-bg);
+  color: var(--cta-fg);
   border-radius: var(--radius-control);
   font-weight: 700;
   text-decoration: none;
@@ -167,41 +261,51 @@ button {
   top: 12px;
 }
 
+/* Logo -------------------------------------------------------------------- */
+.logo__mark {
+  fill: var(--logo-mark);
+}
+.logo__text {
+  fill: var(--logo-text);
+}
+.logo--horizontal {
+  height: 44px;
+  width: auto;
+}
+.logo--compact {
+  height: 40px;
+  width: auto;
+}
+
 /* Typography roles ------------------------------------------------------- */
 
 .display {
   font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.035em;
+  font-weight: 520;
+  letter-spacing: -0.025em;
+  font-optical-sizing: auto;
 }
 .h1 {
   font-family: var(--font-display);
   font-size: var(--step-4);
-  font-weight: 700;
-  letter-spacing: -0.035em;
+  font-weight: 520;
+  letter-spacing: -0.025em;
 }
 .h2 {
   font-family: var(--font-display);
   font-size: var(--step-3);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-weight: 540;
+  letter-spacing: -0.02em;
 }
 .h3 {
-  font-family: var(--font-display);
   font-size: var(--step-1);
-  font-weight: 650;
-  letter-spacing: -0.015em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: 1.25;
-}
-.glam-text {
-  background: var(--glam);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 .lede {
   font-size: var(--step-1);
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--text-2);
   max-width: 36em;
 }
@@ -236,7 +340,7 @@ button {
   padding-left: 1.2em;
 }
 .prose li::marker {
-  color: var(--pink);
+  color: var(--gold);
 }
 .prose li + li {
   margin-top: 0.4em;
@@ -269,9 +373,10 @@ button {
 /* Buttons ----------------------------------------------------------------- */
 
 .btn {
-  --btn-bg: var(--pink);
-  --btn-fg: var(--on-pink);
+  --btn-bg: var(--cta-bg);
+  --btn-fg: var(--cta-fg);
   --btn-border: transparent;
+  --btn-hover: var(--cta-hover);
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -285,9 +390,9 @@ button {
   border-radius: var(--radius-control);
   background: var(--btn-bg);
   color: var(--btn-fg);
-  font-weight: 750;
+  font-weight: 700;
   font-size: 0.9375rem;
-  letter-spacing: 0.005em;
+  letter-spacing: 0.01em;
   text-decoration: none;
   white-space: nowrap;
   transition: transform 0.25s var(--ease-out), box-shadow 0.3s var(--ease-out), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
@@ -300,14 +405,15 @@ button {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
   transform: translateX(-120%);
   transition: transform 0.7s var(--ease-out);
 }
 @media (hover: hover) {
   .btn:hover {
+    background: var(--btn-hover);
     transform: translateY(-2px);
-    box-shadow: var(--glow-pink);
+    box-shadow: var(--glow);
   }
   .btn:hover::after {
     transform: translateX(120%);
@@ -326,18 +432,16 @@ button {
 .btn--gold {
   --btn-bg: var(--gold);
   --btn-fg: var(--on-gold);
-}
-.btn--gold:hover {
-  box-shadow: 0 18px 44px -18px color-mix(in srgb, var(--gold) 70%, transparent);
+  --btn-hover: color-mix(in srgb, var(--gold) 86%, white);
 }
 .btn--ghost {
-  --btn-bg: rgb(255 255 255 / 0.04);
+  --btn-bg: transparent;
   --btn-fg: var(--text);
   --btn-border: var(--line-strong);
+  --btn-hover: var(--tint);
 }
 .btn--ghost:hover {
-  --btn-bg: rgb(255 255 255 / 0.08);
-  --btn-border: var(--blush);
+  --btn-border: var(--gold);
   box-shadow: none;
 }
 .btn--ghost::after {
@@ -345,7 +449,17 @@ button {
 }
 .btn--danger {
   --btn-bg: var(--danger);
-  --btn-fg: #1a0306;
+  --btn-fg: var(--bg);
+  --btn-hover: var(--danger);
+}
+.btn--whatsapp {
+  --btn-bg: transparent;
+  --btn-fg: var(--text);
+  --btn-border: var(--line-strong);
+  --btn-hover: var(--tint);
+}
+.btn--whatsapp svg {
+  color: #25a35a;
 }
 .btn--sm {
   min-height: 40px;
@@ -369,10 +483,13 @@ button {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--blush);
-  font-weight: 600;
+  color: var(--burgundy-ink);
+  font-weight: 650;
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+:root[data-theme="dark"] .link-btn {
+  color: var(--gold-ink);
 }
 
 .spinner {
@@ -418,13 +535,19 @@ button {
   padding: 13px 16px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-field);
-  background: rgb(255 255 255 / 0.04);
+  background: var(--field);
   color: var(--text);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
 }
 .input::placeholder,
 .textarea::placeholder {
-  color: color-mix(in srgb, var(--text) 38%, transparent);
+  color: color-mix(in srgb, var(--text) 40%, transparent);
+}
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .textarea {
   min-height: 120px;
@@ -433,21 +556,21 @@ button {
 .select {
   appearance: none;
   padding-right: 42px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath stroke='%23f6b3cf' stroke-width='1.6' d='m1 1.5 5 5 5-5'/%3E%3C/svg%3E");
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 22px) 52%, calc(100% - 16px) 52%;
+  background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
-  background-position: right 16px center;
 }
 .select option {
-  background: var(--panel);
+  background: var(--field);
   color: var(--text);
 }
 .input:focus,
 .select:focus,
 .textarea:focus {
   outline: none;
-  border-color: var(--pink);
-  background-color: rgb(255 255 255 / 0.06);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pink) 22%, transparent);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 24%, transparent);
 }
 .input[aria-invalid="true"],
 .select[aria-invalid="true"],
@@ -465,7 +588,7 @@ button {
   width: 18px;
   height: 18px;
   margin-top: 3px;
-  accent-color: var(--pink);
+  accent-color: var(--cta-bg);
 }
 
 /* Badges, notices, skeletons ------------------------------------------------- */
@@ -477,24 +600,23 @@ button {
   min-height: 24px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.08);
+  background: var(--tint-2);
   color: var(--text);
   font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
 }
-.badge--pink {
-  background: var(--pink);
-  color: var(--on-pink);
+.badge--accent {
+  background: var(--cta-bg);
+  color: var(--cta-fg);
 }
 .badge--gold {
   background: var(--gold);
   color: var(--on-gold);
 }
 .badge--ink {
-  background: #000;
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  background: var(--text);
+  color: var(--bg);
 }
 .badge--success {
   background: var(--success-bg);
@@ -520,7 +642,7 @@ button {
   align-items: center;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
-  background: rgb(255 255 255 / 0.05);
+  background: var(--tint);
   border: 1px solid var(--line);
   font-size: 0.9375rem;
   color: var(--text-2);
@@ -541,15 +663,15 @@ button {
   color: var(--success);
 }
 .notice--info {
-  background: color-mix(in srgb, var(--blush) 10%, transparent);
-  border-color: color-mix(in srgb, var(--blush) 26%, transparent);
-  color: var(--blush);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--gold) 34%, transparent);
+  color: var(--text-2);
 }
 
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.05);
+  background: var(--tint-2);
   border-radius: var(--radius-sm);
 }
 .skeleton::after {
@@ -557,7 +679,7 @@ button {
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.07), transparent);
+  background: linear-gradient(90deg, transparent, var(--tint-2), transparent);
   animation: shimmer 1.4s ease-in-out infinite;
 }
 @keyframes shimmer {
@@ -576,7 +698,8 @@ button {
 .state__title {
   font-family: var(--font-display);
   font-size: var(--step-3);
-  letter-spacing: -0.03em;
+  font-weight: 540;
+  letter-spacing: -0.02em;
 }
 
 .divider {
@@ -594,7 +717,7 @@ button {
   padding: 0 16px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.03);
+  background: transparent;
   color: var(--text);
   font-size: 0.875rem;
   font-weight: 600;
@@ -602,12 +725,12 @@ button {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .chip:hover {
-  border-color: var(--blush);
+  border-color: var(--gold);
 }
 .chip.is-on {
-  background: var(--pink);
-  border-color: var(--pink);
-  color: var(--on-pink);
+  background: var(--cta-bg);
+  border-color: var(--cta-bg);
+  color: var(--cta-fg);
 }
 .chip__count {
   font-size: 0.75rem;
@@ -628,7 +751,7 @@ button {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .icon-btn:hover {
-  background: rgb(255 255 255 / 0.08);
+  background: var(--tint-2);
 }
 .icon-btn:disabled {
   opacity: 0.35;
@@ -650,10 +773,11 @@ button {
 }
 .switch__track {
   position: relative;
+  flex-shrink: 0;
   width: 42px;
   height: 24px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.14);
+  background: var(--line-strong);
   transition: background-color 0.2s ease;
 }
 .switch__thumb {
@@ -663,28 +787,79 @@ button {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--text);
+  background: var(--field);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
   transition: transform 0.25s var(--ease-spring);
 }
 .switch input:checked + .switch__track {
-  background: var(--pink);
+  background: var(--cta-bg);
 }
 .switch input:checked + .switch__track .switch__thumb {
   transform: translateX(18px);
-  background: var(--on-pink);
+  background: var(--cta-fg);
 }
 .switch input:focus-visible + .switch__track {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
+/* Theme menu (storefront header + admin top bar) ---------------------------- */
+.theme-menu {
+  position: relative;
+}
+.theme-menu__list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 70;
+  display: grid;
+  min-width: 190px;
+  padding: 6px;
+  margin: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.theme-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: left;
+}
+.theme-menu__item:hover,
+.theme-menu__item:focus-visible {
+  background: var(--tint-2);
+  outline: none;
+}
+.theme-menu__item[aria-checked="true"] {
+  color: var(--burgundy-ink);
+}
+:root[data-theme="dark"] .theme-menu__item[aria-checked="true"] {
+  color: var(--gold-ink);
+}
+.theme-menu__check {
+  margin-left: auto;
+}
+
 /* Mode banner (mock data) */
 .mode-banner {
   padding: 8px var(--gutter);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--pink) 22%, var(--bg)), color-mix(in srgb, var(--gold) 18%, var(--bg)));
-  color: var(--text);
+  background: var(--surface-2);
+  color: var(--text-2);
   font-size: var(--step--1);
   text-align: center;
+  border-bottom: 1px solid var(--line);
 }
 
 /* Motion safety: anything that animates must still look right without JS. */

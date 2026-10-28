@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Icon } from "@/components/ui/Icon";
 import { animate, stagger } from "@/lib/motion/anime";
 import type { Navigation } from "@/lib/types";
@@ -33,6 +35,7 @@ export function HeaderActions() {
       <button type="button" className="icon-btn" onClick={() => setSearchOpen(true)} aria-label="Search">
         <Icon name="search" />
       </button>
+      <ThemeToggle className="hide-sm" />
       <Link href="/wishlist" className="icon-btn hide-sm" aria-label={`Wishlist, ${ids.length} saved`}>
         <Icon name="heart" />
         {ids.length ? <span className="icon-btn__count">{ids.length}</span> : null}
@@ -89,7 +92,7 @@ export function MobileMenu({ navigation, storeName }: { navigation: Navigation; 
       >
         <div className="mnav__panel">
           <div className="mnav__head">
-            <span className="wordmark">{storeName}</span>
+            <Logo variant="horizontal" title={storeName} className="mnav__logo" />
             <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close menu">
               <Icon name="close" />
             </button>
@@ -122,6 +125,10 @@ export function MobileMenu({ navigation, storeName }: { navigation: Navigation; 
               </Link>
             </li>
           </ul>
+          <div className="mnav__foot">
+            <span className="small muted">Appearance</span>
+            <ThemeToggle />
+          </div>
         </div>
       </dialog>
     </>

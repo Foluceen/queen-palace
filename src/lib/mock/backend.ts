@@ -4,12 +4,15 @@
  * prices, stock, shipping and discounts are computed here, never in components, and
  * no order placed through mock checkout is ever marked as paid.
  */
+import { isNigerianPhone, PHONE_ERROR } from "@/lib/phone";
 import { decodeOptions, type Contract, type EndpointName, type RequestOf, type ResponseOf } from "@/lib/api/contract";
 import type {
   Availability,
   Cart,
   CartDiscount,
+  AnalyticsReport,
   Collection,
+  CustomerSummary,
   DashboardSummary,
   Discount,
   Facet,
@@ -25,11 +28,13 @@ import type {
   ProductListing,
   ProductQuery,
   ProductSort,
+  ResolvedAttribute,
   Review,
+  SavedAddress,
   ShippingRate,
   Variant,
 } from "@/lib/types";
-import { getDb, newId, type MockCart, type MockDb } from "./db";
+import { getDb, newId, type MockCart, type MockCustomerAccount, type MockDb } from "./db";
 
 export class MockHttpError extends Error {
   constructor(
@@ -48,8 +53,9 @@ export interface MockContext {
   clearCookie(name: string): void;
 }
 
-const ADMIN_COOKIE = "irun_mock_admin";
-const CUSTOMER_COOKIE = "irun_mock_customer";
+const ADMIN_COOKIE = "qp_mock_admin";
+const CUSTOMER_COOKIE = "qp_mock_customer";
+const EMAIL = /^\S+@\S+\.\S+$/;
 
 const fail = (status: number, code: string, message: string, fields?: Record<string, string>): never => {
   throw new MockHttpError(status, code, message, fields);
@@ -83,9 +89,41 @@ function refreshProduct(p: Product): Product {
 
 function refreshAll(db: MockDb) {
   db.products.forEach(refreshProduct);
+  // Ratings come only from published reviews, so the stars always match what shoppers can read.
+  const stats = new Map<string, { sum: number; count: number }>();
+  for (const r of db.reviews) {
+    if (r.status !== "published") continue;
+    const s = stats.get(r.productId) ?? { sum: 0, count: 0 };
+    s.sum += r.rating;
+    s.count += 1;
+    stats.set(r.productId, s);
+  }
+  for (const p of db.products) {
+    const s = stats.get(p.id);
+    p.rating = s ? { average: Math.round((s.sum / s.count) * 10) / 10, count: s.count } : { average: 0, count: 0 };
+  }
   for (const c of db.collections) {
     c.productCount = db.products.filter((p) => p.status === "published" && p.collectionIds.includes(c.id)).length;
   }
+  for (const t of db.productTypes) t.productCount = db.products.filter((p) => p.productTypeId === t.id).length;
+}
+
+function resolveAttributes(db: MockDb, p: Product): ResolvedAttribute[] {
+  const type = db.productTypes.find((t) => t.id === p.productTypeId);
+  if (!type) return [];
+  return type.attributes
+    .map((a) => ({ key: a.key, label: a.label, kind: a.kind, group: a.group, value: (p.attributes[a.key] ?? "").trim() }))
+    .filter((a) => a.value !== "");
+}
+
+/** Units sold per product from paid orders (used for "Best sellers"). */
+function unitsSold(db: MockDb) {
+  const units = new Map<string, number>();
+  for (const o of db.orders) {
+    if (!["paid", "partially_refunded"].includes(o.paymentStatus)) continue;
+    for (const l of o.lines) units.set(l.productId, (units.get(l.productId) ?? 0) + l.quantity);
+  }
+  return units;
 }
 
 function toCard(p: Product): ProductCard {
@@ -144,6 +182,7 @@ function buildListing(db: MockDb, base: Product[], query: ProductQuery): Product
   if (query.minPrice !== undefined) items = items.filter((p) => p.priceRange.max >= query.minPrice!);
   if (query.maxPrice !== undefined) items = items.filter((p) => p.priceRange.min <= query.maxPrice!);
 
+  const units = sort === "best_selling" ? unitsSold(db) : new Map<string, number>();
   const sorted = [...items].sort((a, b) => {
     switch (sort) {
       case "newest":
@@ -154,12 +193,15 @@ function buildListing(db: MockDb, base: Product[], query: ProductQuery): Product
         return b.priceRange.min - a.priceRange.min;
       case "rating":
         return b.rating.average - a.rating.average || b.rating.count - a.rating.count;
+      case "best_selling":
+        return (units.get(b.id) ?? 0) - (units.get(a.id) ?? 0) || Number(b.featured) - Number(a.featured);
       default:
         return Number(b.featured) - Number(a.featured) || b.rating.count - a.rating.count;
     }
   });
 
-  const facetNames = ["Length", "Colour", "Density", "Lace", "Size"];
+  // Facets come from whatever options the products in view actually have (data-driven, not wig-specific).
+  const facetNames = [...new Set(facetSource.flatMap((p) => p.options.map((o) => o.name)))];
   const facets: Facet[] = facetNames
     .map((name) => {
       const counts = new Map<string, number>();
@@ -176,7 +218,6 @@ function buildListing(db: MockDb, base: Product[], query: ProductQuery): Product
 
   const allPrices = facetSource.flatMap((p) => [p.priceRange.min, p.priceRange.max]);
   const page = paginate(sorted.map(toCard), num(query.page, 1), Math.min(48, num(query.pageSize, 12)));
-  void db;
   return { ...page, facets, priceBounds: { min: allPrices.length ? Math.min(...allPrices) : 0, max: allPrices.length ? Math.max(...allPrices) : 0 } };
 }
 
@@ -304,8 +345,14 @@ function addLines(db: MockDb, cart: MockCart, lines: { variantId: string; quanti
 
 /* ----------------------------------------------------------------- shipping */
 
-function ratesFor(db: MockDb, state: string, subtotal: number): ShippingRate[] {
-  const zone = db.shipping.zones.find((z) => z.states.includes(state)) ?? db.shipping.zones.find((z) => z.states.length === 0);
+function ratesFor(db: MockDb, state: string, subtotal: number, city = ""): ShippingRate[] {
+  const town = city.trim().toLowerCase();
+  const cityMatch = (cities: string[]) => cities.length === 0 || (town !== "" && cities.some((c) => town.includes(c.toLowerCase())));
+  // Most specific first: zones that list towns, then whole-state zones, then the catch-all.
+  const zone =
+    db.shipping.zones.find((z) => z.states.includes(state) && z.cities.length > 0 && cityMatch(z.cities)) ??
+    db.shipping.zones.find((z) => z.states.includes(state) && z.cities.length === 0) ??
+    db.shipping.zones.find((z) => z.states.length === 0);
   if (!zone) return [];
   return zone.rates.map(({ freeOver, ...r }) => ({ ...r, amount: freeOver !== null && subtotal >= freeOver ? 0 : r.amount }));
 }
@@ -349,10 +396,31 @@ function requirePerm(db: MockDb, ctx: MockContext, perm: Permission) {
   return s;
 }
 
-function requireCustomer(db: MockDb, ctx: MockContext) {
+function requireAccount(db: MockDb, ctx: MockContext): MockCustomerAccount {
   const token = ctx.getCookie(CUSTOMER_COOKIE);
-  if (!token || !db.customerSessions.has(token)) fail(401, "unauthenticated", "Sign in to see your account.");
-  return db.customer.customer;
+  const id = token ? db.customerSessions.get(token) : undefined;
+  const account = id ? db.accounts.find((a) => a.customer.id === id) : undefined;
+  if (!account) fail(401, "unauthenticated", "Sign in to see your account.");
+  return account!;
+}
+const requireCustomer = (db: MockDb, ctx: MockContext) => requireAccount(db, ctx).customer;
+
+function startCustomerSession(db: MockDb, ctx: MockContext, account: MockCustomerAccount) {
+  const token = newId("cs");
+  db.customerSessions.set(token, account.customer.id);
+  ctx.setCookie(CUSTOMER_COOKIE, token, 60 * 60 * 24 * 14);
+  return { customer: account.customer };
+}
+
+function validateAddress(a: Partial<SavedAddress>): Record<string, string> {
+  const f: Record<string, string> = {};
+  if (!a.firstName?.trim()) f.firstName = "Enter a first name.";
+  if (!a.lastName?.trim()) f.lastName = "Enter a last name.";
+  if (!isNigerianPhone(a.phone ?? "")) f.phone = PHONE_ERROR;
+  if (!a.line1?.trim()) f.line1 = "Enter a street address.";
+  if (!a.city?.trim()) f.city = "Enter a city or town.";
+  if (!a.state) f.state = "Choose a state.";
+  return f;
 }
 
 /* ----------------------------------------------------------------- handlers */
@@ -364,21 +432,39 @@ const mediaFor = (db: MockDb, ids: string[]) => ids.map((id) => db.media.find((m
 const sortedCollections = (db: MockDb) => [...db.collections].sort((a, b) => a.position - b.position);
 
 function homepage(db: MockDb, includeDisabled: boolean): Homepage {
-  const sections = [...db.homepage].filter((s) => includeDisabled || s.enabled).sort((a, b) => a.position - b.position);
+  const sections = [...db.homepage]
+    .filter((s) => includeDisabled || (s.enabled && !(s.type === "promo" && s.endsAt && Date.parse(s.endsAt) < Date.now())))
+    .sort((a, b) => a.position - b.position);
   const pub = published(db);
   const resolved = sections.map((s) => {
     if (s.type === "product_rail") {
       let list = pub;
       if (s.source.kind === "featured") list = pub.filter((p) => p.featured);
+      if (s.source.kind === "best_sellers") {
+        const units = unitsSold(db);
+        list = [...pub].sort((a, b) => (units.get(b.id) ?? 0) - (units.get(a.id) ?? 0) || b.rating.count - a.rating.count);
+      }
       if (s.source.kind === "newest") list = [...pub].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+      let href = s.source.kind === "newest" ? "/search?sort=newest" : s.source.kind === "best_sellers" ? "/search?sort=best_selling" : "/search";
       if (s.source.kind === "collection") {
         const cid = s.source.collectionId;
         list = pub.filter((p) => p.collectionIds.includes(cid));
+        const col = db.collections.find((c) => c.id === cid && c.status === "published");
+        if (col) href = `/collections/${col.handle}`;
       }
-      return { ...s, products: list.slice(0, s.limit).map(toCard) };
+      return { ...s, products: list.slice(0, s.limit).map(toCard), href };
     }
     if (s.type === "hero") {
-      return { ...s, spotlight: pub.filter((p) => p.featured).slice(0, 2).map(toCard) };
+      const stats = (s.stats ?? []).map((st) => ({
+        ...st,
+        value: st.source === "collections" ? db.collections.filter((c) => c.status === "published").length : st.source === "products" ? pub.filter((p) => p.availability !== "out_of_stock").length : st.value,
+      }));
+      return { ...s, stats, spotlight: pub.filter((p) => p.featured).slice(0, 2).map(toCard) };
+    }
+    if (s.type === "faq") {
+      const page = db.pages.find((p) => p.slug === "faq");
+      const items = (page?.blocks ?? []).flatMap((b) => (b.kind === "qa" ? [{ question: b.question, answer: b.answer }] : [])).slice(0, s.limit);
+      return { ...s, items };
     }
     if (s.type === "reviews") {
       return { ...s, reviews: db.reviews.filter((r) => r.status === "published" && r.rating >= 4).slice(0, 6) };
@@ -463,7 +549,8 @@ export const handlers: Handlers = {
       .filter((p) => p.id !== product.id && p.collectionIds.some((c) => product.collectionIds.includes(c)))
       .slice(0, 4)
       .map(toCard);
-    return { product, collections, related };
+    const type = db.productTypes.find((t) => t.id === product.productTypeId);
+    return { product, productType: type ? { id: type.id, name: type.name } : null, attributes: resolveAttributes(db, product), collections, related };
   },
   listProductReviews: ({ params, query }, _c, db) =>
     paginate(
@@ -562,7 +649,7 @@ export const handlers: Handlers = {
     const mcart = getCartOr404(db, body.cartId);
     const cart = computeCart(db, mcart);
     if (!body.address.state) fail(422, "validation_failed", "Choose a state to see delivery options.", { state: "Choose your state." });
-    return ratesFor(db, body.address.state, cart.totals.subtotal - cart.totals.discountTotal).map((r) => {
+    return ratesFor(db, body.address.state, cart.totals.subtotal - cart.totals.discountTotal, body.address.city).map((r) => {
       const t = computeCart(db, mcart, r.amount).totals;
       return { ...r, totals: { ...t, shippingTotal: t.shippingTotal ?? 0 } };
     });
@@ -577,7 +664,7 @@ export const handlers: Handlers = {
     const fields: Record<string, string> = {};
     const a = body.shippingAddress;
     if (!/^\S+@\S+\.\S+$/.test(body.contact.email)) fields.email = "Enter a valid email address.";
-    if (body.contact.phone.replace(/\D/g, "").length < 10) fields.phone = "Enter a phone number we can call.";
+    if (!isNigerianPhone(body.contact.phone)) fields.phone = PHONE_ERROR;
     if (!a.firstName.trim()) fields.firstName = "Enter a first name.";
     if (!a.lastName.trim()) fields.lastName = "Enter a last name.";
     if (!a.line1.trim()) fields.line1 = "Enter a street address.";
@@ -591,7 +678,7 @@ export const handlers: Handlers = {
       mcart.notices = preview.notices;
       fail(409, "cart_changed", preview.notices.join(" "));
     }
-    const rates = ratesFor(db, a.state, preview.totals.subtotal - preview.totals.discountTotal);
+    const rates = ratesFor(db, a.state, preview.totals.subtotal - preview.totals.discountTotal, a.city);
     const rate = rates.find((r) => r.id === body.shippingRateId) ?? fail(422, "invalid_shipping", "That delivery option isn't available for your state. Choose another.");
     const cart = computeCart(db, mcart, rate.amount);
 
@@ -615,7 +702,7 @@ export const handlers: Handlers = {
       if (disc) disc.usageCount++;
     }
 
-    const number = `IR-${++db.seq}`;
+    const number = `QP-${++db.seq}`;
     const order: Order = {
       id: newId("ord"),
       number,
@@ -689,11 +776,50 @@ export const handlers: Handlers = {
 
   /* customer */
   customerLogin: ({ body }, ctx, db) => {
-    if (body.email.trim().toLowerCase() !== db.customer.customer.email || body.password !== db.customer.password) fail(401, "invalid_credentials", "That email and password don't match an account.");
-    const token = newId("cs");
-    db.customerSessions.add(token);
-    ctx.setCookie(CUSTOMER_COOKIE, token, 60 * 60 * 24 * 14);
-    return { customer: db.customer.customer };
+    const account = db.accounts.find((a) => a.customer.email === body.email.trim().toLowerCase());
+    if (!account || account.password !== body.password) fail(401, "invalid_credentials", "That email and password don't match an account.");
+    return startCustomerSession(db, ctx, account!);
+  },
+  customerRegister: ({ body }, ctx, db) => {
+    const email = body.email.trim().toLowerCase();
+    const fields: Record<string, string> = {};
+    if (!body.firstName.trim()) fields.firstName = "Enter your first name.";
+    if (!body.lastName.trim()) fields.lastName = "Enter your last name.";
+    if (!EMAIL.test(email)) fields.email = "Enter a valid email address.";
+    if (body.password.length < 8) fields.password = "Use at least 8 characters.";
+    if (body.phone?.trim() && !isNigerianPhone(body.phone)) fields.phone = PHONE_ERROR;
+    if (Object.keys(fields).length) fail(422, "validation_failed", "Check the highlighted fields.", fields);
+    if (db.accounts.some((a) => a.customer.email === email)) fail(409, "email_taken", "An account already uses this email. Sign in or reset your password.", { email: "This email already has an account." });
+    const account: MockCustomerAccount = {
+      customer: { id: newId("cus"), firstName: body.firstName.trim(), lastName: body.lastName.trim(), email, phone: body.phone?.trim() || null, createdAt: now() },
+      password: body.password,
+      addresses: [],
+      wishlist: [],
+      marketingOptIn: body.marketingOptIn,
+    };
+    db.accounts.push(account);
+    if (body.marketingOptIn) db.newsletter.add(email);
+    return startCustomerSession(db, ctx, account);
+  },
+  customerRequestPasswordReset: ({ body }, _c, db) => {
+    const account = db.accounts.find((a) => a.customer.email === body.email.trim().toLowerCase());
+    // The live backend emails a link to /account/reset?token=… . Mock mode sends nothing.
+    if (account) {
+      const token = newId("reset");
+      db.passwordResets.set(token, { customerId: account.customer.id, expiresAt: Date.now() + 3600_000 });
+      // Mock only: there is no email, so the link is printed to the server log for testing.
+      if (process.env.NODE_ENV !== "test") console.info(`[mock] password reset link: /account/reset?token=${token}`);
+    }
+    return { ok: true };
+  },
+  customerResetPassword: ({ body }, _c, db) => {
+    const r = db.passwordResets.get(body.token);
+    if (!r || r.expiresAt < Date.now()) fail(410, "reset_expired", "This reset link has expired or was already used. Request a new one.");
+    if (body.password.length < 8) fail(422, "validation_failed", "Use at least 8 characters.", { password: "Use at least 8 characters." });
+    const account = db.accounts.find((a) => a.customer.id === r!.customerId);
+    if (account) account.password = body.password;
+    db.passwordResets.delete(body.token);
+    return { ok: true };
   },
   customerLogout: (_r, ctx, db) => {
     const t = ctx.getCookie(CUSTOMER_COOKIE);
@@ -707,14 +833,30 @@ export const handlers: Handlers = {
     const c = requireCustomer(db, ctx);
     return db.orders.filter((o) => o.email === c.email).map(summary);
   },
-  getWishlist: (_r, ctx, db) => {
-    requireCustomer(db, ctx);
-    return { productIds: db.wishlist };
-  },
+  getWishlist: (_r, ctx, db) => ({ productIds: requireAccount(db, ctx).wishlist }),
   replaceWishlist: ({ body }, ctx, db) => {
-    requireCustomer(db, ctx);
-    db.wishlist = [...new Set(body.productIds)].filter((id) => db.products.some((p) => p.id === id));
-    return { productIds: db.wishlist };
+    const a = requireAccount(db, ctx);
+    a.wishlist = [...new Set(body.productIds)].filter((id) => db.products.some((p) => p.id === id));
+    return { productIds: a.wishlist };
+  },
+  listAddresses: (_r, ctx, db) => requireAccount(db, ctx).addresses,
+  saveAddress: ({ body }, ctx, db) => {
+    const a = requireAccount(db, ctx);
+    const fields = validateAddress(body);
+    if (Object.keys(fields).length) fail(422, "validation_failed", "Check the highlighted fields.", fields);
+    const address: SavedAddress = { ...body, id: body.id ?? newId("addr"), label: body.label?.trim() || "Address", country: "NG" };
+    if (address.isDefault || a.addresses.length === 0) {
+      a.addresses.forEach((x) => (x.isDefault = false));
+      address.isDefault = true;
+    }
+    a.addresses = body.id ? a.addresses.map((x) => (x.id === body.id ? address : x)) : [...a.addresses, address];
+    return a.addresses;
+  },
+  deleteAddress: ({ params }, ctx, db) => {
+    const a = requireAccount(db, ctx);
+    a.addresses = a.addresses.filter((x) => x.id !== params.id);
+    if (a.addresses.length && !a.addresses.some((x) => x.isDefault)) a.addresses[0]!.isDefault = true;
+    return a.addresses;
   },
 
   /* admin auth */
@@ -790,7 +932,9 @@ export const handlers: Handlers = {
     let list = [...db.products];
     if (query?.q) list = list.filter((p) => matchesQuery(p, query.q!) || p.variants.some((v) => v.sku.toLowerCase().includes(query.q!.toLowerCase())));
     if (query?.status) list = list.filter((p) => p.status === query.status);
-    if (query?.collectionId) list = list.filter((p) => p.collectionIds.includes(query.collectionId!));
+    if (query?.collectionId === "none") list = list.filter((p) => p.collectionIds.length === 0);
+    else if (query?.collectionId) list = list.filter((p) => p.collectionIds.includes(query.collectionId!));
+    if (query?.productTypeId) list = list.filter((p) => p.productTypeId === query.productTypeId);
     list.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
     return paginate(list, num(query?.page, 1), num(query?.pageSize, 20));
   },
@@ -811,6 +955,67 @@ export const handlers: Handlers = {
     requirePerm(db, ctx, "products:write");
     db.products = db.products.filter((p) => p.id !== params.id);
     refreshAll(db);
+    return { ok: true };
+  },
+  adminDuplicateProduct: ({ params }, ctx, db) => {
+    requirePerm(db, ctx, "products:write");
+    const src = db.products.find((p) => p.id === params.id) ?? fail(404, "not_found", "Product not found.");
+    let n = 1;
+    const base = `${src.handle}-copy`;
+    let handle = base;
+    while (db.products.some((p) => p.handle === handle)) handle = `${base}-${++n}`;
+    const id = newId("prod");
+    const copy: Product = {
+      ...structuredClone(src),
+      id,
+      handle,
+      title: `${src.title} (copy)`,
+      status: "draft",
+      featured: false,
+      variants: src.variants.map((v) => ({ ...structuredClone(v), id: newId("var"), productId: id, sku: `${v.sku}-COPY${n > 1 ? n : ""}`, inventory: { ...v.inventory, available: 0 } })),
+      rating: { average: 0, count: 0 },
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    refreshProduct(copy);
+    db.products.unshift(copy);
+    refreshAll(db);
+    return copy;
+  },
+  adminListProductTypes: (_r, ctx, db) => {
+    requirePerm(db, ctx, "products:read");
+    refreshAll(db);
+    return db.productTypes;
+  },
+  adminSaveProductType: ({ body }, ctx, db) => {
+    requirePerm(db, ctx, "products:write");
+    const fields: Record<string, string> = {};
+    if (!body.name.trim()) fields.name = "Name the product type.";
+    const keys = body.attributes.map((a) => a.key);
+    if (body.attributes.some((a) => !a.label.trim())) fields.attributes = "Every field needs a label.";
+    else if (new Set(keys).size !== keys.length) fields.attributes = "Two fields have the same name. Rename one.";
+    if (Object.keys(fields).length) fail(422, "validation_failed", "Check the highlighted fields.", fields);
+    const clean = {
+      name: body.name.trim(),
+      description: body.description,
+      optionNames: body.optionNames.map((o) => o.trim()).filter(Boolean),
+      attributes: body.attributes.map((a) => ({ ...a, key: a.key || slugify(a.label).replace(/-/g, "_") })),
+    };
+    if (body.id) {
+      const t = db.productTypes.find((x) => x.id === body.id) ?? fail(404, "not_found", "Product type not found.");
+      Object.assign(t, clean);
+      refreshAll(db);
+      return t;
+    }
+    const t = { id: newId("type"), ...clean, productCount: 0 };
+    db.productTypes.push(t);
+    return t;
+  },
+  adminDeleteProductType: ({ params }, ctx, db) => {
+    requirePerm(db, ctx, "products:write");
+    const inUse = db.products.filter((p) => p.productTypeId === params.id).length;
+    if (inUse) fail(409, "in_use", `${inUse} product${inUse === 1 ? " uses" : "s use"} this type. Change their type first.`);
+    db.productTypes = db.productTypes.filter((t) => t.id !== params.id);
     return { ok: true };
   },
   adminUpdateVariant: ({ params, body }, ctx, db) => {
@@ -867,6 +1072,7 @@ export const handlers: Handlers = {
       summary: body.summary,
       description: body.description,
       image: body.imageId ? db.media.find((m) => m.id === body.imageId) ?? null : null,
+      banner: body.bannerId ? db.media.find((m) => m.id === body.bannerId) ?? null : null,
       status: body.status,
       position: db.collections.length,
       productCount: 0,
@@ -890,16 +1096,27 @@ export const handlers: Handlers = {
     if (body.status !== undefined) c.status = body.status;
     if (body.seo !== undefined) c.seo = body.seo;
     if (body.imageId !== undefined) c.image = body.imageId ? db.media.find((m) => m.id === body.imageId) ?? null : null;
+    if (body.bannerId !== undefined) c.banner = body.bannerId ? db.media.find((m) => m.id === body.bannerId) ?? null : null;
     c.updatedAt = now();
     refreshAll(db);
     return c;
   },
   adminDeleteCollection: ({ params }, ctx, db) => {
     requirePerm(db, ctx, "collections:write");
+    if (!db.collections.some((c) => c.id === params.id)) fail(404, "not_found", "Collection not found.");
     db.collections = db.collections.filter((c) => c.id !== params.id);
-    db.products.forEach((p) => (p.collectionIds = p.collectionIds.filter((id) => id !== params.id)));
+    // Products are kept; they only leave this collection.
+    const unassignedProductIds: string[] = [];
+    for (const p of db.products) {
+      if (!p.collectionIds.includes(params.id)) continue;
+      p.collectionIds = p.collectionIds.filter((id) => id !== params.id);
+      if (p.collectionIds.length === 0) unassignedProductIds.push(p.id);
+    }
     sortedCollections(db).forEach((c, i) => (c.position = i));
-    return { ok: true };
+    db.homepage.forEach((s) => {
+      if (s.type === "collections") s.collectionIds = s.collectionIds.filter((id) => id !== params.id);
+    });
+    return { ok: true as const, unassignedProductIds };
   },
   adminReorderCollections: ({ body }, ctx, db) => {
     requirePerm(db, ctx, "collections:write");
@@ -933,7 +1150,7 @@ export const handlers: Handlers = {
   },
   adminDeleteMedia: ({ params }, ctx, db) => {
     requirePerm(db, ctx, "media:write");
-    const used = db.products.some((p) => p.media.some((m) => m.id === params.id)) || db.collections.some((c) => c.image?.id === params.id);
+    const used = db.products.some((p) => p.media.some((m) => m.id === params.id) || p.video?.poster?.id === params.id) || db.collections.some((c) => c.image?.id === params.id || c.banner?.id === params.id);
     if (used) fail(409, "in_use", "This image is used by a product or collection. Remove it there first.");
     db.media = db.media.filter((m) => m.id !== params.id);
     return { ok: true };
@@ -1037,6 +1254,62 @@ export const handlers: Handlers = {
     return db.navigation;
   },
 
+  adminGetNavigation: (_r, ctx, db) => {
+    requirePerm(db, ctx, "content:write");
+    return db.navigation;
+  },
+  adminListPages: (_r, ctx, db) => {
+    requirePerm(db, ctx, "content:write");
+    return db.pages;
+  },
+  adminSavePage: ({ params, body }, ctx, db) => {
+    requirePerm(db, ctx, "content:write");
+    const page = db.pages.find((p) => p.slug === params.slug) ?? fail(404, "not_found", "Page not found.");
+    if (!body.title.trim()) fail(422, "validation_failed", "Give the page a title.", { title: "Enter a title." });
+    Object.assign(page, { title: body.title.trim(), intro: body.intro, blocks: body.blocks, reviewed: body.reviewed, updatedAt: now() });
+    return page;
+  },
+
+  /* customers */
+  adminListCustomers: ({ query }, ctx, db) => {
+    requirePerm(db, ctx, "customers:read");
+    let list = customerSummaries(db);
+    const q = query?.q?.trim().toLowerCase();
+    if (q) list = list.filter((c) => `${c.name} ${c.email} ${c.phone ?? ""}`.toLowerCase().includes(q));
+    return paginate(list, num(query?.page, 1), num(query?.pageSize, 20));
+  },
+  adminGetCustomer: ({ params }, ctx, db) => {
+    requirePerm(db, ctx, "customers:read");
+    const c = customerSummaries(db).find((x) => x.id === params.id) ?? fail(404, "not_found", "Customer not found.");
+    const account = db.accounts.find((a) => a.customer.email === c.email);
+    return {
+      ...c,
+      orders: db.orders.filter((o) => o.email === c.email).map(summary),
+      addresses: account?.addresses ?? [],
+      marketingOptIn: account?.marketingOptIn ?? db.orders.some((o) => o.email === c.email && o.contact.marketingOptIn),
+    };
+  },
+
+  /* analytics */
+  adminAnalytics: ({ query }, ctx, db) => {
+    requirePerm(db, ctx, "analytics:read");
+    return analytics(db, num(query?.days, 30));
+  },
+
+  /* search */
+  adminSearch: ({ query }, ctx, db) => {
+    const session = adminSession(db, ctx);
+    const q = (query?.q ?? "").trim().toLowerCase();
+    if (q.length < 2) return { products: [], orders: [], customers: [], collections: [] };
+    const can = (p: Permission) => session.permissions.includes(p);
+    return {
+      products: can("products:read") ? db.products.filter((p) => `${p.title} ${p.subtitle} ${p.variants.map((v) => v.sku).join(" ")}`.toLowerCase().includes(q)).slice(0, 5).map((p) => ({ id: p.id, title: p.title, subtitle: p.subtitle })) : [],
+      orders: can("orders:read") ? db.orders.filter((o) => `${o.number} ${o.email} ${o.shippingAddress.firstName} ${o.shippingAddress.lastName}`.toLowerCase().includes(q)).slice(0, 5).map((o) => ({ id: o.id, number: o.number, email: o.email })) : [],
+      customers: can("customers:read") ? customerSummaries(db).filter((c) => `${c.name} ${c.email}`.toLowerCase().includes(q)).slice(0, 5).map((c) => ({ id: c.id, name: c.name, email: c.email })) : [],
+      collections: can("products:read") ? db.collections.filter((c) => c.title.toLowerCase().includes(q)).slice(0, 5).map((c) => ({ id: c.id, title: c.title })) : [],
+    };
+  },
+
   /* discounts */
   adminListDiscounts: (_r, ctx, db) => {
     requirePerm(db, ctx, "discounts:write");
@@ -1106,6 +1379,9 @@ export const handlers: Handlers = {
   adminUpdatePaymentSettings: ({ body }, ctx, db) => {
     requirePerm(db, ctx, "settings:write");
     if (body.paystack.publicKey && !/^pk_(test|live)_/.test(body.paystack.publicKey)) fail(422, "validation_failed", "Paystack public keys start with pk_test_ or pk_live_.");
+    const bt = body.bankTransfer;
+    if (bt.enabled && (!bt.bankName.trim() || !bt.accountName.trim() || !/^\d{10}$/.test(bt.accountNumber.trim())))
+      fail(422, "validation_failed", "To accept bank transfers, enter the bank name, account name and 10-digit account number.");
     db.payments = body;
     return db.payments;
   },
@@ -1116,9 +1392,20 @@ export const handlers: Handlers = {
   adminUpdateStoreSettings: ({ body }, ctx, db) => {
     requirePerm(db, ctx, "settings:write");
     const hex = /^#[0-9a-fA-F]{6}$/;
-    for (const [k, v] of Object.entries(body.branding.colors)) if (!hex.test(v)) fail(422, "validation_failed", `Brand colour "${k}" must be a 6-digit hex value like #FF4F9A.`);
-    const { logoId, ...rest } = body;
-    db.settings = { ...rest, logo: logoId ? db.media.find((m) => m.id === logoId) ?? null : null };
+    for (const [k, v] of Object.entries(body.branding.colors)) if (!hex.test(v)) fail(422, "validation_failed", `Brand colour "${k}" must be a 6-digit hex value like #6B1630.`);
+    if (body.contactEmail && !EMAIL.test(body.contactEmail)) fail(422, "validation_failed", "Enter a valid contact email, or leave it empty.");
+    if (body.whatsapp && body.whatsapp.replace(/\D/g, "").length < 10) fail(422, "validation_failed", "Enter the WhatsApp number in full, e.g. +2348012345678, or leave it empty.");
+    const { logoId, logoDarkId, ...rest } = body;
+    const blank = (v: string | null) => (v && v.trim() ? v.trim() : null);
+    db.settings = {
+      ...rest,
+      contactEmail: blank(rest.contactEmail),
+      phone: blank(rest.phone),
+      whatsapp: blank(rest.whatsapp),
+      openingHours: blank(rest.openingHours),
+      logo: logoId ? db.media.find((m) => m.id === logoId) ?? null : null,
+      logoDark: logoDarkId ? db.media.find((m) => m.id === logoDarkId) ?? null : null,
+    };
     return db.settings;
   },
 
@@ -1177,6 +1464,92 @@ export const handlers: Handlers = {
   },
 };
 
+function customerSummaries(db: MockDb): CustomerSummary[] {
+  const byEmail = new Map<string, CustomerSummary>();
+  for (const a of db.accounts) {
+    const c = a.customer;
+    byEmail.set(c.email, { id: c.id, name: `${c.firstName} ${c.lastName}`.trim(), email: c.email, phone: c.phone, hasAccount: true, orderCount: 0, totalPaid: 0, lastOrderAt: null, createdAt: c.createdAt });
+  }
+  for (const o of [...db.orders].reverse()) {
+    let c = byEmail.get(o.email);
+    if (!c) {
+      c = { id: `guest_${o.email.replace(/[^a-z0-9]/gi, "_")}`, name: `${o.shippingAddress.firstName} ${o.shippingAddress.lastName}`.trim(), email: o.email, phone: o.contact.phone, hasAccount: false, orderCount: 0, totalPaid: 0, lastOrderAt: null, createdAt: o.createdAt };
+      byEmail.set(o.email, c);
+    }
+    c.orderCount += 1;
+    if (["paid", "partially_refunded"].includes(o.paymentStatus)) c.totalPaid += o.totals.total;
+    if (!c.lastOrderAt || o.createdAt > c.lastOrderAt) c.lastOrderAt = o.createdAt;
+  }
+  return [...byEmail.values()].sort((a, b) => (b.lastOrderAt ?? b.createdAt).localeCompare(a.lastOrderAt ?? a.createdAt));
+}
+
+function analytics(db: MockDb, days: number): AnalyticsReport {
+  const since = Date.now() - days * 86400_000;
+  const inRange = db.orders.filter((o) => Date.parse(o.createdAt) >= since);
+  const paid = inRange.filter((o) => ["paid", "partially_refunded"].includes(o.paymentStatus));
+  const revenue = paid.reduce((s, o) => s + o.totals.total, 0);
+  const series: AnalyticsReport["series"] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const key = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
+    const day = paid.filter((o) => o.createdAt.slice(0, 10) === key);
+    series.push({ date: key, revenue: day.reduce((s, o) => s + o.totals.total, 0), orders: inRange.filter((o) => o.createdAt.slice(0, 10) === key).length });
+  }
+  const colMap = new Map<string, { collectionId: string | null; title: string; revenue: number; units: number }>();
+  const prodMap = new Map<string, { productId: string; title: string; unitsSold: number; revenue: number }>();
+  for (const o of paid) {
+    for (const l of o.lines) {
+      const p = db.products.find((x) => x.id === l.productId);
+      const cid = p?.collectionIds[0] ?? null;
+      const ck = cid ?? "none";
+      const col = colMap.get(ck) ?? { collectionId: cid, title: db.collections.find((c) => c.id === cid)?.title ?? "No collection", revenue: 0, units: 0 };
+      col.revenue += l.lineTotal;
+      col.units += l.quantity;
+      colMap.set(ck, col);
+      const pr = prodMap.get(l.productId) ?? { productId: l.productId, title: l.title, unitsSold: 0, revenue: 0 };
+      pr.unitsSold += l.quantity;
+      pr.revenue += l.lineTotal;
+      prodMap.set(l.productId, pr);
+    }
+  }
+  const group = <K extends string>(key: (o: Order) => K) => {
+    const m = new Map<K, { orders: number; revenue: number }>();
+    for (const o of inRange) {
+      const g = m.get(key(o)) ?? { orders: 0, revenue: 0 };
+      g.orders += 1;
+      if (paid.includes(o)) g.revenue += o.totals.total;
+      m.set(key(o), g);
+    }
+    return m;
+  };
+  const firstOrder = new Map<string, string>();
+  for (const o of db.orders) if (!firstOrder.has(o.email) || o.createdAt < firstOrder.get(o.email)!) firstOrder.set(o.email, o.createdAt);
+  const emails = new Set(inRange.map((o) => o.email));
+  let newC = 0;
+  emails.forEach((e) => (Date.parse(firstOrder.get(e)!) >= since ? newC++ : 0));
+  const discountMap = new Map<string, { code: string; uses: number; amount: number }>();
+  for (const o of paid) for (const d of o.discounts) {
+    const x = discountMap.get(d.code) ?? { code: d.code, uses: 0, amount: 0 };
+    x.uses += 1;
+    x.amount += d.amount;
+    discountMap.set(d.code, x);
+  }
+  return {
+    periodDays: days,
+    revenue,
+    paidOrders: paid.length,
+    allOrders: inRange.length,
+    averageOrderValue: paid.length ? Math.round(revenue / paid.length) : 0,
+    unitsSold: paid.reduce((s, o) => s + o.itemCount, 0),
+    series,
+    byCollection: [...colMap.values()].sort((a, b) => b.revenue - a.revenue),
+    byPaymentMethod: [...group((o) => o.paymentMethod).entries()].map(([method, v]) => ({ method, ...v })).sort((a, b) => b.orders - a.orders),
+    byState: [...group((o) => o.shippingAddress.state).entries()].map(([state, v]) => ({ state, ...v })).sort((a, b) => b.orders - a.orders).slice(0, 8),
+    topProducts: [...prodMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 8),
+    discounts: [...discountMap.values()],
+    customers: { new: newC, returning: emails.size - newC },
+  };
+}
+
 function paymentSessionFor(db: MockDb, o: Order) {
   void db;
   return {
@@ -1201,6 +1574,8 @@ function saveProduct(db: MockDb, existing: Product | null, body: Contract["admin
   if (new Set(skus).size !== skus.length) fields.variants = "Each variant needs a unique SKU.";
   const handle = slugify(body.handle || body.title);
   if (db.products.some((p) => p.handle === handle && p.id !== existing?.id)) fields.handle = "Another product already uses this URL.";
+  if (body.video?.url.trim() && !/^https:\/\/\S+\.(mp4|webm)(\?\S*)?$/i.test(body.video.url.trim())) fields.video = "Use a direct https link to an .mp4 or .webm file.";
+  if (body.productTypeId && !db.productTypes.some((t) => t.id === body.productTypeId)) fields.productTypeId = "Choose a product type that exists.";
   if (Object.keys(fields).length) fail(422, "validation_failed", "Check the highlighted fields.", fields);
 
   const id = existing?.id ?? newId("prod");
@@ -1231,8 +1606,9 @@ function saveProduct(db: MockDb, existing: Product | null, body: Contract["admin
     priceRange: { min: 0, max: 0 },
     compareAtPriceRange: null,
     availability: "in_stock",
-    specs: body.specs.filter((s) => s.label.trim()),
-    careNotes: body.careNotes.filter((s) => s.trim()),
+    productTypeId: body.productTypeId,
+    attributes: Object.fromEntries(Object.entries(body.attributes).filter(([, v]) => v.trim())),
+    video: body.video?.url.trim() ? { url: body.video.url.trim(), poster: body.video.posterId ? db.media.find((m) => m.id === body.video!.posterId) ?? null : null } : null,
     tags: body.tags,
     rating: existing?.rating ?? { average: 0, count: 0 },
     featured: body.featured,

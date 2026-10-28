@@ -25,14 +25,16 @@ SHADES = {
     "350": (165, 72, 42),
 }
 
+# Queen Palace palette: burgundy, champagne gold, warm ivory, charcoal.
 BACKDROPS = {
-    "plum": ((34, 18, 28), (11, 7, 9)),
-    "mist": ((92, 26, 56), (30, 9, 20)),
-    "pearl": ((58, 16, 36), (18, 6, 12)),
-    "indigo": ((40, 22, 34), (14, 8, 12)),
-    "honey": ((222, 186, 102), (138, 102, 38)),
-    "rose": ((246, 179, 207), (204, 112, 152)),
+    "plum": ((88, 22, 44), (34, 9, 18)),        # deep burgundy
+    "mist": ((52, 38, 40), (18, 13, 14)),       # warm charcoal
+    "pearl": ((244, 236, 223), (222, 206, 182)),  # ivory cream
+    "indigo": ((34, 28, 30), (12, 10, 11)),     # near black
+    "honey": ((226, 198, 140), (176, 136, 70)),  # champagne gold
+    "rose": ((238, 222, 204), (206, 176, 150)),  # soft nude
 }
+LIGHT = ("honey", "rose", "pearl")
 
 
 def clamp(v):
@@ -54,7 +56,7 @@ def backdrop(w, h, name, rng):
         base[..., i] = top[i] * (1 - y) + bottom[i] * y
     cx, cy = rng.uniform(0.25, 0.75), rng.uniform(0.15, 0.45)
     glow = np.exp(-(((x - cx) ** 2) / 0.09 + ((y - cy) ** 2) / 0.06))
-    light = 18 if name in ("honey", "rose") else 34
+    light = 14 if name in LIGHT else 34
     base += glow[..., None] * light
     noise = rng.normal(0, 3.2, (h, w, 1))
     base += noise
@@ -157,7 +159,7 @@ def care(img, accent_shade, rng):
     floor = h * 0.8
     shapes = rng.randint(3, 4)
     xs = sorted(rng.uniform(0.15, 0.85) * w for _ in range(shapes))
-    palette = [(255, 79, 154), (216, 178, 90), (24, 14, 20), (246, 179, 207), (120, 30, 70)]
+    palette = [(107, 22, 48), (201, 164, 92), (35, 28, 30), (238, 226, 204), (140, 34, 66)]
     for i, x in enumerate(xs):
         kind = rng.choice(["bottle", "jar", "tube"])
         col = palette[(i + rng.randint(0, 4)) % len(palette)]
@@ -175,7 +177,7 @@ def care(img, accent_shade, rng):
             draw.polygon([(x - bw / 2, floor), (x + bw / 2, floor), (x + bw * 0.62, floor - bh), (x - bw * 0.62, floor - bh)], fill=col)
             draw.rectangle([x - bw * 0.3, floor - bh - h * 0.035, x + bw * 0.3, floor - bh], fill=tint(col, -0.3))
         draw.line([(x - w * 0.02, floor - h * 0.3), (x - w * 0.02, floor - h * 0.08)], fill=(255, 255, 255, 60), width=3)
-    draw.rectangle([0, floor, w, h], fill=tint(BACKDROPS["mist"][1], -0.3))
+    draw.rectangle([0, floor, w, h], fill=(214, 196, 168))
 
 
 def render(name, size, backdrop_name, painter, seed):
@@ -192,13 +194,23 @@ def render(name, size, backdrop_name, painter, seed):
 def main():
     portrait = (960, 1200)
     wide = (1920, 1200)
+    tall = (1200, 1500)
+    banner = (1920, 800)
     specs = []
     # Hero and editorial
-    specs.append(("hero-main", wide, "plum", lambda im, r: hair_field(im, "1b", "deep", r, 1.4), 11))
+    specs.append(("hero-main", tall, "plum", lambda im, r: hair_field(im, "1b", "deep", r, 1.4), 11))
     specs.append(("hero-layer", portrait, "honey", lambda im, r: hair_field(im, "613", "wave", r, 1.2), 12))
     specs.append(("editorial-bone-straight", wide, "mist", lambda im, r: hair_field(im, "1b", "straight", r, 1.6), 13))
     specs.append(("editorial-care", wide, "pearl", lambda im, r: care(im, "27", r), 14))
     specs.append(("editorial-studio", portrait, "indigo", lambda im, r: hair_field(im, "350", "wave", r, 1.2), 15))
+    specs.append(("editorial-store", portrait, "plum", lambda im, r: hair_field(im, "99j", "wave", r, 1.3), 16))
+    specs.append(("promo-campaign", wide, "honey", lambda im, r: hair_field(im, "613", "wave", r, 1.2), 17))
+    # Collection banners (wide)
+    specs.append(("banner-futura-wig", banner, "plum", lambda im, r: hair_field(im, "99j", "wave", r, 1.5), 31))
+    specs.append(("banner-bone-straight", banner, "indigo", lambda im, r: hair_field(im, "1b", "straight", r, 1.7), 32))
+    specs.append(("banner-factory-wigs", banner, "mist", lambda im, r: curls(im, "4", r), 33))
+    specs.append(("banner-braids-extensions", banner, "honey", lambda im, r: braids(im, "1b", r), 34))
+    specs.append(("banner-hair-maintains", banner, "pearl", lambda im, r: care(im, "27", r), 35))
     # Collection covers
     specs.append(("collection-futura-wig", portrait, "rose", lambda im, r: hair_field(im, "99j", "wave", r, 1.3), 21))
     specs.append(("collection-bone-straight", portrait, "pearl", lambda im, r: hair_field(im, "1b", "straight", r, 1.5), 22))

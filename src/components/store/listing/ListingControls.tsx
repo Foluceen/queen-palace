@@ -7,7 +7,8 @@ import { Icon } from "@/components/ui/Icon";
 import type { Facet, ProductSort } from "@/lib/types";
 
 const sorts: { value: ProductSort; label: string }[] = [
-  { value: "featured", label: "Most loved" },
+  { value: "featured", label: "Featured" },
+  { value: "best_selling", label: "Best selling" },
   { value: "newest", label: "Newest" },
   { value: "price_asc", label: "Price, low to high" },
   { value: "price_desc", label: "Price, high to low" },

@@ -1,15 +1,23 @@
 import Link from "next/link";
+import { Logo } from "@/components/brand/Logo";
+import { mailHref, mapsHref, telHref, whatsappHref } from "@/lib/contact";
 import type { Navigation, StoreSettings } from "@/lib/types";
 import { NewsletterForm } from "./NewsletterForm";
 
 export function Footer({ settings, navigation }: { settings: StoreSettings; navigation: Navigation }) {
   const year = new Date().getFullYear();
-  const wa = settings.whatsapp.replace(/\D/g, "");
+  const wa = whatsappHref(settings);
+  const tel = telHref(settings.phone);
+  const mail = mailHref(settings.contactEmail);
+  const socials = (["instagram", "tiktok", "facebook"] as const).filter((k) => settings.social[k]);
+  const label = { instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook" } as const;
   return (
     <footer className="site-footer">
       <div className="container site-footer__grid">
         <div className="site-footer__brand">
-          <p className="site-footer__mark">{settings.name}</p>
+          <Link href="/" aria-label={`${settings.name} home`} className="site-footer__logo">
+            <Logo variant="stacked" title={settings.name} />
+          </Link>
           <p className="site-footer__tagline">{settings.tagline}</p>
           <NewsletterForm />
         </div>
@@ -26,50 +34,50 @@ export function Footer({ settings, navigation }: { settings: StoreSettings; navi
           </nav>
         ))}
         <div className="site-footer__col">
-          <h2 className="site-footer__heading">Visit or message us</h2>
+          <h2 className="site-footer__heading">Visit the store</h2>
           <address>
             <p>{settings.address}</p>
+            {settings.openingHours ? <p className="muted">{settings.openingHours}</p> : null}
             <p>
-              <a href={`tel:${settings.phone.replace(/\s/g, "")}`}>{settings.phone}</a>
-            </p>
-            <p>
-              <a href={`https://wa.me/${wa}`} rel="noopener noreferrer" target="_blank">
-                WhatsApp us
+              <a href={mapsHref(settings.address)} rel="noopener noreferrer" target="_blank">
+                Get directions
               </a>
             </p>
-            <p>
-              <a href={`mailto:${settings.contactEmail}`}>{settings.contactEmail}</a>
-            </p>
+            {tel ? (
+              <p>
+                <a href={tel}>{settings.phone}</a>
+              </p>
+            ) : null}
+            {wa ? (
+              <p>
+                <a href={wa} rel="noopener noreferrer" target="_blank">
+                  WhatsApp us
+                </a>
+              </p>
+            ) : null}
+            {mail ? (
+              <p>
+                <a href={mail}>{settings.contactEmail}</a>
+              </p>
+            ) : null}
           </address>
         </div>
       </div>
       <div className="container site-footer__base">
         <p className="small">
-          © {year} {settings.name}. Prices in Nigerian naira.
+          © {year} {settings.name}. Prices in Nigerian naira (₦).
         </p>
-        <ul className="cluster small">
-          {settings.social.instagram ? (
-            <li>
-              <a href={settings.social.instagram} rel="noopener noreferrer" target="_blank">
-                Instagram
-              </a>
-            </li>
-          ) : null}
-          {settings.social.tiktok ? (
-            <li>
-              <a href={settings.social.tiktok} rel="noopener noreferrer" target="_blank">
-                TikTok
-              </a>
-            </li>
-          ) : null}
-          {settings.social.facebook ? (
-            <li>
-              <a href={settings.social.facebook} rel="noopener noreferrer" target="_blank">
-                Facebook
-              </a>
-            </li>
-          ) : null}
-        </ul>
+        {socials.length ? (
+          <ul className="cluster small">
+            {socials.map((k) => (
+              <li key={k}>
+                <a href={settings.social[k]!} rel="noopener noreferrer" target="_blank">
+                  {label[k]}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     </footer>
   );

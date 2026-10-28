@@ -9,7 +9,7 @@ export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "All collections",
-  description: "Bone straight, Futura wigs, factory wigs, braid extensions and hair care.",
+  description: "Shop Futura wigs, bone straight hair, factory wigs, braid extensions and hair care at Queen Palace Beauty World.",
   alternates: { canonical: "/collections" },
 };
 
@@ -19,7 +19,7 @@ export default async function CollectionsPage() {
     <div className="container section--tight">
       <header className="page-head">
         <h1 className="h1">All collections</h1>
-        <p className="lede">Every texture we carry, from ready-to-wear units to the care that keeps them new.</p>
+        <p className="lede">Every collection in the palace, from ready-to-wear wigs to the care that keeps them looking new.</p>
       </header>
       {collections.length === 0 ? (
         <EmptyStateStatic title="No collections yet" body="Check back soon, new hair is on the way." />

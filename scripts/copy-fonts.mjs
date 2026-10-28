@@ -11,8 +11,8 @@ mkdirSync(out, { recursive: true });
 const files = [
   ["@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2", "manrope-latin.woff2"],
   ["@fontsource-variable/manrope/files/manrope-latin-ext-wght-normal.woff2", "manrope-latin-ext.woff2"],
-  ["@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2", "bricolage-latin.woff2"],
-  ["@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-ext-wght-normal.woff2", "bricolage-latin-ext.woff2"],
+  ["@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2", "fraunces-latin.woff2"],
+  ["@fontsource-variable/fraunces/files/fraunces-latin-ext-opsz-normal.woff2", "fraunces-latin-ext.woff2"],
 ];
 
 let missing = 0;

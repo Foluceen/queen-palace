@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Icon } from "@/components/ui/Icon";
 import { storefront } from "@/lib/data/storefront";
 
 export const revalidate = 300;
@@ -31,8 +32,13 @@ export default async function ContentPage({ params }: Props) {
       <header className="page-head">
         <h1 className="h1">{page.title}</h1>
         <p className="lede">{page.intro}</p>
+        {!page.reviewed ? (
+          <p className="notice notice--info small" role="note">
+            This page is still being finalised by the store. For anything specific to your order, please contact us.
+          </p>
+        ) : null}
       </header>
-      <div className={isFaq ? "faq" : "prose"}>
+      <div className={isFaq ? "accordion" : "prose"}>
         {page.blocks.map((b, i) => {
           switch (b.kind) {
             case "heading":
@@ -49,9 +55,12 @@ export default async function ContentPage({ params }: Props) {
               );
             case "qa":
               return (
-                <details key={i} className="faq__item">
-                  <summary className="faq__q">{b.question}</summary>
-                  <p className="faq__a">{b.answer}</p>
+                <details key={i} className="accordion__item">
+                  <summary>
+                    {b.question}
+                    <Icon name="plus" size={18} className="accordion__icon" />
+                  </summary>
+                  <p className="accordion__body">{b.answer}</p>
                 </details>
               );
             default:

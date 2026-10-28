@@ -1,20 +1,24 @@
 {
-  "name": "irun-commerce",
+  "name": "queen-palace-beauty-world",
   "version": "0.1.0",
   "private": true,
-  "description": "Premium hair commerce storefront and admin for a Nigerian hair vendor (Next.js App Router).",
+  "description": "Queen Palace Beauty World storefront and admin (Next.js App Router).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run lint && npm run build",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "fonts": "node scripts/copy-fonts.mjs",
     "postinstall": "node scripts/copy-fonts.mjs",
     "media:placeholder": "python3 scripts/generate-placeholder-media.py",
     "smoke": "node scripts/smoke-routes.mjs",
-    "preview:build": "node preview/build.mjs"
+    "preview:build": "node preview/build.mjs",
+    "test": "tsx --tsconfig tsconfig.json --test tests/*.test.ts",
+    "brand": "node scripts/build-brand.mjs",
+    "e2e": "node scripts/e2e.cjs http://localhost:3100 .",
+    "docs:api": "node scripts/gen-api-doc.mjs"
   },
   "dependencies": {
     "animejs": "^4.2.0",
@@ -24,14 +28,17 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource/fraunces": "^5.3.0",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "esbuild": "^0.25.12",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.5.0",
+    "opentype.js": "^1.3.4",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.3"
   },
   "engines": {

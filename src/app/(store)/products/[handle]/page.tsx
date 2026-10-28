@@ -5,7 +5,9 @@ import { ProductGrid } from "@/components/store/ProductCard";
 import { ProductExperience } from "@/components/store/product/ProductExperience";
 import { Reviews } from "@/components/store/product/Reviews";
 import { siteUrl } from "@/lib/api/config";
-import { getProduct, storefront } from "@/lib/data/storefront";
+import { RecentlyViewed } from "@/components/store/product/RecentlyViewed";
+import { whatsappNumber } from "@/lib/contact";
+import { getProduct, getSettings, storefront } from "@/lib/data/storefront";
 import { first, type RawSearchParams } from "@/lib/search-params";
 
 export const revalidate = 60;
@@ -33,8 +35,12 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const [{ handle }, sp] = await Promise.all([params, searchParams]);
   const data = await getProduct(handle);
   if (!data) notFound();
-  const { product, collections, related } = data;
-  const reviews = await storefront().reviews(product.id);
+  const { product, collections, related, attributes, productType } = data;
+  const [reviews, settings] = await Promise.all([storefront().reviews(product.id), getSettings()]);
+  const details = attributes.filter((a) => a.group === "details");
+  const care = attributes.filter((a) => a.group === "care");
+  const usage = attributes.filter((a) => a.group === "usage");
+  const img = product.media[0];
   const collection = collections[0];
 
   const jsonLd = {
@@ -62,37 +68,65 @@ export default async function ProductPage({ params, searchParams }: Props) {
           product={product}
           initialVariantId={first(sp.variant) ?? null}
           collection={collection ? { handle: collection.handle, title: collection.title } : null}
+          whatsappNumber={whatsappNumber(settings)}
+          storeName={settings.name}
+          notes={settings.productPageNotes}
         />
       </div>
 
       <section className="container pdp-details" aria-label="Product details">
         <div className="pdp-details__about">
-          <h2 className="h2">About this {collection?.handle === "hair-maintains" ? "product" : "hair"}</h2>
-          <p className="lede">{product.description}</p>
+          <h2 className="h2">Description</h2>
+          {product.description.split(/\n{2,}/).map((para, i) => (
+            <p key={i} className={i === 0 ? "lede" : undefined}>
+              {para}
+            </p>
+          ))}
         </div>
-        {product.specs.length ? (
-          <dl className="specs">
-            {product.specs.map((s) => (
-              <div key={s.label}>
-                <dt>{s.label}</dt>
-                <dd>{s.value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
-        {product.careNotes.length ? (
-          <div className="pdp-details__care">
-            <h2 className="h3">Caring for it</h2>
-            <ul>
-              {product.careNotes.map((c) => (
-                <li key={c}>{c}</li>
-              ))}
-            </ul>
+        <div className="pdp-details__side">
+          {details.length ? (
+            <div>
+              <h2 className="h3">Details</h2>
+              <dl className="specs">
+                {productType ? (
+                  <div>
+                    <dt>Type</dt>
+                    <dd>{productType.name}</dd>
+                  </div>
+                ) : null}
+                {details.map((a) => (
+                  <div key={a.key}>
+                    <dt>{a.label}</dt>
+                    <dd>{a.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : null}
+          {[...usage, ...care].map((a) => (
+            <div key={a.key} className="pdp-details__care">
+              <h2 className="h3">{a.label}</h2>
+              {a.kind === "list" ? (
+                <ul>
+                  {a.value
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .filter(Boolean)
+                    .map((l) => (
+                      <li key={l}>{l}</li>
+                    ))}
+                </ul>
+              ) : (
+                a.value.split(/\n{2,}/).map((para, i) => <p key={i}>{para}</p>)
+              )}
+            </div>
+          ))}
+          {care.length ? (
             <Link href="/hair-care" className="small">
-              Read the full care guide
+              Read the full hair care guide
             </Link>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </section>
 
       <div className="container">
@@ -107,6 +141,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <ProductGrid products={related} />
         </section>
       ) : null}
+
+      <RecentlyViewed current={{ id: product.id, handle: product.handle, title: product.title, image: img ? { url: img.url, alt: img.alt } : null, priceMin: product.priceRange.min }} />
     </>
   );
 }

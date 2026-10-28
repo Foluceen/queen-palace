@@ -21,14 +21,15 @@ interface Draft {
   description: string;
   status: PublishStatus;
   image: Media | null;
+  banner: Media | null;
   seoTitle: string;
   seoDescription: string;
 }
 
 const toDraft = (c?: Collection): Draft =>
   c
-    ? { id: c.id, title: c.title, handle: c.handle, summary: c.summary, description: c.description, status: c.status, image: c.image, seoTitle: c.seo.title ?? "", seoDescription: c.seo.description ?? "" }
-    : { title: "", handle: "", summary: "", description: "", status: "draft", image: null, seoTitle: "", seoDescription: "" };
+    ? { id: c.id, title: c.title, handle: c.handle, summary: c.summary, description: c.description, status: c.status, image: c.image, banner: c.banner, seoTitle: c.seo.title ?? "", seoDescription: c.seo.description ?? "" }
+    : { title: "", handle: "", summary: "", description: "", status: "draft", image: null, banner: null, seoTitle: "", seoDescription: "" };
 
 const tone = (s: PublishStatus) => (s === "published" ? "success" : s === "draft" ? "warning" : "neutral");
 
@@ -73,7 +74,7 @@ export default function CollectionsAdminPage() {
     if (!draft) return;
     setSaving(true);
     setErrors({});
-    const body = { title: draft.title, handle: draft.handle, summary: draft.summary, description: draft.description, status: draft.status, imageId: draft.image?.id ?? null, seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined }, position: 0 };
+    const body = { title: draft.title, handle: draft.handle, summary: draft.summary, description: draft.description, status: draft.status, imageId: draft.image?.id ?? null, bannerId: draft.banner?.id ?? null, seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined }, position: 0 };
     try {
       if (draft.id) {
         const { position: _p, ...patch } = body;
@@ -155,14 +156,20 @@ export default function CollectionsAdminPage() {
                       <ConfirmButton
                         label="Delete"
                         title={`Delete ${c.title}?`}
-                        body="Products stay in your catalog but are removed from this collection. Links to the collection will stop working."
+                        body={
+                          <>
+                            <p>Products are never deleted with a collection. They stay in your catalog and are only removed from {c.title}.</p>
+                            <p>Products that belong to no other collection will be listed under the &ldquo;No collection&rdquo; filter on the Products page so you can reassign them. Links to /collections/{c.handle} will stop working.</p>
+                          </>
+                        }
                         confirmLabel="Delete collection"
                         danger
                         onConfirm={async () => {
                           try {
-                            await api().call("adminDeleteCollection", { params: { id: c.id } });
+                            const res = await api().call("adminDeleteCollection", { params: { id: c.id } });
                             setData((list) => list?.filter((x) => x.id !== c.id) ?? null);
-                            toast(`${c.title} deleted`);
+                            const n = res.unassignedProductIds.length;
+                            toast(n ? `${c.title} deleted. ${n} product${n === 1 ? " is" : "s are"} now in no collection: see Products, filter "No collection".` : `${c.title} deleted. No products were left without a collection.`);
                           } catch (err) {
                             toast(errorMessage(err), "danger");
                           }
@@ -201,7 +208,9 @@ export default function CollectionsAdminPage() {
             <TextField label="URL handle" value={draft.handle} onChange={(e) => setDraft({ ...draft, handle: e.target.value })} error={errors.handle} hint={`/collections/${draft.handle || "made-from-name"}`} />
             <TextField label="Card summary" value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} hint="One line shown on collection cards." />
             <TextAreaField label="Description" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={4} />
-            <ImageField label="Cover image" value={draft.image} onChange={(image) => setDraft({ ...draft, image })} />
+            <ImageField label="Card image (portrait)" value={draft.image} onChange={(image) => setDraft({ ...draft, image })} />
+            <ImageField label="Page banner (wide, optional)" value={draft.banner} onChange={(banner) => setDraft({ ...draft, banner })} />
+            <p className="small muted">The banner is shown at the top of the collection page. Without one, the card image is used.</p>
             <SelectField label="Status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as PublishStatus })}>
               <option value="draft">Draft</option>
               <option value="published">Published</option>

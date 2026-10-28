@@ -10,7 +10,7 @@ import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
-import type { Collection, HomepageSection, HomepageSectionType, Navigation, NavItem } from "@/lib/types";
+import type { Collection, HomepageSection, HomepageSectionType } from "@/lib/types";
 
 const typeLabel: Record<HomepageSectionType, string> = {
   hero: "Hero",
@@ -22,6 +22,11 @@ const typeLabel: Record<HomepageSectionType, string> = {
   reviews: "Customer reviews",
   promises: "Trust badges",
   cta_band: "Call to action",
+  promo: "Promotion banner",
+  testimonials: "Testimonials",
+  care_tips: "Hair care tips",
+  faq: "FAQ preview",
+  newsletter: "Newsletter sign-up",
 };
 
 function newSection(type: HomepageSectionType): HomepageSection {
@@ -30,7 +35,7 @@ function newSection(type: HomepageSectionType): HomepageSection {
     case "hero":
       return { ...base, type, heading: "New hero", body: "", primaryCta: { label: "Shop now", href: "/collections" }, secondaryCta: null, image: null, layerImage: null, stats: [] };
     case "marquee":
-      return { ...base, type, items: ["Same-day Lagos delivery"] };
+      return { ...base, type, items: ["New phrase"] };
     case "collections":
       return { ...base, type, heading: "Shop by collection", body: "", collectionIds: [] };
     case "product_rail":
@@ -45,6 +50,16 @@ function newSection(type: HomepageSectionType): HomepageSection {
       return { ...base, type, items: [{ title: "Checked before it ships", body: "" }] };
     case "cta_band":
       return { ...base, type, heading: "Need help choosing?", body: "", cta: { label: "Chat with us", href: "/contact" }, whatsapp: true };
+    case "promo":
+      return { ...base, type, heading: "New promotion", body: "", cta: { label: "Shop now", href: "/collections" }, image: null, code: null, endsAt: null, tone: "burgundy" };
+    case "testimonials":
+      return { ...base, type, heading: "Words from our queens", items: [] };
+    case "care_tips":
+      return { ...base, type, heading: "Care for your hair", body: "", tips: [{ title: "", body: "" }], cta: { label: "Hair care guide", href: "/hair-care" } };
+    case "faq":
+      return { ...base, type, heading: "Questions, answered", limit: 4 };
+    case "newsletter":
+      return { ...base, type, heading: "Be first to know", body: "New arrivals and offers, now and then. Unsubscribe any time." };
   }
 }
 
@@ -57,7 +72,7 @@ function SectionFields({ s, onChange, collections }: { s: HomepageSection; onCha
     case "hero":
       return (
         <div className="astack">
-          <TextAreaField label="Headline" value={s.heading} onChange={(e) => onChange({ ...s, heading: e.target.value })} rows={2} hint="The last two words get the pink-to-gold finish." />
+          <TextAreaField label="Headline" value={s.heading} onChange={(e) => onChange({ ...s, heading: e.target.value })} rows={2} hint="The last word is set in the accent colour." />
           <TextAreaField label="Supporting line" value={s.body} onChange={(e) => onChange({ ...s, body: e.target.value })} rows={2} />
           <div className="form-grid">
             <TextField label="Main button label" value={s.primaryCta.label} onChange={(e) => onChange({ ...s, primaryCta: { ...s.primaryCta, label: e.target.value } })} />
@@ -71,11 +86,16 @@ function SectionFields({ s, onChange, collections }: { s: HomepageSection; onCha
           </div>
           <fieldset className="afieldset">
             <legend className="field__label">Facts under the hero</legend>
-            <p className="small muted">Use real numbers only. They count up when the page loads.</p>
+            <p className="small muted">Use real facts only. Live counts are filled in by the store from your catalog, so they never go out of date.</p>
             {(s.stats ?? []).map((st, i) => (
-              <div key={i} className="aoption-row aoption-row--3">
-                <TextField label="Number" type="number" value={String(st.value)} onChange={(e) => onChange({ ...s, stats: s.stats.map((x, j) => (j === i ? { ...x, value: Number(e.target.value) || 0 } : x)) })} />
-                <TextField label="After the number" value={st.suffix} onChange={(e) => onChange({ ...s, stats: s.stats.map((x, j) => (j === i ? { ...x, suffix: e.target.value } : x)) })} placeholder="h, -day, +" />
+              <div key={i} className="aoption-row aoption-row--4">
+                <SelectField label="Number from" value={st.source} onChange={(e) => onChange({ ...s, stats: s.stats.map((x, j) => (j === i ? { ...x, source: e.target.value as typeof st.source } : x)) })}>
+                  <option value="custom">A number I type</option>
+                  <option value="collections">Live: published collections</option>
+                  <option value="products">Live: published products</option>
+                </SelectField>
+                <TextField label="Number" type="number" value={String(st.value)} disabled={st.source !== "custom"} onChange={(e) => onChange({ ...s, stats: s.stats.map((x, j) => (j === i ? { ...x, value: Number(e.target.value) || 0 } : x)) })} />
+                <TextField label="After the number" value={st.suffix} onChange={(e) => onChange({ ...s, stats: s.stats.map((x, j) => (j === i ? { ...x, suffix: e.target.value } : x)) })} placeholder="+" />
                 <TextField label="Label" value={st.label} onChange={(e) => onChange({ ...s, stats: s.stats.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
                 <button type="button" className="icon-btn" aria-label="Remove fact" onClick={() => onChange({ ...s, stats: s.stats.filter((_, j) => j !== i) })}>
                   <Icon name="trash" size={16} />
@@ -83,7 +103,7 @@ function SectionFields({ s, onChange, collections }: { s: HomepageSection; onCha
               </div>
             ))}
             {(s.stats ?? []).length < 3 ? (
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => onChange({ ...s, stats: [...(s.stats ?? []), { value: 0, suffix: "", label: "" }] })}>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => onChange({ ...s, stats: [...(s.stats ?? []), { source: "custom", value: 0, suffix: "", label: "" }] })}>
                 Add fact
               </button>
             ) : null}
@@ -124,11 +144,12 @@ function SectionFields({ s, onChange, collections }: { s: HomepageSection; onCha
               value={s.source.kind === "collection" ? `collection:${s.source.collectionId}` : s.source.kind}
               onChange={(e) => {
                 const v = e.target.value;
-                onChange({ ...s, source: v.startsWith("collection:") ? { kind: "collection", collectionId: v.slice(11) } : v === "newest" ? { kind: "newest" } : { kind: "featured" } });
+                onChange({ ...s, source: v.startsWith("collection:") ? { kind: "collection", collectionId: v.slice(11) } : v === "newest" ? { kind: "newest" } : v === "best_sellers" ? { kind: "best_sellers" } : { kind: "featured" } });
               }}
             >
               <option value="featured">Featured products</option>
               <option value="newest">Newest products</option>
+              <option value="best_sellers">Best sellers (from paid orders)</option>
               {collections.map((c) => (
                 <option key={c.id} value={`collection:${c.id}`}>
                   {c.title}
@@ -220,6 +241,94 @@ function SectionFields({ s, onChange, collections }: { s: HomepageSection; onCha
             <TextField label="Button link" value={s.cta.href} onChange={(e) => onChange({ ...s, cta: { ...s.cta, href: e.target.value } })} disabled={s.whatsapp} hint={s.whatsapp ? "Opens WhatsApp instead." : undefined} />
           </div>
           <Switch checked={s.whatsapp} onChange={(v) => onChange({ ...s, whatsapp: v })} label="Open WhatsApp with the store number" />
+          <p className="small muted">WhatsApp is only used once a number is set in Branding. Until then the button link is used.</p>
+        </div>
+      );
+    case "promo":
+      return (
+        <div className="astack">
+          <TextField label="Heading" value={s.heading} onChange={(e) => onChange({ ...s, heading: e.target.value })} />
+          <TextAreaField label="Details" value={s.body} onChange={(e) => onChange({ ...s, body: e.target.value })} rows={2} />
+          <div className="form-grid">
+            <TextField label="Button label" value={s.cta.label} onChange={(e) => onChange({ ...s, cta: { ...s.cta, label: e.target.value } })} />
+            <TextField label="Button link" value={s.cta.href} onChange={(e) => onChange({ ...s, cta: { ...s.cta, href: e.target.value } })} />
+            <TextField label="Discount code (optional)" value={s.code ?? ""} onChange={(e) => onChange({ ...s, code: e.target.value.toUpperCase() || null })} hint="Create the code in Discounts. Checkout validates it." />
+            <TextField label="Hide after (optional)" type="datetime-local" value={s.endsAt ? s.endsAt.slice(0, 16) : ""} onChange={(e) => onChange({ ...s, endsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} />
+            <SelectField label="Colour" value={s.tone} onChange={(e) => onChange({ ...s, tone: e.target.value as typeof s.tone })}>
+              <option value="burgundy">Burgundy</option>
+              <option value="gold">Champagne gold</option>
+              <option value="surface">Soft cream</option>
+            </SelectField>
+            <ImageField label="Image (optional)" value={s.image} onChange={(image) => onChange({ ...s, image })} />
+          </div>
+        </div>
+      );
+    case "testimonials":
+      return (
+        <div className="astack">
+          <TextField label="Heading" value={s.heading} onChange={(e) => onChange({ ...s, heading: e.target.value })} />
+          <p className="notice notice--warning small">Only use real words from real customers, with their permission. Nothing is shown when the list is empty.</p>
+          {s.items.map((t, i) => (
+            <div key={t.id} className="afieldset">
+              <TextAreaField label="Quote" value={t.quote} rows={2} onChange={(e) => onChange({ ...s, items: s.items.map((x, j) => (j === i ? { ...x, quote: e.target.value } : x)) })} />
+              <div className="aoption-row">
+                <TextField label="Name" value={t.name} onChange={(e) => onChange({ ...s, items: s.items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+                <TextField label="Town (optional)" value={t.location} onChange={(e) => onChange({ ...s, items: s.items.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)) })} />
+                <button type="button" className="icon-btn" aria-label="Remove testimonial" onClick={() => onChange({ ...s, items: s.items.filter((_, j) => j !== i) })}>
+                  <Icon name="trash" size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => onChange({ ...s, items: [...s.items, { id: `t_${Math.random().toString(36).slice(2, 8)}`, quote: "", name: "", location: "" }] })}>
+            Add testimonial
+          </button>
+        </div>
+      );
+    case "care_tips":
+      return (
+        <div className="astack">
+          <TextField label="Heading" value={s.heading} onChange={(e) => onChange({ ...s, heading: e.target.value })} />
+          <TextAreaField label="Supporting line" value={s.body} rows={2} onChange={(e) => onChange({ ...s, body: e.target.value })} />
+          {s.tips.map((t, i) => (
+            <div key={i} className="aoption-row">
+              <TextField label="Tip" value={t.title} onChange={(e) => onChange({ ...s, tips: s.tips.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} />
+              <TextField label="Detail" value={t.body} onChange={(e) => onChange({ ...s, tips: s.tips.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)) })} />
+              <button type="button" className="icon-btn" aria-label="Remove tip" onClick={() => onChange({ ...s, tips: s.tips.filter((_, j) => j !== i) })}>
+                <Icon name="trash" size={16} />
+              </button>
+            </div>
+          ))}
+          {s.tips.length < 6 ? (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => onChange({ ...s, tips: [...s.tips, { title: "", body: "" }] })}>
+              Add tip
+            </button>
+          ) : null}
+          <div className="form-grid">
+            <TextField label="Button label" value={s.cta?.label ?? ""} onChange={(e) => onChange({ ...s, cta: e.target.value ? { label: e.target.value, href: s.cta?.href ?? "/hair-care" } : null })} hint="Leave empty to hide." />
+            <TextField label="Button link" value={s.cta?.href ?? ""} disabled={!s.cta} onChange={(e) => onChange({ ...s, cta: s.cta ? { ...s.cta, href: e.target.value } : null })} />
+          </div>
+        </div>
+      );
+    case "faq":
+      return (
+        <div className="astack">
+          <TextField label="Heading" value={s.heading} onChange={(e) => onChange({ ...s, heading: e.target.value })} />
+          <SelectField label="Questions to show" value={String(s.limit)} onChange={(e) => onChange({ ...s, limit: Number(e.target.value) })}>
+            {[3, 4, 5, 6, 8].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </SelectField>
+          <p className="small muted">Questions come from the FAQ page. Edit them in Pages.</p>
+        </div>
+      );
+    case "newsletter":
+      return (
+        <div className="astack">
+          <TextField label="Heading" value={s.heading} onChange={(e) => onChange({ ...s, heading: e.target.value })} />
+          <TextAreaField label="Supporting line" value={s.body} rows={2} onChange={(e) => onChange({ ...s, body: e.target.value })} />
         </div>
       );
   }
@@ -232,50 +341,11 @@ function sectionTitle(s: HomepageSection) {
   return "";
 }
 
-function NavEditor({ nav, onChange }: { nav: Navigation; onChange(n: Navigation): void }) {
-  const setMain = (items: NavItem[]) => onChange({ ...nav, main: items });
-  const id = () => `nav_${Math.random().toString(36).slice(2, 8)}`;
-  return (
-    <div className="astack">
-      {nav.main.map((item, i) => (
-        <div key={item.id} className="anav-item">
-          <div className="aoption-row">
-            <TextField label="Label" value={item.label} onChange={(e) => setMain(nav.main.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-            <TextField label="Link" value={item.href} onChange={(e) => setMain(nav.main.map((x, j) => (j === i ? { ...x, href: e.target.value } : x)))} />
-            <button type="button" className="icon-btn" aria-label={`Remove ${item.label}`} onClick={() => setMain(nav.main.filter((_, j) => j !== i))}>
-              <Icon name="trash" size={16} />
-            </button>
-          </div>
-          <div className="anav-children">
-            {(item.children ?? []).map((c, k) => (
-              <div key={c.id} className="aoption-row">
-                <TextField label="Dropdown label" value={c.label} onChange={(e) => setMain(nav.main.map((x, j) => (j === i ? { ...x, children: x.children!.map((y, m) => (m === k ? { ...y, label: e.target.value } : y)) } : x)))} />
-                <TextField label="Link" value={c.href} onChange={(e) => setMain(nav.main.map((x, j) => (j === i ? { ...x, children: x.children!.map((y, m) => (m === k ? { ...y, href: e.target.value } : y)) } : x)))} />
-                <button type="button" className="icon-btn" aria-label={`Remove ${c.label}`} onClick={() => setMain(nav.main.map((x, j) => (j === i ? { ...x, children: x.children!.filter((_, m) => m !== k) } : x)))}>
-                  <Icon name="trash" size={16} />
-                </button>
-              </div>
-            ))}
-            <button type="button" className="link-btn small" onClick={() => setMain(nav.main.map((x, j) => (j === i ? { ...x, children: [...(x.children ?? []), { id: id(), label: "", href: "/" }] } : x)))}>
-              Add dropdown link
-            </button>
-          </div>
-        </div>
-      ))}
-      <button type="button" className="btn btn--ghost btn--sm" onClick={() => setMain([...nav.main, { id: id(), label: "New link", href: "/" }])}>
-        Add menu link
-      </button>
-    </div>
-  );
-}
-
 function StorefrontEditorPageInner() {
   const toast = useToast();
   const home = useResource(() => api().call("adminGetHomepage"));
-  const nav = useResource(() => api().call("getNavigation"));
   const collections = useResource(() => api().call("adminListCollections"));
   const [sections, setSections] = useState<HomepageSection[] | null>(null);
-  const [navDraft, setNavDraft] = useState<Navigation | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -285,9 +355,6 @@ function StorefrontEditorPageInner() {
   useEffect(() => {
     if (home.data) setSections(home.data.sections);
   }, [home.data]);
-  useEffect(() => {
-    if (nav.data) setNavDraft(nav.data);
-  }, [nav.data]);
 
   const change = (next: HomepageSection[]) => {
     setSections(next);
@@ -295,16 +362,15 @@ function StorefrontEditorPageInner() {
   };
 
   if (home.error) return <LoadError message={home.error} onRetry={home.reload} />;
-  if (!sections || !navDraft) return <LoadingRows rows={8} />;
+  if (!sections) return <LoadingRows rows={8} />;
 
   const save = async () => {
     setSaving(true);
     try {
-      const [h, n] = await Promise.all([api().call("adminUpdateHomepage", { body: { sections } }), api().call("adminUpdateNavigation", { body: navDraft })]);
+      const h = await api().call("adminUpdateHomepage", { body: { sections } });
       setSections(h.sections);
-      setNavDraft(n);
       setDirty(false);
-      toast("Homepage and menus saved. The store updates within a minute.");
+      toast("Homepage saved. The store updates within a minute.");
     } catch (err) {
       toast(errorMessage(err), "danger");
     } finally {
@@ -322,8 +388,8 @@ function StorefrontEditorPageInner() {
   return (
     <>
       <PageHeader
-        title="Homepage and menus"
-        description={dirty ? "You have unsaved changes." : "Arrange homepage sections and edit the store menu."}
+        title="Homepage"
+        description={dirty ? "You have unsaved changes." : "Arrange, show, hide and edit the sections of your homepage."}
         actions={
           <>
             <a href="/" target="_blank" className="btn btn--ghost btn--sm">
@@ -391,14 +457,12 @@ function StorefrontEditorPageInner() {
           </Panel>
         </div>
         <aside className="aeditor__side">
-          <Panel title="Main menu">
-            <NavEditor
-              nav={navDraft}
-              onChange={(n) => {
-                setNavDraft(n);
-                setDirty(true);
-              }}
-            />
+          <Panel title="Tips">
+            <ul className="astack small muted">
+              <li>Sections show in this order on the homepage. Hidden sections keep their content.</li>
+              <li>Product rows fill themselves from your catalog: featured, newest, best sellers or a collection.</li>
+              <li>Edit the menu and footer links in Navigation.</li>
+            </ul>
           </Panel>
         </aside>
       </div>

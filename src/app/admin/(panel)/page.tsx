@@ -7,6 +7,7 @@ import { useResource } from "@/components/admin/hooks";
 import { OrderStatusBadges } from "@/components/admin/OrderBadges";
 import { Empty, LoadError, LoadingRows, PageHeader, Panel } from "@/components/admin/ui";
 import { api } from "@/lib/api/browser";
+import { isMockMode } from "@/lib/api/config";
 import { formatDate, formatNaira } from "@/lib/format";
 import type { DashboardSummary } from "@/lib/types";
 
@@ -58,7 +59,9 @@ export default function DashboardPage() {
         <div className="adash">
           <div className="astats">
             <div className="astat astat--lead">
-              <p className="astat__label">Paid revenue</p>
+              <p className="astat__label">
+                Paid revenue {isMockMode ? <span className="badge badge--warning">Sample data</span> : null}
+              </p>
               <p className="astat__value">{formatNaira(data.revenue)}</p>
               <p className="small muted">{data.revenueChangePct === null ? "No sales in the previous period to compare" : `${data.revenueChangePct >= 0 ? "Up" : "Down"} ${Math.abs(data.revenueChangePct)}% on the previous ${data.periodDays} days`}</p>
               <RevenueChart series={data.revenueSeries} />
@@ -119,7 +122,7 @@ export default function DashboardPage() {
               <Panel title="Needs attention">
                 <ul className="atodo">
                   <li>
-                    <Link href="/admin/reviews?tab=messages">{data.newInquiries} new customer messages</Link>
+                    <Link href="/admin/inquiries">{data.newInquiries} new customer messages</Link>
                   </li>
                   <li>
                     <Link href="/admin/reviews">{data.pendingReviews} reviews waiting for approval</Link>

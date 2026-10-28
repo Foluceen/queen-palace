@@ -26,6 +26,8 @@ import AccountPage from "@/app/(store)/account/page";
 import WishlistPage from "@/app/(store)/wishlist/page";
 import ContactPage from "@/app/(store)/contact/page";
 import ContentPage from "@/app/(store)/[slug]/page";
+import ForgotPage from "@/app/(store)/account/forgot/page";
+import ResetPage from "@/app/(store)/account/reset/page";
 
 /* Admin */
 import AdminRootLayout from "@/app/admin/layout";
@@ -45,6 +47,12 @@ import AdminReviews from "@/app/admin/(panel)/reviews/page";
 import AdminShipping from "@/app/admin/(panel)/settings/shipping-payments/page";
 import AdminBranding from "@/app/admin/(panel)/settings/branding/page";
 import AdminStaff from "@/app/admin/(panel)/staff/page";
+import AdminAnalytics from "@/app/admin/(panel)/analytics/page";
+import AdminCustomers from "@/app/admin/(panel)/customers/page";
+import AdminInquiries from "@/app/admin/(panel)/inquiries/page";
+import AdminProductTypes from "@/app/admin/(panel)/product-types/page";
+import AdminNavigation from "@/app/admin/(panel)/navigation/page";
+import AdminPages from "@/app/admin/(panel)/pages/page";
 
 type Params = Record<string, string>;
 type ServerPage = (props: { params: Promise<Params>; searchParams: Promise<Record<string, string>> }) => Promise<ReactNode> | ReactNode;
@@ -61,6 +69,8 @@ const routes: Route[] = [
   { pattern: "/order/:number", store: OrderPage as ServerPage },
   { pattern: "/track", store: TrackPage as ServerPage },
   { pattern: "/account", store: AccountPage as ServerPage },
+  { pattern: "/account/forgot", store: ForgotPage as ServerPage },
+  { pattern: "/account/reset", store: ResetPage as ServerPage },
   { pattern: "/wishlist", store: WishlistPage as ServerPage },
   { pattern: "/contact", store: ContactPage as ServerPage },
   { pattern: "/admin/login", admin: AdminLogin, adminBare: true },
@@ -78,6 +88,12 @@ const routes: Route[] = [
   { pattern: "/admin/settings/shipping-payments", admin: AdminShipping },
   { pattern: "/admin/settings/branding", admin: AdminBranding },
   { pattern: "/admin/staff", admin: AdminStaff },
+  { pattern: "/admin/analytics", admin: AdminAnalytics },
+  { pattern: "/admin/customers", admin: AdminCustomers },
+  { pattern: "/admin/inquiries", admin: AdminInquiries },
+  { pattern: "/admin/product-types", admin: AdminProductTypes },
+  { pattern: "/admin/navigation", admin: AdminNavigation },
+  { pattern: "/admin/pages", admin: AdminPages },
   { pattern: "/:slug", store: ContentPage as unknown as ServerPage },
 ];
 

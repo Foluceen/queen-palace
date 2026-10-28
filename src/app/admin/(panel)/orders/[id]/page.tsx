@@ -138,7 +138,7 @@ export default function OrderDetailPage() {
                     </option>
                   ))}
                 </SelectField>
-                <TextField label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="GIG Logistics, Ìrun riders" />
+                <TextField label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Courier or rider name" />
                 <TextField label="Tracking number" value={tracking} onChange={(e) => setTracking(e.target.value)} />
                 <label className="checkbox" style={{ alignSelf: "end" }}>
                   <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Email the customer

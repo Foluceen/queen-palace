@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Can, RequirePermission } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
 import { Empty, LoadError, LoadingRows, PageHeader, StatusBadge } from "@/components/admin/ui";
@@ -10,14 +11,17 @@ import { api } from "@/lib/api/browser";
 import { formatPriceRange } from "@/lib/format";
 import type { PublishStatus } from "@/lib/types";
 
-export default function ProductsPage() {
+function ProductsInner() {
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<PublishStatus | "">("");
-  const [collectionId, setCollectionId] = useState("");
+  const sp = useSearchParams();
+  const [collectionId, setCollectionId] = useState(sp.get("collection") ?? "");
+  const [productTypeId, setProductTypeId] = useState("");
+  const types = useResource(() => api().call("adminListProductTypes"));
   const [page, setPage] = useState(1);
   const collections = useResource(() => api().call("adminListCollections"));
-  const { data, error, loading, reload } = useResource(() => api().call("adminListProducts", { query: { q: query || undefined, status: status || undefined, collectionId: collectionId || undefined, page, pageSize: 20 } }), [query, status, collectionId, page]);
+  const { data, error, loading, reload } = useResource(() => api().call("adminListProducts", { query: { q: query || undefined, status: status || undefined, collectionId: collectionId || undefined, productTypeId: productTypeId || undefined, page, pageSize: 20 } }), [query, status, collectionId, productTypeId, page]);
 
   return (
     <RequirePermission permission="products:read">
@@ -49,9 +53,18 @@ export default function ProductsPage() {
         </select>
         <select className="select" value={collectionId} onChange={(e) => (setCollectionId(e.target.value), setPage(1))} aria-label="Collection">
           <option value="">All collections</option>
+          <option value="none">No collection</option>
           {collections.data?.map((c) => (
             <option key={c.id} value={c.id}>
               {c.title}
+            </option>
+          ))}
+        </select>
+        <select className="select" value={productTypeId} onChange={(e) => (setProductTypeId(e.target.value), setPage(1))} aria-label="Product type">
+          <option value="">All types</option>
+          {(types.data ?? []).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
             </option>
           ))}
         </select>
@@ -123,9 +136,17 @@ export default function ProductsPage() {
             ) : null}
           </>
         ) : (
-          <Empty title={query || status || collectionId ? "No products match" : "No products yet"} body={query || status || collectionId ? "Try a different search or filter." : "Add your first product to start selling."} />
+          <Empty title={query || status || collectionId || productTypeId ? "No products match" : "No products yet"} body={query || status || collectionId || productTypeId ? "Try a different search or filter." : "Add your first product to start selling."} />
         )
       ) : null}
     </RequirePermission>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense>
+      <ProductsInner />
+    </Suspense>
   );
 }

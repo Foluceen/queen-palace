@@ -2,15 +2,17 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TextField } from "@/components/ui/Field";
 import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 
 const demoAccounts = [
-  { email: "owner@irun.test", password: "demo-owner", role: "Owner, full access" },
-  { email: "manager@irun.test", password: "demo-manager", role: "Store manager" },
-  { email: "fulfilment@irun.test", password: "demo-fulfilment", role: "Fulfilment" },
+  { email: "owner@queenpalace.test", password: "demo-owner", role: "Owner, full access" },
+  { email: "manager@queenpalace.test", password: "demo-manager", role: "Store manager" },
+  { email: "fulfilment@queenpalace.test", password: "demo-fulfilment", role: "Fulfilment" },
 ];
 
 function LoginForm() {
@@ -23,6 +25,7 @@ function LoginForm() {
 
   return (
     <div className="alogin">
+      <ThemeToggle className="alogin__theme" />
       <form
         className="alogin__card"
         onSubmit={async (e) => {
@@ -38,8 +41,12 @@ function LoginForm() {
           }
         }}
       >
-        <p className="wordmark">Ìrun</p>
-        <h1 className="h2">Sign in to the admin</h1>
+        <span className="alogin__logo">
+          <Logo variant="stacked" title="Queen Palace Beauty World" />
+        </span>
+        <h1 className="h3" style={{ textAlign: "center" }}>
+          Store admin
+        </h1>
         <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" autoFocus />
         <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
         {error ? (

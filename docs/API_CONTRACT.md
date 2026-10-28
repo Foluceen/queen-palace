@@ -12,6 +12,8 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 - Query strings: option filters are encoded as `options=Length:16",18"|Colour:1B`.
 - Types referenced below live in `src/lib/types/index.ts`.
 
+102 endpoints.
+
 ## Storefront
 
 | Name | Method and path | Auth | Path params | Query | Body | Response |
@@ -23,7 +25,7 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | getPaymentOptions | `GET /store/payment-options` | public |  |  |  | `PublicPaymentOptions` |
 | listCollections | `GET /collections` | public |  |  |  | `Collection[]` |
 | getCollection | `GET /collections/:handle` | public | `{ handle: string }` | `Omit<ProductQuery, "collection" \| "options"> & { options?: string }` |  | `CollectionWithProducts` |
-| listProducts | `GET /products` | public |  | `Omit<ProductQuery, "options"> & { options?: string; /** Comma-separated product ids (wishlist). */ ids?: string }` |  | `ProductListing` |
+| listProducts | `GET /products` | public |  | `Omit<ProductQuery, "options"> & { options?: string; ids?: string }` |  | `ProductListing` |
 | getProduct | `GET /products/:handle` | public | `{ handle: string }` |  |  | `ProductDetail` |
 | listProductReviews | `GET /products/:productId/reviews` | public | `{ productId: string }` | `{ page?: number }` |  | `Paginated<Review>` |
 | createProductReview | `POST /products/:productId/reviews` | public | `{ productId: string }` |  | `ReviewInput` | `{ status: "pending" }` |
@@ -41,7 +43,7 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | applyDiscount | `POST /carts/:cartId/discounts` | public | `{ cartId: string }` |  | `{ code: string }` | `Cart` |
 | removeDiscount | `DELETE /carts/:cartId/discounts/:code` | public | `{ cartId: string; code: string }` |  |  | `Cart` |
 
-## Checkout and orders
+## Checkout
 
 | Name | Method and path | Auth | Path params | Query | Body | Response |
 |---|---|---|---|---|---|---|
@@ -58,38 +60,53 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | createInquiry | `POST /inquiries` | public |  |  | `InquiryInput` | `{ id: string; status: "new" }` |
 | subscribeNewsletter | `POST /newsletter` | public |  |  | `{ email: string }` | `Ok` |
 
-## Customer account
+## Customer
 
 | Name | Method and path | Auth | Path params | Query | Body | Response |
 |---|---|---|---|---|---|---|
 | customerLogin | `POST /customers/auth/login` | public |  |  | `{ email: string; password: string }` | `CustomerSession` |
 | customerLogout | `POST /customers/auth/logout` | customer |  |  |  | `Ok` |
 | getCustomer | `GET /customers/me/session` | customer |  |  |  | `CustomerSession` |
-| getCustomerAccount | `GET /customers/me` | customer |  |  |  | `Customer` |
 | listCustomerOrders | `GET /customers/me/orders` | customer |  |  |  | `OrderSummary[]` |
 | getWishlist | `GET /customers/me/wishlist` | customer |  |  |  | `Wishlist` |
 | replaceWishlist | `PUT /customers/me/wishlist` | customer |  |  | `Wishlist` | `Wishlist` |
+| getCustomerAccount | `GET /customers/me` | customer |  |  |  | `Customer` |
+| customerRegister | `POST /customers/auth/register` | public |  |  | `CustomerRegisterInput` | `CustomerSession` |
+| customerRequestPasswordReset | `POST /customers/auth/password-reset` | public |  |  | `{ email: string }` | `Ok` |
+| customerResetPassword | `POST /customers/auth/password-reset/confirm` | public |  |  | `{ token: string; password: string }` | `Ok` |
+| listAddresses | `GET /customers/me/addresses` | customer |  |  |  | `SavedAddress[]` |
+| saveAddress | `PUT /customers/me/addresses` | customer |  |  | `Omit<SavedAddress, "id"> & { id?: string }` | `SavedAddress[]` |
+| deleteAddress | `DELETE /customers/me/addresses/:id` | customer | `Id` |  |  | `SavedAddress[]` |
 
-## Admin
+## Admin auth
 
 | Name | Method and path | Auth | Path params | Query | Body | Response |
 |---|---|---|---|---|---|---|
 | adminLogin | `POST /admin/auth/login` | public |  |  | `AdminLoginInput` | `AdminSession` |
 | adminLogout | `POST /admin/auth/logout` | admin |  |  |  | `Ok` |
 | adminSession | `GET /admin/auth/session` | admin |  |  |  | `AdminSession` |
+
+## Admin data
+
+| Name | Method and path | Auth | Path params | Query | Body | Response |
+|---|---|---|---|---|---|---|
 | adminDashboard | `GET /admin/dashboard` | admin |  | `{ days?: number }` |  | `DashboardSummary` |
 | adminListProducts | `GET /admin/products` | admin |  | `AdminProductQuery` |  | `Paginated<Product>` |
 | adminGetProduct | `GET /admin/products/:id` | admin | `Id` |  |  | `Product` |
 | adminCreateProduct | `POST /admin/products` | admin |  |  | `ProductInput` | `Product` |
 | adminUpdateProduct | `PUT /admin/products/:id` | admin | `Id` |  | `ProductInput` | `Product` |
 | adminDeleteProduct | `DELETE /admin/products/:id` | admin | `Id` |  |  | `Ok` |
+| adminDuplicateProduct | `POST /admin/products/:id/duplicate` | admin | `Id` |  |  | `Product` |
+| adminListProductTypes | `GET /admin/product-types` | admin |  |  |  | `ProductType[]` |
+| adminSaveProductType | `PUT /admin/product-types` | admin |  |  | `ProductTypeInput` | `ProductType` |
+| adminDeleteProductType | `DELETE /admin/product-types/:id` | admin | `Id` |  |  | `Ok` |
 | adminUpdateVariant | `PATCH /admin/products/:productId/variants/:variantId` | admin | `{ productId: string; variantId: string }` |  | `Partial<Pick<Variant, "price" \| "compareAtPrice" \| "sku">>` | `Variant` |
 | adminListInventory | `GET /admin/inventory` | admin |  | `{ q?: string; lowOnly?: boolean }` |  | `InventoryRow[]` |
 | adminAdjustInventory | `POST /admin/inventory/adjustments` | admin |  |  | `InventoryAdjustment` | `InventoryRow` |
 | adminListCollections | `GET /admin/collections` | admin |  |  |  | `Collection[]` |
 | adminCreateCollection | `POST /admin/collections` | admin |  |  | `CollectionInput` | `Collection` |
 | adminUpdateCollection | `PATCH /admin/collections/:id` | admin | `Id` |  | `Partial<CollectionInput>` | `Collection` |
-| adminDeleteCollection | `DELETE /admin/collections/:id` | admin | `Id` |  |  | `Ok` |
+| adminDeleteCollection | `DELETE /admin/collections/:id` | admin | `Id` |  |  | `{ ok: true; unassignedProductIds: string[] }` |
 | adminReorderCollections | `PUT /admin/collections/order` | admin |  |  | `{ ids: string[] }` | `Collection[]` |
 | adminListMedia | `GET /admin/media` | admin |  | `{ q?: string }` |  | `Media[]` |
 | adminUploadMedia | `POST /admin/media` | admin |  |  | `Upload` | `Media` |
@@ -104,7 +121,14 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | adminAddOrderNote | `POST /admin/orders/:id/notes` | admin | `Id` |  | `{ message: string }` | `Order` |
 | adminGetHomepage | `GET /admin/content/homepage` | admin |  |  |  | `Homepage` |
 | adminUpdateHomepage | `PUT /admin/content/homepage` | admin |  |  | `{ sections: HomepageSection[] }` | `Homepage` |
+| adminGetNavigation | `GET /admin/content/navigation` | admin |  |  |  | `Navigation` |
 | adminUpdateNavigation | `PUT /admin/content/navigation` | admin |  |  | `Navigation` | `Navigation` |
+| adminListPages | `GET /admin/pages` | admin |  |  |  | `ContentPageT[]` |
+| adminSavePage | `PUT /admin/pages/:slug` | admin | `{ slug: string }` |  | `Omit<ContentPageT, "slug" \| "updatedAt">` | `ContentPageT` |
+| adminListCustomers | `GET /admin/customers` | admin |  | `{ q?: string; page?: number; pageSize?: number }` |  | `Paginated<CustomerSummary>` |
+| adminGetCustomer | `GET /admin/customers/:id` | admin | `Id` |  |  | `CustomerDetail` |
+| adminAnalytics | `GET /admin/analytics` | admin |  | `{ days?: number }` |  | `AnalyticsReport` |
+| adminSearch | `GET /admin/search` | admin |  | `{ q: string }` |  | `AdminSearchResult` |
 | adminListDiscounts | `GET /admin/discounts` | admin |  |  |  | `Discount[]` |
 | adminCreateDiscount | `POST /admin/discounts` | admin |  |  | `DiscountInput` | `Discount` |
 | adminUpdateDiscount | `PUT /admin/discounts/:id` | admin | `Id` |  | `DiscountInput` | `Discount` |
@@ -118,7 +142,7 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | adminGetPaymentSettings | `GET /admin/settings/payments` | admin |  |  |  | `PaymentSettings` |
 | adminUpdatePaymentSettings | `PUT /admin/settings/payments` | admin |  |  | `PaymentSettings` | `PaymentSettings` |
 | adminGetStoreSettings | `GET /admin/settings/store` | admin |  |  |  | `StoreSettings` |
-| adminUpdateStoreSettings | `PUT /admin/settings/store` | admin |  |  | `Omit<StoreSettings, "logo"> & { logoId: string \| null }` | `StoreSettings` |
+| adminUpdateStoreSettings | `PUT /admin/settings/store` | admin |  |  | `Omit<StoreSettings, "logo" \| "logoDark"> & { logoId: string \| null; logoDarkId: string \| null }` | `StoreSettings` |
 | adminListStaff | `GET /admin/staff` | admin |  |  |  | `Staff[]` |
 | adminInviteStaff | `POST /admin/staff` | admin |  |  | `{ name: string; email: string; roleId: string }` | `Staff` |
 | adminUpdateStaff | `PATCH /admin/staff/:id` | admin | `Id` |  | `Partial<Pick<Staff, "roleId" \| "status" \| "name">>` | `Staff` |

@@ -32,6 +32,19 @@ const paths = {
   upload: "M12 16V4m-5 5 5-5 5 5M4 20h16",
   arrowUp: "m6 15 6-6 6 6",
   arrowDown: "m6 9 6 6 6-6",
+  sun: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-13v2m0 14v2M5.6 5.6l1.4 1.4m10 10 1.4 1.4M3 12h2m14 0h2M5.6 18.4 7 17m10-10 1.4-1.4",
+  moon: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z",
+  monitor: "M3 5h18v11H3V5Zm6 15h6m-3-4v4",
+  whatsapp: "M4 20l1.3-3.9A8 8 0 1 1 8 19l-4 1Zm5-11c0 3 3 6 6 6l1.3-1.4-2-1-1 .8a4 4 0 0 1-2.7-2.7l.8-1-1-2L9 9Z",
+  play: "M8 5v14l11-7L8 5Z",
+  mapPin: "M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21Zm0-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+  bolt: "M13 3 5 14h6l-1 7 8-11h-6l1-7Z",
+  copy: "M8 8h11v11H8V8Zm-3 8V5h11",
+  chart: "M4 20V10m6 10V4m6 16v-7m4 7H3",
+  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v5l3 2",
+  file: "M6 3h8l4 4v14H6V3Zm8 0v4h4M9 12h6M9 16h6",
+  link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
+  sliders: "M4 6h10m4 0h2M4 12h4m4 0h8M4 18h12m4 0h0M14 4v4M8 10v4M16 16v4",
 } as const;
 
 export type IconName = keyof typeof paths;

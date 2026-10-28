@@ -43,8 +43,10 @@ interface Draft {
   media: Media[];
   options: OptionDraft[];
   variants: VariantDraft[];
-  specs: { label: string; value: string }[];
-  careNotes: string;
+  productTypeId: string | null;
+  attributes: Record<string, string>;
+  videoUrl: string;
+  videoPoster: Media | null;
   tags: string;
   seoTitle: string;
   seoDescription: string;
@@ -75,8 +77,10 @@ function fromProduct(p: Product): Draft {
     media: p.media,
     options: p.options.map((o) => ({ name: o.name, values: o.values.join(", ") })),
     variants: p.variants.map(variantDraft),
-    specs: p.specs,
-    careNotes: p.careNotes.join("\n"),
+    productTypeId: p.productTypeId,
+    attributes: p.attributes,
+    videoUrl: p.video?.url ?? "",
+    videoPoster: p.video?.poster ?? null,
     tags: p.tags.join(", "),
     seoTitle: p.seo.title ?? "",
     seoDescription: p.seo.description ?? "",
@@ -92,10 +96,12 @@ const blank: Draft = {
   featured: false,
   collectionIds: [],
   media: [],
-  options: [{ name: "Length", values: "" }],
+  options: [],
   variants: [],
-  specs: [],
-  careNotes: "",
+  productTypeId: null,
+  attributes: {},
+  videoUrl: "",
+  videoPoster: null,
   tags: "",
   seoTitle: "",
   seoDescription: "",
@@ -110,6 +116,9 @@ export default function ProductEditorPage() {
   const canWrite = can("products:write");
   const product = useResource(() => (isNew ? Promise.resolve(null) : api().call("adminGetProduct", { params: { id } })), [id]);
   const collections = useResource(() => api().call("adminListCollections"));
+  const types = useResource(() => api().call("adminListProductTypes"));
+  const [duplicating, setDuplicating] = useState(false);
+  const [posterOpen, setPosterOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(isNew ? blank : null);
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -167,6 +176,29 @@ export default function ProductEditorPage() {
   if (product.error) return <LoadError message={product.error} onRetry={product.reload} />;
   if (!draft) return <LoadingRows rows={8} />;
 
+  const selectedType = types.data?.find((t) => t.id === draft.productTypeId) ?? null;
+
+  const chooseType = (typeId: string) => {
+    const t = types.data?.find((x) => x.id === typeId);
+    const patch: Partial<Draft> = { productTypeId: typeId || null };
+    // A new product with no options yet starts with the type's suggested options.
+    if (t && !draft.options.some((o) => o.name.trim())) patch.options = t.optionNames.map((name) => ({ name, values: "" }));
+    update(patch);
+  };
+
+  const duplicate = async () => {
+    setDuplicating(true);
+    try {
+      const copy = await api().call("adminDuplicateProduct", { params: { id } });
+      toast("Copy created as a draft with no stock. Check the SKUs and URL before publishing.");
+      router.push(`/admin/products/${copy.id}`);
+    } catch (err) {
+      toast(errorMessage(err), "danger");
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     setErrors({});
@@ -192,8 +224,10 @@ export default function ProductEditorPage() {
         position: i,
         inventory: { tracked: v.tracked, policy: v.policy, lowStockThreshold: v.lowStockThreshold, available: v.available },
       })),
-      specs: draft.specs,
-      careNotes: draft.careNotes.split("\n").map((s) => s.trim()).filter(Boolean),
+      productTypeId: draft.productTypeId,
+      // Only send the fields the chosen type defines.
+      attributes: Object.fromEntries((selectedType?.attributes ?? []).map((a) => [a.key, (draft.attributes[a.key] ?? "").trim()]).filter(([, v]) => v)),
+      video: draft.videoUrl.trim() ? { url: draft.videoUrl.trim(), posterId: draft.videoPoster?.id ?? null } : null,
       tags: parseValues(draft.tags),
       seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined },
     };
@@ -230,6 +264,12 @@ export default function ProductEditorPage() {
                 View in store
               </Link>
             ) : null}
+            {!isNew && canWrite ? (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={duplicate} disabled={duplicating || dirty} title={dirty ? "Save your changes first" : undefined}>
+                {duplicating ? <span className="spinner" aria-hidden /> : <Icon name="copy" size={16} />}
+                Duplicate
+              </button>
+            ) : null}
             {canWrite ? (
               <button type="button" className="btn" onClick={save} disabled={saving}>
                 {saving ? <span className="spinner" aria-hidden /> : null}
@@ -250,7 +290,7 @@ export default function ProductEditorPage() {
           <Panel title="Details">
             <div className="astack">
               <TextField label="Name" value={draft.title} onChange={(e) => update({ title: e.target.value })} error={errors.title} required />
-              <TextField label="Short description" value={draft.subtitle} onChange={(e) => update({ subtitle: e.target.value })} hint="Shown under the name, e.g. 13x4 lace front, 1B natural" />
+              <TextField label="Short description" value={draft.subtitle} onChange={(e) => update({ subtitle: e.target.value })} hint="Shown under the name, e.g. 13x4 lace front, natural black" />
               <TextAreaField label="Description" value={draft.description} onChange={(e) => update({ description: e.target.value })} rows={5} />
             </div>
           </Panel>
@@ -305,7 +345,7 @@ export default function ProductEditorPage() {
                   Add option
                 </button>
               ) : null}
-              <p className="small muted">Length uses the measuring-tape selector in the store. Colour shows shade swatches for codes like 1B, 27 and 613.</p>
+              <p className="small muted">Options are up to you: Length, Size, Colour, Pack, anything. An option called Length uses the measuring-tape selector; Colour shows shade swatches for codes like 1B, 27 and 613.</p>
             </div>
           </Panel>
 
@@ -357,25 +397,54 @@ export default function ProductEditorPage() {
             <p className="small muted">Prices are what customers pay, in naira. Existing stock is changed from Inventory so every change is recorded.</p>
           </Panel>
 
-          <Panel
-            title="Hair details"
-            actions={
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => update({ specs: [...draft.specs, { label: "", value: "" }] })}>
-                Add detail
-              </button>
-            }
-          >
-            <div className="astack">
-              {draft.specs.map((s, i) => (
-                <div key={i} className="aoption-row">
-                  <TextField label="Label" value={s.label} onChange={(e) => update({ specs: draft.specs.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} placeholder="Lace" />
-                  <TextField label="Value" value={s.value} onChange={(e) => update({ specs: draft.specs.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })} placeholder="13x4 HD frontal" />
-                  <button type="button" className="icon-btn" aria-label="Remove detail" onClick={() => update({ specs: draft.specs.filter((_, j) => j !== i) })}>
-                    <Icon name="trash" size={16} />
-                  </button>
+          <Panel title={selectedType ? `${selectedType.name} details` : "Product details"}>
+            {selectedType ? (
+              selectedType.attributes.length ? (
+                <div className="astack">
+                  {selectedType.attributes.map((a) =>
+                    a.kind === "text" ? (
+                      <TextField key={a.key} label={a.label} value={draft.attributes[a.key] ?? ""} placeholder={a.placeholder} onChange={(e) => update({ attributes: { ...draft.attributes, [a.key]: e.target.value } })} />
+                    ) : (
+                      <TextAreaField
+                        key={a.key}
+                        label={a.label}
+                        rows={a.kind === "list" ? 4 : 3}
+                        value={draft.attributes[a.key] ?? ""}
+                        placeholder={a.placeholder}
+                        hint={a.kind === "list" ? "One per line. Shown as bullet points." : undefined}
+                        onChange={(e) => update({ attributes: { ...draft.attributes, [a.key]: e.target.value } })}
+                      />
+                    ),
+                  )}
+                  <p className="small muted">
+                    Empty fields are hidden in the store. Change which fields this type has in <Link href="/admin/product-types">Product types</Link>.
+                  </p>
                 </div>
-              ))}
-              <TextAreaField label="Care notes" value={draft.careNotes} onChange={(e) => update({ careNotes: e.target.value })} hint="One tip per line." rows={4} />
+              ) : (
+                <p className="small muted">This type has no extra fields.</p>
+              )
+            ) : (
+              <p className="small muted">Choose a product type in the sidebar to fill in its details, such as lace and density for wigs or size and how to use for hair care.</p>
+            )}
+          </Panel>
+
+          <Panel title="Video (optional)">
+            <div className="astack">
+              <TextField label="Video URL" type="url" value={draft.videoUrl} onChange={(e) => update({ videoUrl: e.target.value })} error={errors.video} placeholder="https://…/product.mp4" hint="A hosted MP4 or WebM file. It only loads when a shopper presses play." />
+              {draft.videoUrl ? (
+                <div className="cluster">
+                  {draft.videoPoster ? <MediaThumb media={draft.videoPoster} size={64} /> : null}
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPosterOpen(true)}>
+                    {draft.videoPoster ? "Change cover image" : "Choose cover image"}
+                  </button>
+                  {draft.videoPoster ? (
+                    <button type="button" className="link-btn small" onClick={() => update({ videoPoster: null })}>
+                      Remove cover
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              <MediaPicker open={posterOpen} onClose={() => setPosterOpen(false)} onSelect={(m) => update({ videoPoster: m[0] ?? null })} />
             </div>
           </Panel>
         </div>
@@ -389,10 +458,20 @@ export default function ProductEditorPage() {
                 <option value="archived">Archived</option>
               </SelectField>
               <Switch checked={draft.featured} onChange={(v) => update({ featured: v })} label="Feature on the homepage" />
+              <SelectField label="Product type" value={draft.productTypeId ?? ""} onChange={(e) => chooseType(e.target.value)} error={errors.productTypeId} hint="Decides which detail fields this product has.">
+                <option value="">No type</option>
+                {(types.data ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </SelectField>
             </div>
           </Panel>
           <Panel title="Collections">
             {collections.data ? (
+              <>
+              {!draft.collectionIds.length ? <p className="small muted">In no collection yet. Shoppers can still find it through search.</p> : null}
               <ul className="achecks">
                 {collections.data.map((c: Collection) => (
                   <li key={c.id}>
@@ -404,6 +483,7 @@ export default function ProductEditorPage() {
                   </li>
                 ))}
               </ul>
+              </>
             ) : (
               <LoadingRows rows={3} />
             )}

@@ -1,8 +1,10 @@
-# Ìrun — premium hair storefront and admin
+# Queen Palace Beauty World — storefront and admin
 
-Next.js (App Router) + React + TypeScript + Anime.js frontend for a Nigerian hair vendor: a storefront with guest checkout in naira, and a permission-aware admin. It runs fully on a built-in mock backend today and switches to the Fastify + PostgreSQL backend with one environment variable.
+Next.js (App Router) + React + TypeScript + Anime.js frontend for **Queen Palace Beauty World**, a hair and beauty store at Ijoka, beside Ibiyemi Building Material, Ilesha, Osun State, Nigeria. Prices are in naira (₦).
 
-"Ìrun" (Yoruba for hair) is a placeholder brand. The name, colours, logo, contact details, homepage and menus are all editable in the admin.
+It has a storefront with guest checkout and optional accounts, and a permission-aware admin. Light and dark themes are included. It runs fully on a built-in mock backend today and switches to the Hermes Fastify + PostgreSQL backend with one environment variable.
+
+**Only facts supplied by the owner are used.** The store name and address are real. Phone, WhatsApp, email, opening hours and social links are left empty and stay hidden until they're entered in admin → Branding and store. Policy pages are starter drafts marked "Needs review". Testimonials, reviews, orders and customers are labelled sample data in mock mode.
 
 ## Quick start
 
@@ -16,12 +18,12 @@ npm run dev          # http://localhost:3000
 |---|---|
 | Store | http://localhost:3000 |
 | Admin | http://localhost:3000/admin |
-| Demo owner | `owner@irun.test` / `demo-owner` |
-| Demo store manager | `manager@irun.test` / `demo-manager` |
-| Demo fulfilment | `fulfilment@irun.test` / `demo-fulfilment` |
-| Demo customer | `customer@irun.test` / `demo-customer` |
+| Demo owner | `owner@queenpalace.test` / `demo-owner` |
+| Demo store manager | `manager@queenpalace.test` / `demo-manager` |
+| Demo fulfilment | `fulfilment@queenpalace.test` / `demo-fulfilment` |
+| Demo customer | `customer@queenpalace.test` / `demo-customer` |
 
-The login screens offer the demo accounts as one-tap buttons in mock mode. Each role sees a different admin.
+In mock mode, the login screens offer the demo accounts as one-tap buttons. Each role sees a different admin.
 
 ## Scripts
 
@@ -31,9 +33,14 @@ The login screens offer the demo accounts as one-tap buttons in mock mode. Each 
 | `npm run build` / `npm start` | Production build and server |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint (Next core-web-vitals + TypeScript rules) |
-| `npm run verify` | Typecheck, lint and build in one go |
+| `npm test` | Unit tests for the business rules in the mock backend: cart maths, discounts, Ilesha and state shipping quotes, stock, idempotent orders, product types, duplicate, collection delete keeping products, permissions, accounts, Nigerian phone validation |
+| `npm run verify` | Typecheck, lint, unit tests and build |
+| `npm run e2e` | Browser checks against `next start -p 3100`, which should be freshly started: themes, mobile checkout in Ilesha, accounts, admin product creation, collection delete, permissions, reduced motion |
+| `npm run docs:api` | Regenerates `docs/API_CONTRACT.md` from `src/lib/api/contract.ts` |
+| `npm run brand` | Regenerates the logo set in `public/brand` and the app icons (needs Playwright) |
 | `npm run smoke` | Hits every route, then runs a guest checkout and admin permission checks over HTTP. Run it against `npm start`; set `BASE_URL` for other ports. |
 | `npm run media:placeholder` | Regenerates the placeholder hair artwork in `public/media` (Python 3 + Pillow + numpy) |
+| `npm run preview:build` | Builds `dist-preview/`, a static single-page preview of the store and admin running the mock backend in the browser |
 
 ## Environment
 
@@ -77,11 +84,13 @@ docs/
 - **No prices are computed in the frontend.** Cart totals, discounts, delivery quotes (with totals per option) and order totals all come from the backend. Money is integer kobo, formatted with `formatNaira`.
 - **Admin permissions** hide or disable controls in the UI (`useAdmin().can()`, `<Can>`, `<RequirePermission>`); the backend enforces them on every call.
 
-### Design system
+### Brand and design system
 
-- Palette (editable in admin → Branding): background `#0B0709`, panels `#161015`, primary pink `#FF4F9A`, highlight gold `#D8B25A`, soft blush `#F6B3CF`. Three presets are included.
-- Type: Bricolage Grotesque (display) and Manrope (body), self-hosted variable fonts. The latin-ext subsets carry the ₦ sign and load only when needed.
-- Tokens live in `src/app/globals.css`. Storefront styles are in `src/app/(store)/store.css`; the calmer admin styles are in `src/app/admin/admin.css`.
+- **Logo.** An original crown-over-Q monogram, with a hair strand forming the Q's tail, beside a Fraunces wordmark. Files in `public/brand/`: horizontal and stacked logos (light and dark), monograms in gold, burgundy and ivory, app icons, a social avatar and an OG image. `scripts/build-brand.mjs` generates them all. In the app, `<Logo>` renders the vector inline and takes its colours from theme tokens. The owner can upload replacement logos (light and dark) in admin.
+- **Palette.** Light mode: warm ivory `#FAF6EF`, cream surfaces `#F4ECDF`, charcoal text `#231D1F`, burgundy `#6B1630` for actions, champagne gold `#C9A45C` for accents. Dark mode: near-black `#0E0B0C`, charcoal surfaces `#191516`, ivory text, gold actions and lifted burgundy. All colours are tokens in `src/app/globals.css`. The six brand colours can be changed in admin, and `BrandStyle` emits only what differs from the defaults.
+- **Type.** Fraunces (display, variable optical size) and Manrope (body), both self-hosted. The latin-ext subsets carry the ₦ sign.
+- **Shapes.** Arched "palace window" frames for campaign imagery and collections, 6px controls, restrained shadows. Gold is kept for keylines, numbers and the crown.
+- **Theme.** Light, dark or "match device", set from the header menu (storefront and admin). It's saved in `localStorage` (`qp-theme`) and applied by an inline script before first paint, so there's no flash and no hydration mismatch. The owner chooses the default for new visitors. Switching uses the View Transitions API where available. Styles are `src/app/(store)/store.css` and `src/app/admin/admin.css`.
 
 ### Motion
 
@@ -98,31 +107,75 @@ All motion goes through `src/lib/motion/anime.ts`, which lazy-loads Anime.js v4 
 
 The images in `public/media` are generated placeholder art (hair textures and product shapes), not photos. Upload real photography in admin → Media library, assign it to products and collections, and delete the placeholders. Portrait 4:5 images of at least 1200px wide work best.
 
-## Verification done
+## What's in it
 
-- `npm run typecheck`, `npm run lint` and `npm run build` pass. The build covers 31 routes; catalog pages are statically rendered or use ISR.
-- `npm run smoke` passes all 75 checks:
-  - every route, plus real 404s for missing pages
-  - cart → discount → delivery quote → validation errors → bank-transfer order (stays "awaiting transfer")
-  - idempotent retry, token-protected order access, and tracking
-  - admin 401/403 checks per role, transfer confirmation before shipping
-  - collection create, reorder and delete reflected on the storefront
-- Browser checks run on a 390px mobile viewport:
-  - add to bag from the PDP, drawer, full checkout form, confirmation page
-  - every admin page as the owner
-  - restricted views as fulfilment staff
-  - reduced-motion rendering
-  - no console errors
+**Storefront.** Homepage sections, all editable and reorderable from the admin:
+- hero with live stats
+- marquee, collections
+- promotion with a discount code
+- featured, best sellers and new arrivals
+- brand story, quality and trust
+- shade guide
+- testimonials, reviews
+- hair-care tips, FAQ preview
+- newsletter, WhatsApp call to action
 
-- Lighthouse 12, mobile preset (simulated slow 4G, 4× CPU), production build on a local server, warm image cache:
+Collection pages have a banner, search within the collection, sort, data-driven filters, pagination, stock labels and empty states.
 
-  | Page | Performance | Accessibility | Best practices | SEO | LCP | TBT | CLS |
-  |---|---|---|---|---|---|---|---|
-  | Home | 94 | 100 | 100 | 100 | 3.0 s | 70 ms | 0 |
-  | Product | 94 | 100 | 100 | 91* | 3.0 s | 120 ms | 0 |
+Product pages have:
+- a gallery with an optional video
+- variants driven by each product's own options, with SKU, price and stock per variant
+- quantity, Add to bag, Buy now
+- WhatsApp inquiry, shown only when a number is set
+- details grouped by product type (details, care, how to use)
+- delivery and returns notes, reviews, related products and recently viewed
 
-  On a cold image cache the first product-page hit scored 85, because images are optimised on first request. A CDN or Vercel caches them after that.
+Also included:
+- search with suggestions
+- cart drawer and cart page
+- guest checkout with Nigerian phone validation, state and town, and saved addresses for signed-in customers
+- order confirmation and token-protected tracking
+- accounts: register, sign in, password reset, addresses, order history, wishlist
+- About, Contact (with a directions link), Hair care, FAQ, Shipping, Returns, Privacy and Terms pages
 
-  \*The product description is placed in `<head>` for crawlers and link-preview bots (`htmlLimitedBots` in `next.config.ts`). Lighthouse's default user agent isn't on that list, so it reports the description as missing; Googlebot and WhatsApp receive it.
+**Admin.** Covers:
+- dashboard and analytics
+- orders, customers, messages, discounts and reviews
+- products: create, edit, duplicate, publish, archive, delete, video, product type and fields, multiple collections, SEO
+- inventory, collections (banner, ordering, SEO, safe delete), product types, media
+- homepage editor, navigation, pages (with "Needs review")
+- branding and store details, shipping zones (state and town), payments, staff and roles
 
-  LCP is the hero or gallery image. Real photography exported as 4:5 JPEG at around 1600px and 80% quality keeps it light. Re-run Lighthouse on your real deployment, since field Core Web Vitals depend on hosting and your actual photos.
+Throughout the admin there are global search (press `/`), confirmation dialogs, toasts, and loading, empty and error states.
+
+**Never in the frontend:** authoritative prices, stock checks, payment verification or access control. In mock mode, card and pay-on-delivery orders stay **pending**, and bank transfer stays disabled until real account details are entered.
+
+## Verification done (27 Oct 2026, mock mode, production build)
+
+- `npm run typecheck`, `npm run lint` (0 warnings), `npm test` (20 tests) and `npm run build` (43 routes) all pass.
+- `npm run smoke` passes all 77 checks: all routes, real 404s, cart, discounts, Ilesha and Lagos quotes, validation, a bank-transfer order that stays "awaiting transfer", idempotency, token access, tracking, per-role 401 and 403, and collection create, reorder and delete.
+- Browser e2e (`scripts/e2e.cjs`) passes all 29 checks. It covers:
+  - the theme toggle, persistence and no flash
+  - a mobile, dark-mode Buy now flow through to a Pay on delivery order in Ilesha
+  - phone validation
+  - registration with a saved address that prefills checkout
+  - creating a hair-care product with its own fields in the admin, then duplicating it
+  - deleting a collection while keeping its products
+  - analytics labelled as demo data
+  - global search, fulfilment-role navigation and reduced motion
+
+  No hydration or console errors. The only failed request is the deliberate 422 from the invalid-phone check.
+- Every storefront route and every admin route was screenshotted in light and dark at 1440px, with key pages also at 390px. None scrolls horizontally.
+- Lighthouse 12 mobile preset on the local production server. The 2-vCPU sandbox runs the server and Chrome together, so performance varies run to run:
+
+  | Page | Performance | Accessibility | Best practices | SEO | CLS |
+  |---|---|---|---|---|---|
+  | Home | 82–88 | 100 | 100 | 100 | 0 |
+  | Collection | 88–89 | 100 | 100 | 91* | 0 |
+  | Product | 72–81 | 100 | 100 | 91* | 0 |
+
+  \*Descriptions are served in `<head>` to crawlers and link-preview bots (`htmlLimitedBots`). Lighthouse's own user agent isn't on that list. Re-measure on the real host with real photography.
+
+## Needs the real backend before launch
+
+These are **not** connected or tested yet: PostgreSQL persistence, staff and customer authentication, Paystack and Flutterwave payments and webhooks, refunds, email (receipts, password reset, replies), file and video storage, and analytics in SQL. `docs/BACKEND_INTEGRATION.md` lists what each needs and the rules the backend must enforce. The owner still needs to enter contact details, review the policy pages, upload real photography and replace the sample testimonials.
