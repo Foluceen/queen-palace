@@ -2,7 +2,9 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { Logo } from "@/components/brand/Logo";
 import { api } from "@/lib/api/browser";
+import { onAuthEvent } from "@/lib/api/auth-events";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import type { AdminSession, Permission } from "@/lib/types";
 
@@ -26,6 +28,7 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
     try {
       setSession(await api().call("adminSession"));
     } catch (err) {
+      // 401: not signed in. 403 on the session endpoint: account suspended or removed.
       if (err instanceof ApiError && (err.isUnauthorized || err.isForbidden)) {
         router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
       } else setError(errorMessage(err));
@@ -34,19 +37,40 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void load();
+    const toLogin = () => {
+      setSession(null);
+      const here = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/admin/login?expired=1&next=${encodeURIComponent(here)}`);
+    };
     // Re-check the session when the tab regains focus (expired or revoked sessions).
-    const onFocus = () => void api().call("adminSession").then(setSession).catch((err) => {
-      if (err instanceof ApiError && err.isUnauthorized) router.replace("/admin/login");
+    const onFocus = () =>
+      void api()
+        .call("adminSession")
+        .then(setSession)
+        .catch((err) => {
+          if (err instanceof ApiError && (err.isUnauthorized || err.isForbidden)) toLogin();
+        });
+    // Any admin request that comes back 401 means the session expired: go to sign-in.
+    // A 403 means permissions changed: reload the session so the UI matches the backend.
+    const off = onAuthEvent((e) => {
+      if (e.scope !== "admin" || e.endpoint === "adminSession") return;
+      if (e.status === 401) toLogin();
+      else void api().call("adminSession").then(setSession).catch(() => {});
     });
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    return () => {
+      off();
+      window.removeEventListener("focus", onFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {
     return (
-      <div className="admin-boot">
-        <p>{error}</p>
+      <div className="admin-boot" role="alert">
+        <Logo variant="stacked" title="Queen Palace Beauty World" />
+        <h1 className="h3">The admin can't reach the store API</h1>
+        <p className="muted">{error}</p>
         <button type="button" className="btn" onClick={() => void load()}>
           Try again
         </button>

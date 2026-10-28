@@ -873,3 +873,19 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+/* Store unavailable (API down or incompatible) ---------------------------- */
+.unavailable {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 16px;
+  min-height: 80svh;
+  padding: 40px var(--gutter);
+  text-align: center;
+}
+.unavailable__logo {
+  height: 110px;
+  width: auto;
+  margin-bottom: 8px;
+}

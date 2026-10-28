@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run lint && npm test && npm run build",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run build:mock",
     "fonts": "node scripts/copy-fonts.mjs",
     "postinstall": "node scripts/copy-fonts.mjs",
     "media:placeholder": "python3 scripts/generate-placeholder-media.py",
@@ -18,7 +18,10 @@
     "test": "tsx --tsconfig tsconfig.json --test tests/*.test.ts",
     "brand": "node scripts/build-brand.mjs",
     "e2e": "node scripts/e2e.cjs http://localhost:3100 .",
-    "docs:api": "node scripts/gen-api-doc.mjs"
+    "docs:api": "node scripts/gen-api-doc.mjs",
+    "build:mock": "NEXT_PUBLIC_DATA_MODE=mock next build",
+    "start:mock": "NEXT_PUBLIC_DATA_MODE=mock next start",
+    "probe:live": "tsx --tsconfig tsconfig.json scripts/probe-live-api.ts"
   },
   "dependencies": {
     "animejs": "^4.2.0",

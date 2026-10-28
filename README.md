@@ -6,6 +6,12 @@ It has a storefront with guest checkout and optional accounts, and a permission-
 
 **Only facts supplied by the owner are used.** The store name and address are real. Phone, WhatsApp, email, opening hours and social links are left empty and stay hidden until they're entered in admin → Branding and store. Policy pages are starter drafts marked "Needs review". Testimonials, reviews, orders and customers are labelled sample data in mock mode.
 
+## Data mode
+
+- **Production builds are live.** `.env.production` sets `NEXT_PUBLIC_DATA_MODE=live` and `NEXT_PUBLIC_API_BASE_URL=https://api.queenpalacebeauty.store/v1`. A live build talks only to the real API, and when the API is down or incompatible it shows a clear unavailable state. There is no fallback to demo data.
+- **Local development is mock** by default (`npm run dev`), with the labelled demo store. Use `npm run build:mock` / `npm run start:mock` for a production-like demo build.
+- `docs/LIVE_READINESS.md` has the current backend status, the API compatibility matrix and the launch checklist. `npm run probe:live` re-checks the real API (read-only).
+
 ## Quick start
 
 ```bash
@@ -35,10 +41,12 @@ In mock mode, the login screens offer the demo accounts as one-tap buttons. Each
 | `npm run lint` | ESLint (Next core-web-vitals + TypeScript rules) |
 | `npm test` | Unit tests for the business rules in the mock backend: cart maths, discounts, Ilesha and state shipping quotes, stock, idempotent orders, product types, duplicate, collection delete keeping products, permissions, accounts, Nigerian phone validation |
 | `npm run verify` | Typecheck, lint, unit tests and build |
-| `npm run e2e` | Browser checks against `next start -p 3100`, which should be freshly started: themes, mobile checkout in Ilesha, accounts, admin product creation, collection delete, permissions, reduced motion |
+| `npm run e2e` | Browser checks against a fresh mock server on port 3100 (`npm run build:mock && npx next start -p 3100` with `NEXT_PUBLIC_DATA_MODE=mock`): themes, mobile checkout in Ilesha, accounts, admin product creation, collection delete, permissions, reduced motion |
 | `npm run docs:api` | Regenerates `docs/API_CONTRACT.md` from `src/lib/api/contract.ts` |
 | `npm run brand` | Regenerates the logo set in `public/brand` and the app icons (needs Playwright) |
-| `npm run smoke` | Hits every route, then runs a guest checkout and admin permission checks over HTTP. Run it against `npm start`; set `BASE_URL` for other ports. |
+| `npm run smoke` | Hits every route, then runs a guest checkout and admin permission checks over HTTP. Run it against a mock build (`npm run build:mock && npm run start:mock`); set `BASE_URL` for other ports. |
+| `npm run build:mock` / `npm run start:mock` | Production build and server on demo data |
+| `npm run probe:live` | Read-only check of the real API: CORS, every public GET's shape, and 401s on authenticated GETs |
 | `npm run media:placeholder` | Regenerates the placeholder hair artwork in `public/media` (Python 3 + Pillow + numpy) |
 | `npm run preview:build` | Builds `dist-preview/`, a static single-page preview of the store and admin running the mock backend in the browser |
 

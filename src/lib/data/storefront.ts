@@ -3,6 +3,7 @@
  * never on the mock or the HTTP client directly, so switching NEXT_PUBLIC_DATA_MODE
  * swaps the implementation without touching any component.
  */
+import { connection } from "next/server";
 import { cache } from "react";
 import { encodeOptions, type EndpointName, type RequestOf, type ResponseOf } from "@/lib/api/contract";
 import { ApiError, createApiClient } from "@/lib/api/client";
@@ -37,9 +38,9 @@ export interface StorefrontRepository {
   paymentOptions(): Promise<PublicPaymentOptions>;
 }
 
-type Caller = <K extends EndpointName>(name: K, req: RequestOf<K>) => Promise<ResponseOf<K>>;
+export type Caller = <K extends EndpointName>(name: K, req: RequestOf<K>) => Promise<ResponseOf<K>>;
 
-function repositoryFrom(call: Caller): StorefrontRepository {
+export function repositoryFrom(call: Caller): StorefrontRepository {
   const orNull = async <T,>(p: Promise<T>): Promise<T | null> => {
     try {
       return await p;
@@ -78,9 +79,21 @@ async function mockCaller<K extends EndpointName>(name: K, req: RequestOf<K>): P
 
 const revalidate = Number(process.env.CATALOG_REVALIDATE_SECONDS ?? 60);
 
+/**
+ * Live mode: every server render reads the real API. `connection()` marks the route as
+ * request-time rendered, so builds never call the API and never bake API failures (or data)
+ * into static HTML. API responses are still cached in Next's data cache for
+ * CATALOG_REVALIDATE_SECONDS (tag "catalog"); after that window the next request refetches.
+ * There is no fallback to mock data: failures throw and the route's error boundary shows a
+ * retry state.
+ */
 function liveCaller(): Caller {
-  const client = createApiClient(serverApiBase(), { init: { next: { revalidate, tags: ["catalog"] } } });
-  return (name, req) => client.call(name, req);
+  // Vercel functions time out at 10s by default; fail before that so the error page renders.
+  const client = createApiClient(serverApiBase(), { timeoutMs: 8000, init: { next: { revalidate, tags: ["catalog"] } } });
+  return async (name, req) => {
+    await connection();
+    return client.call(name, req);
+  };
 }
 
 const getRepository = cache((): StorefrontRepository => repositoryFrom(dataMode === "mock" ? mockCaller : liveCaller()));

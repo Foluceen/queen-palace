@@ -9,6 +9,16 @@ const mediaHosts = (process.env.NEXT_PUBLIC_MEDIA_HOSTS ?? "")
   .map((h) => h.trim())
   .filter(Boolean);
 
+// In live mode, images served by the API host itself are allowed too.
+if (process.env.NEXT_PUBLIC_DATA_MODE === "live" && process.env.NEXT_PUBLIC_API_BASE_URL) {
+  try {
+    const apiHost = new URL(process.env.NEXT_PUBLIC_API_BASE_URL).hostname;
+    if (!mediaHosts.includes(apiHost)) mediaHosts.push(apiHost);
+  } catch {
+    /* invalid URL: the client reports it at runtime */
+  }
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "@/lib/api/browser";
+import { ApiError } from "@/lib/api/client";
 import { Icon } from "@/components/ui/Icon";
 
 const KEY = "qp.wishlist";
@@ -46,7 +47,15 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         setIds(merged);
         setSynced(true);
       })
-      .catch(() => setSynced(false));
+      .catch((err) => {
+        setSynced(false);
+        // Session gone: stop treating this browser as signed in. The list stays saved on this device.
+        if (err instanceof ApiError && err.isUnauthorized) {
+          try {
+            localStorage.removeItem(SIGNED_IN_KEY);
+          } catch {}
+        }
+      });
   }, []);
 
   const toggle = useCallback(
@@ -58,7 +67,9 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         } catch {
           /* ignore */
         }
-        if (synced) void api().call("replaceWishlist", { body: { productIds: next } }).catch(() => {});
+        // Saved on this device first; the account copy is updated when signed in. If that fails
+        // we stop claiming the list is synced rather than pretending the server has it.
+        if (synced) void api().call("replaceWishlist", { body: { productIds: next } }).catch(() => setSynced(false));
         return next;
       });
     },

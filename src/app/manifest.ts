@@ -1,12 +1,10 @@
 import type { MetadataRoute } from "next";
-import { getSettings } from "@/lib/data/storefront";
-
-export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  const s = await getSettings();
+/** Static on purpose: the web app manifest must not depend on the API being up. */
+export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: s.name,
+    name: "Queen Palace Beauty World",
     short_name: "Queen Palace",
-    description: s.metaDescription,
+    description: "Hair and beauty from Queen Palace Beauty World, Ilesha.",
     start_url: "/",
     display: "standalone",
     background_color: "#faf6ef",

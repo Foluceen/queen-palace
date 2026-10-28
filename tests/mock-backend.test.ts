@@ -270,3 +270,47 @@ describe("nigerian phone numbers", () => {
     assert.equal(normalizeNigerianPhone("0803 123 4567"), "+2348031234567");
   });
 });
+
+describe("admin authorisation sweep (reference behaviour for the real backend)", () => {
+  it("every admin endpoint refuses anonymous requests with 401", async () => {
+    const { routes } = await import("../src/lib/api/contract");
+    const admin = Object.entries(routes).filter(([, r]) => r.auth === "admin" && !["adminLogout"].includes(r.path === "/admin/auth/logout" ? "adminLogout" : ""));
+    assert.ok(admin.length > 50);
+    for (const [name] of admin) {
+      if (name === "adminLogout") continue;
+      expectError(() => callMock(name as never, { params: { id: "x", productId: "x", variantId: "x", slug: "about" }, query: {}, body: {} } as never), 401);
+    }
+  });
+
+  it("a role without a permission gets 403 on mutations it can't perform", () => {
+    const fulfil = session();
+    callMock("adminLogin", { body: { email: "fulfilment@queenpalace.test", password: "demo-fulfilment" } }, fulfil);
+    const denied: [string, unknown][] = [
+      ["adminCreateProduct", { body: {} }],
+      ["adminUpdateStoreSettings", { body: {} }],
+      ["adminUpdateShippingSettings", { body: {} }],
+      ["adminSaveRole", { body: {} }],
+      ["adminInviteStaff", { body: {} }],
+      ["adminCreateDiscount", { body: {} }],
+      ["adminUpdateHomepage", { body: { sections: [] } }],
+      ["adminRefundOrder", { params: { id: "ord_s0" }, body: { amount: 100, reason: "x" } }],
+    ];
+    for (const [name, req] of denied) expectError(() => callMock(name as never, req as never, fulfil), 403);
+  });
+
+  it("an admin save is visible on the next read (no local-only success)", () => {
+    const ctx = signInOwner();
+    const s = callMock("adminGetStoreSettings", {}, ctx);
+    const { logo, logoDark, ...rest } = s;
+    callMock("adminUpdateStoreSettings", { body: { ...rest, tagline: "Crowned in Ilesha.", logoId: logo?.id ?? null, logoDarkId: logoDark?.id ?? null } }, ctx);
+    assert.equal(callMock("getStoreSettings", {}).tagline, "Crowned in Ilesha.");
+    callMock("adminUpdateCollection", { params: { id: "col_braids" }, body: { status: "draft" } }, ctx);
+    assert.ok(!callMock("listCollections", {}).some((c) => c.id === "col_braids"), "a hidden collection disappears from the storefront");
+  });
+
+  it("an expired admin session is rejected", () => {
+    const ctx = signInOwner();
+    callMock("adminLogout", {}, ctx);
+    expectError(() => callMock("adminDashboard", { query: {} }, ctx), 401);
+  });
+});

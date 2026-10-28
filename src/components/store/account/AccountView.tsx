@@ -11,6 +11,7 @@ import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 import { formatDate, fulfillmentStatusLabel, paymentStatusLabel } from "@/lib/format";
 import { PHONE_HINT } from "@/lib/phone";
+import { safeNext } from "@/lib/redirect";
 import type { Address, Customer, OrderSummary, SavedAddress } from "@/lib/types";
 import { AddressFields, emptyAddress } from "./AddressForm";
 
@@ -56,7 +57,8 @@ export function AccountView() {
   }, [load]);
 
   const done = () => {
-    if (next && next.startsWith("/") && !next.startsWith("//")) router.push(next);
+    const target = safeNext(next, "/", "");
+    if (target) router.push(target);
     else void load();
   };
 

@@ -8,6 +8,7 @@ import { TextField } from "@/components/ui/Field";
 import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
+import { safeNext } from "@/lib/redirect";
 
 const demoAccounts = [
   { email: "owner@queenpalace.test", password: "demo-owner", role: "Owner, full access" },
@@ -17,7 +18,9 @@ const demoAccounts = [
 
 function LoginForm() {
   const router = useRouter();
-  const next = useSearchParams().get("next");
+  const sp = useSearchParams();
+  const next = sp.get("next");
+  const expired = sp.get("expired") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +37,7 @@ function LoginForm() {
           setError(null);
           try {
             await api().call("adminLogin", { body: { email, password } });
-            router.replace(next && next.startsWith("/admin") ? next : "/admin");
+            router.replace(safeNext(next, "/admin", "/admin"));
           } catch (err) {
             setError(errorMessage(err));
             setBusy(false);
@@ -47,6 +50,11 @@ function LoginForm() {
         <h1 className="h3" style={{ textAlign: "center" }}>
           Store admin
         </h1>
+        {expired ? (
+          <p className="notice notice--warning small" role="status">
+            Your session ended. Sign in again to continue.
+          </p>
+        ) : null}
         <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" autoFocus />
         <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
         {error ? (

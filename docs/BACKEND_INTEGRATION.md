@@ -1,6 +1,6 @@
 # Backend integration (for the Fastify + PostgreSQL backend)
 
-The frontend is complete against `src/lib/api/contract.ts`. In mock mode, `src/lib/mock/backend.ts` implements every endpoint in memory, and it is the reference for the behaviour described here. Switch to the real backend with `NEXT_PUBLIC_DATA_MODE=live`.
+The frontend is complete against `src/lib/api/contract.ts`. For the current live status, contract disagreements and what is still missing, see `docs/LIVE_READINESS.md`. In mock mode, `src/lib/mock/backend.ts` implements every endpoint in memory, and it is the reference for the behaviour described here. Switch to the real backend with `NEXT_PUBLIC_DATA_MODE=live`.
 
 ## What is not connected yet
 
