@@ -17,6 +17,13 @@ The frontend is configured for live mode (`.env.production`) and contains no rou
 
 DNS and HTTPS are fine now: `api.queenpalacebeauty.store` resolves to `162.35.31.120`, and the certificate (Let's Encrypt, issued 28 Oct 2026, valid until 26 Jan 2027) matches the hostname.
 
+## Production deployment, 28 Oct 2026 (commit `869f555`)
+
+- Vercel built and deployed the live-mode commit to all three linked projects: `queen-palace`, `queen-palace1` and `queen-palace2`.
+- `www.queenpalacebeauty.store` now runs in live mode. `/api/mock/*` answers `404 mock_disabled`. Storefront pages show "The store is temporarily unavailable" (HTTP 500), and `/admin` shows "The admin can't reach the store API".
+- The deployed bundle calls `https://api.queenpalacebeauty.store` **without `/v1`**, so a Vercel dashboard value is overriding `.env.production`. Without the prefix the API answers 404; with it, 401/200. **Fix: set `NEXT_PUBLIC_API_BASE_URL=https://api.queenpalacebeauty.store/v1` in Vercel (Production) and redeploy.**
+- Even with that fixed, browsers will be blocked by CORS (blocker 1), and the storefront will stay unavailable until the settings and navigation shapes match (blocker 2).
+
 ## Base URL includes `/v1`
 
 The API serves every contract route under `/v1`: `GET /v1/store/settings` is 200, while `GET /store/settings` is 404. `docs/API_CONTRACT.md` already says the base URL includes the version. So:
