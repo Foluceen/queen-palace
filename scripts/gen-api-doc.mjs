@@ -43,7 +43,7 @@ if (current.rows.length) sections.push(current);
 const head = readFileSync(new URL("../docs/API_CONTRACT.md", import.meta.url), "utf8").split("\n## ")[0].split("\n## Conventions")[0];
 const conventions = readFileSync(new URL("../docs/API_CONTRACT.md", import.meta.url), "utf8").match(/## Conventions[\s\S]*?(?=\n## )/)[0];
 const total = sections.reduce((n, s) => n + s.rows.length, 0);
-let md = `${head.trim()}\n\n${conventions.trim()}\n\n${total} endpoints.\n`;
+let md = `${head.replace(/^\d+ endpoints\.\s*$/gm, "").trim()}\n\n${conventions.replace(/^\d+ endpoints\.\s*$/gm, "").trim()}\n\n${total} endpoints.\n`;
 for (const s of sections) md += `\n## ${s.title}\n\n| Name | Method and path | Auth | Path params | Query | Body | Response |\n|---|---|---|---|---|---|---|\n${s.rows.join("\n")}\n`;
 writeFileSync(new URL("../docs/API_CONTRACT.md", import.meta.url), md);
 console.log(`wrote ${total} endpoints in ${sections.length} sections`);

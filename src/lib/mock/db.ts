@@ -15,7 +15,6 @@ import type {
   PaymentSettings,
   Product,
   ProductType,
-  Review,
   Role,
   SavedAddress,
   ShippingSettings,
@@ -36,6 +35,7 @@ import {
   seedProducts,
   seedProductTypes,
   seedReviews,
+  type MockReview,
   seedRoles,
   seedSettings,
   seedShipping,
@@ -66,7 +66,7 @@ export interface MockDb {
   collections: Collection[];
   products: Product[];
   productTypes: ProductType[];
-  reviews: Review[];
+  reviews: MockReview[];
   carts: Map<string, MockCart>;
   orders: Order[];
   idempotency: Map<string, string>;

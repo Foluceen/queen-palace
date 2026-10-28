@@ -35,6 +35,8 @@ import type {
   Variant,
 } from "@/lib/types";
 import { getDb, newId, type MockCart, type MockCustomerAccount, type MockDb } from "./db";
+import type { MockReview } from "./seed";
+import { REVIEW_LIMITS } from "@/lib/types";
 
 export class MockHttpError extends Error {
   constructor(
@@ -89,10 +91,10 @@ function refreshProduct(p: Product): Product {
 
 function refreshAll(db: MockDb) {
   db.products.forEach(refreshProduct);
-  // Ratings come only from published reviews, so the stars always match what shoppers can read.
+  // Ratings come only from approved reviews, so the stars always match what shoppers can read.
   const stats = new Map<string, { sum: number; count: number }>();
   for (const r of db.reviews) {
-    if (r.status !== "published") continue;
+    if (r.status !== "approved") continue;
     const s = stats.get(r.productId) ?? { sum: 0, count: 0 };
     s.sum += r.rating;
     s.count += 1;
@@ -157,6 +159,17 @@ function paginate<T>(items: T[], page: number, pageSize: number): Paginated<T> {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const p = Math.min(Math.max(1, page), totalPages);
   return { items: items.slice((p - 1) * pageSize, p * pageSize), page: p, pageSize, total, totalPages };
+}
+
+/** What anyone may see: approved content without the author's email or moderation notes. */
+function publicReview(r: MockReview): Review {
+  const { email: _email, customerId: _customerId, ...rest } = r;
+  return { ...rest, rejectionReason: null };
+}
+/** The author's (or staff's) view: includes the rejection reason, still no email. */
+function ownReview(r: MockReview): Review {
+  const { email: _email, customerId: _customerId, ...rest } = r;
+  return rest;
 }
 
 function matchesQuery(p: Product, q: string) {
@@ -467,7 +480,7 @@ function homepage(db: MockDb, includeDisabled: boolean): Homepage {
       return { ...s, items };
     }
     if (s.type === "reviews") {
-      return { ...s, reviews: db.reviews.filter((r) => r.status === "published" && r.rating >= 4).slice(0, 6) };
+      return { ...s, reviews: db.reviews.filter((r) => r.status === "approved" && r.rating >= 4).slice(0, 6).map(publicReview) };
     }
     return s;
   });
@@ -552,35 +565,67 @@ export const handlers: Handlers = {
     const type = db.productTypes.find((t) => t.id === product.productTypeId);
     return { product, productType: type ? { id: type.id, name: type.name } : null, attributes: resolveAttributes(db, product), collections, related };
   },
-  listProductReviews: ({ params, query }, _c, db) =>
-    paginate(
-      db.reviews.filter((r) => r.productId === params.productId && r.status === "published").sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
-      num(query?.page, 1),
-      6,
-    ),
-  createProductReview: ({ params, body }, _c, db) => {
-    const p = db.products.find((x) => x.id === params.productId) ?? fail(404, "not_found", "Product not found.");
+  listProductReviews: ({ params, query }, _c, db) => {
+    const approved = db.reviews.filter((r) => r.productId === params.productId && r.status === "approved");
+    const sort = query?.sort === "highest" || query?.sort === "lowest" ? query.sort : "newest";
+    const byDate = (a: Review, b: Review) => Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    approved.sort((a, b) => (sort === "highest" ? b.rating - a.rating : sort === "lowest" ? a.rating - b.rating : 0) || byDate(a, b));
+    const distribution = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+    for (const r of approved) distribution[String(r.rating) as keyof typeof distribution] += 1;
+    const sum = approved.reduce((n, r) => n + r.rating, 0);
+    return {
+      ...paginate(approved.map(publicReview), num(query?.page, 1), 6),
+      summary: { average: approved.length ? Math.round((sum / approved.length) * 10) / 10 : 0, count: approved.length, distribution },
+    };
+  },
+  createProductReview: ({ params, body }, ctx, db) => {
+    const p = db.products.find((x) => x.id === params.productId && x.status === "published") ?? fail(404, "not_found", "Product not found.");
+    const L = REVIEW_LIMITS;
+    const author = String(body.author ?? "").trim();
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const location = String(body.location ?? "").trim();
+    const title = String(body.title ?? "").trim();
+    const text = String(body.body ?? "").trim();
+    const rating = Number(body.rating);
     const fields: Record<string, string> = {};
-    if (!body.author.trim()) fields.author = "Enter your name.";
-    if (!/^\S+@\S+\.\S+$/.test(body.email)) fields.email = "Enter a valid email address.";
-    if (body.rating < 1 || body.rating > 5) fields.rating = "Choose a rating from 1 to 5.";
-    if (body.body.trim().length < 10) fields.body = "Tell us a little more (at least 10 characters).";
+    if (author.length < L.authorMin || author.length > L.authorMax) fields.author = `Enter a name between ${L.authorMin} and ${L.authorMax} characters.`;
+    if (!EMAIL.test(email)) fields.email = "Enter a valid email address.";
+    if (location.length > L.locationMax) fields.location = `Keep the city under ${L.locationMax} characters.`;
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) fields.rating = "Choose a rating from 1 to 5 stars.";
+    if (title.length > L.titleMax) fields.title = `Keep the title under ${L.titleMax} characters.`;
+    if (text.length < L.bodyMin) fields.body = `Tell us a little more (at least ${L.bodyMin} characters).`;
+    else if (text.length > L.bodyMax) fields.body = `Keep your review under ${L.bodyMax} characters.`;
     if (Object.keys(fields).length) fail(422, "validation_failed", "Check the highlighted fields.", fields);
-    db.reviews.unshift({
+
+    const token = ctx.getCookie(CUSTOMER_COOKIE);
+    const customerId = (token && db.customerSessions.get(token)) || null;
+    const duplicate = db.reviews.some(
+      (r) => r.productId === p.id && r.status !== "rejected" && (r.email === email || (customerId !== null && r.customerId === customerId)),
+    );
+    if (duplicate) fail(409, "review_exists", "You've already reviewed this product. Thank you!");
+
+    const verifiedPurchase = db.orders.some((o) => o.email.toLowerCase() === email && o.paymentStatus === "paid" && o.lines.some((l) => l.productId === p.id));
+    const review: MockReview = {
       id: newId("rev"),
       productId: p.id,
       productTitle: p.title,
-      author: body.author.trim(),
-      location: body.location?.trim() || null,
-      rating: Math.round(body.rating),
-      title: body.title.trim() || "Review",
-      body: body.body.trim(),
-      verifiedPurchase: false,
+      productHandle: p.handle,
+      author,
+      location: location || null,
+      rating,
+      title,
+      body: text,
+      verifiedPurchase,
       status: "pending",
       reply: null,
+      rejectionReason: null,
       createdAt: now(),
-    });
-    return { status: "pending" };
+      moderatedAt: null,
+      email,
+      customerId,
+    };
+    db.reviews.unshift(review);
+    return { id: review.id, status: review.status, createdAt: review.createdAt };
   },
   search: ({ query }, _c, db) => {
     const q = (query?.q ?? "").trim();
@@ -829,6 +874,13 @@ export const handlers: Handlers = {
   },
   getCustomer: (_r, ctx, db) => ({ customer: requireCustomer(db, ctx) }),
   getCustomerAccount: (_r, ctx, db) => requireCustomer(db, ctx),
+  listCustomerReviews: (_r, ctx, db) => {
+    const c = requireCustomer(db, ctx);
+    return db.reviews
+      .filter((r) => r.customerId === c.id || (r.email !== null && r.email === c.email.toLowerCase()))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .map(ownReview);
+  },
   listCustomerOrders: (_r, ctx, db) => {
     const c = requireCustomer(db, ctx);
     return db.orders.filter((o) => o.email === c.email).map(summary);
@@ -1337,14 +1389,22 @@ export const handlers: Handlers = {
   /* reviews & inquiries */
   adminListReviews: ({ query }, ctx, db) => {
     requirePerm(db, ctx, "reviews:moderate");
-    return db.reviews.filter((r) => !query?.status || r.status === query.status);
+    return db.reviews.filter((r) => !query?.status || r.status === query.status).map(ownReview);
   },
   adminModerateReview: ({ params, body }, ctx, db) => {
     requirePerm(db, ctx, "reviews:moderate");
-    const r: Review = db.reviews.find((x) => x.id === params.id) ?? fail(404, "not_found", "Review not found.");
+    const r = db.reviews.find((x) => x.id === params.id) ?? fail(404, "not_found", "Review not found.");
+    if (!["pending", "approved", "rejected"].includes(body.status)) fail(422, "validation_failed", "Choose approve or reject.", { status: "Unknown status." });
+    if (body.status !== r.status) r.moderatedAt = now();
     r.status = body.status;
     if (body.reply !== undefined) r.reply = body.reply?.trim() || null;
-    return r;
+    if (body.status === "rejected") {
+      if (body.rejectionReason !== undefined) r.rejectionReason = body.rejectionReason?.trim().slice(0, 300) || null;
+    } else {
+      r.rejectionReason = null;
+    }
+    refreshAll(db);
+    return ownReview(r);
   },
   adminListInquiries: ({ query }, ctx, db) => {
     requirePerm(db, ctx, "inquiries:respond");

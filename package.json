@@ -1,8 +1,8 @@
 {
-  "name": "queen-palace-beauty-world",
+  "name": "queen-luxury-hair",
   "version": "0.1.0",
   "private": true,
-  "description": "Queen Palace Beauty World storefront and admin (Next.js App Router).",
+  "description": "Queen Luxury Hair storefront and admin (Next.js App Router).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

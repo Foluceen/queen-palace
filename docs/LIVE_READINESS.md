@@ -1,8 +1,8 @@
 # Live mode readiness
 
-Frontend: `https://www.queenpalacebeauty.store` (the apex domain redirects to `www`).
-API: `https://api.queenpalacebeauty.store/v1`.
-Status as of **28 October 2026, 17:20 UTC**. Re-check at any time with `npm run probe:live` (read-only).
+Frontend: `https://queenluxuryhair.store` (canonical, from 29 Oct 2026). The old domain `queenpalacebeauty.store` is retired.
+API: `https://api.queenpalacebeauty.store/v1` **for now**. The production API host for the new domain is **pending Hermes confirmation** (see "Domain change").
+API status as of **28 October 2026, 17:20 UTC**; domain status as of **29 October 2026**. Re-check at any time with `npm run probe:live` (read-only).
 
 ## Where things stand
 
@@ -16,6 +16,33 @@ The frontend is configured for live mode (`.env.production`) and contains no rou
 | 4 | **No catalog data.** `/collections` and `/products` return empty lists. | Even with shapes fixed, the store would be empty. | Hermes / store owner |
 
 DNS and HTTPS are fine now: `api.queenpalacebeauty.store` resolves to `162.35.31.120`, and the certificate (Let's Encrypt, issued 28 Oct 2026, valid until 26 Jan 2027) matches the hostname.
+
+## Domain change: Queen Luxury Hair, 29 Oct 2026
+
+The business is now **Queen Luxury Hair** at **`queenluxuryhair.store`**. The frontend uses `https://queenluxuryhair.store` as its canonical URL (`NEXT_PUBLIC_SITE_URL`), for metadata, canonical links, Open Graph, JSON-LD and `robots.txt`.
+
+What was checked on 29 Oct 2026:
+
+| Host | Result |
+|---|---|
+| `queenluxuryhair.store` | Vercel, `308` redirect to `www.queenluxuryhair.store` |
+| `www.queenluxuryhair.store` | Vercel, serves the Queen Luxury Hair build in live mode, showing "The store is temporarily unavailable" (blockers below). Its share-image URLs still point at `queenpalacebeauty.store`, so `NEXT_PUBLIC_SITE_URL` in the Vercel dashboard still has the old value. |
+| `api.queenluxuryhair.store` | **Came up during the day.** DNS now points to `162.35.31.120`, the backend server, and from about 23:20 UTC on 28 Oct it answers over HTTPS. Read-only probe from origin `https://queenluxuryhair.store`: CORS preflight **OK (204)**; 14 checks pass (`listCollections`, `listProducts`, customer and admin 401 gates); the same 5 shape mismatches as before (settings, navigation, homepage, payment options, search); `listProductReviews` 500; `listCustomerReviews`, `adminListReviews` and other admin endpoints 501. |
+| `www.queenpalacebeauty.store` / `queenpalacebeauty.store` | `404 DEPLOYMENT_NOT_FOUND` (detached from Vercel) |
+| `api.queenpalacebeauty.store` | **No longer reaches the backend.** DNS now points to Vercel addresses (`64.29.17.65`, `216.198.79.1`) and HTTPS fails. The frontend's interim value in `.env.production` therefore doesn't work either. |
+
+So the backend appears to have moved to `https://api.queenluxuryhair.store/v1`. That is consistent with the recommendation, but it is an observation, not confirmation. **When Hermes confirms it, change one line** in `.env.production` and in Vercel (Production): `NEXT_PUBLIC_API_BASE_URL=https://api.queenluxuryhair.store/v1`, then redeploy. No code change is needed.
+
+**Why the API host matters.** Session cookies are `SameSite=Lax`. While the storefront is on `queenluxuryhair.store` and the API is on `queenpalacebeauty.store`, the two are **cross-site**: browsers won't send the customer or staff session cookie with API requests. Sign-in, accounts, wishlist sync, My reviews and the whole admin would fail, and Safari blocks such third-party cookies even with `SameSite=None`. The build prints a warning while this is the case. The fix is an API host under the new domain, e.g. `https://api.queenluxuryhair.store/v1`, but **the frontend won't switch until Hermes confirms** the endpoint, DNS, TLS, CORS and cookie settings.
+
+Frontend audit of the old domain (all done in code):
+- **Canonical/metadata:** come only from `NEXT_PUBLIC_SITE_URL`; no hard-coded domain in `src/`.
+- **Redirects:** `next.config.ts` permanently redirects `queenpalacebeauty.store` and `www.queenpalacebeauty.store` to the same path on the new domain, but only once the old domain is attached to this Vercel project again. The www-to-apex redirect must be set in Vercel's Domains settings, not in code, to avoid a loop.
+- **Sign-in "next" redirects:** relative paths only (`src/lib/redirect.ts`), so the domain doesn't matter.
+- **Payment return URLs and password-reset links:** built by the **backend**; the frontend sends no return URL. Hermes must update them (below).
+- **Payment redirects:** the frontend follows any `https` `payment.redirectUrl` (`src/lib/checkout.ts`); there is no domain allow-list to update.
+- **API configuration:** only `NEXT_PUBLIC_API_BASE_URL` (and optional `API_BASE_URL`). `npm run probe:live` now reads both URLs from `.env.production` instead of hard-coding them.
+- **Remaining old-domain text:** only this document's history and the interim API URL.
 
 ## Production deployment, 28 Oct 2026 (commit `869f555`)
 
@@ -37,8 +64,8 @@ If the version prefix should go away, that needs a coordinated change. The front
 | Variable | Value | Notes |
 |---|---|---|
 | `NEXT_PUBLIC_DATA_MODE` | `live` | Already in `.env.production`. A dashboard value overrides the file, so delete or update any `mock` value set there. |
-| `NEXT_PUBLIC_API_BASE_URL` | `https://api.queenpalacebeauty.store/v1` | Must include `/v1`. |
-| `NEXT_PUBLIC_SITE_URL` | `https://www.queenpalacebeauty.store` | Used for metadata and payment return URLs. |
+| `NEXT_PUBLIC_API_BASE_URL` | Today `https://api.queenpalacebeauty.store/v1`; after Hermes confirms, e.g. `https://api.queenluxuryhair.store/v1` | Must include `/v1`. Change it only after the backend confirms the host. |
+| `NEXT_PUBLIC_SITE_URL` | `https://queenluxuryhair.store` | Canonical URL, metadata, JSON-LD and robots. The dashboard still has the old value: update it. |
 | `CATALOG_REVALIDATE_SECONDS` | `60` | Optional. This is the default. |
 | `NEXT_PUBLIC_MEDIA_HOSTS` | Your image CDN host(s), comma separated | Optional. The API host is allowed automatically in live mode. |
 | `API_BASE_URL` | Not needed | Server code falls back to `NEXT_PUBLIC_API_BASE_URL`. Only set it to route server-side calls through a private address. |
@@ -97,12 +124,14 @@ Field errors must come in `error.fields` keyed by input name (`email`, `phone`, 
 The exact request and response types for every item are in `docs/API_CONTRACT.md` and `src/lib/types/index.ts`. Business rules are in `docs/BACKEND_INTEGRATION.md`, with executable reference behaviour in `tests/mock-backend.test.ts`.
 
 **Before anything works in a browser**
-1. CORS for origins `https://www.queenpalacebeauty.store` and `https://queenpalacebeauty.store`:
+0. **Confirm the production API host for `queenluxuryhair.store`** (recommended: `api.queenluxuryhair.store`): DNS, TLS certificate, the `/v1` prefix, and the date it goes live. Until then the storefront stays on `api.queenpalacebeauty.store`, where cookies won't work cross-site (see "Domain change").
+1. CORS for origins `https://queenluxuryhair.store` and `https://www.queenluxuryhair.store` (keep `*.vercel.app` previews only if you test there). Remove the old `queenpalacebeauty.store` origins once nothing uses them:
    - `Access-Control-Allow-Origin` set to the exact origin (not `*`).
    - `Access-Control-Allow-Credentials: true`.
    - `OPTIONS` answered with `204`, allowing methods `GET, POST, PUT, PATCH, DELETE` and header `Content-Type`.
    - `Vary: Origin`.
-2. Session cookies: `HttpOnly; Secure; SameSite=Lax; Path=/`. Leave `Domain` unset or use `.queenpalacebeauty.store`. The site and API are same-site, so `Lax` works.
+2. Session cookies: `HttpOnly; Secure; SameSite=Lax; Path=/`. Leave `Domain` unset or use `.queenluxuryhair.store`. This only works once the API is on the same site as the storefront.
+2a. Backend-built URLs must use `https://queenluxuryhair.store`: Paystack/Flutterwave callback and return URLs (and the allowed callback domains in those dashboards), password-reset links, order-status links in emails, and staff invite links. Update the sender name and reply-to on emails to Queen Luxury Hair.
 
 **To open the storefront**
 3. Match the contract shapes for `GET /store/settings`, `/store/navigation`, `/store/homepage`, `/store/payment-options` and `/search` (table above).
@@ -114,7 +143,7 @@ The exact request and response types for every item are in `docs/API_CONTRACT.md
 7. `POST /checkout/shipping-rates` must return `ShippingQuote[]`, each with full `totals`.
 8. `POST /checkout` must be idempotent on `idempotencyKey`, and return `CheckoutResult` with `payment.redirectUrl` (https) for card payments.
 9. `GET /orders/:number?token=` and `POST /orders/track` must return `Order`, and `POST /orders/:number/verify-payment` (now 501) must re-query the provider. Paystack/Flutterwave webhooks must be signature-verified.
-10. `GET /products/:id/reviews` (now 500) and `POST /products/:id/reviews`.
+10. Customer reviews, as specified in **`docs/REVIEWS_API.md`**: `GET /products/:id/reviews` (now 500) with optional `sort` and `summary`; `POST /products/:id/reviews` returning `{ id, status, createdAt }`; the new `GET /customers/me/reviews`; and admin moderation with statuses `pending | approved | rejected` and `rejectionReason`.
 
 **Accounts**
 11. Register, login, logout and session. Password reset request and confirm (now 501). `GET/PUT/DELETE /customers/me/addresses`, `GET/PUT /customers/me/wishlist`, `GET /customers/me/orders`.
@@ -164,7 +193,7 @@ The frontend implements every feature below against the contract. "Backend" is w
 | Admin | Branding and store, shipping and payments | Browser | `adminGetStoreSettings`, `adminUpdateStoreSettings`, `adminGetShippingSettings`, `adminUpdateShippingSettings`, `adminGetPaymentSettings`, `adminUpdatePaymentSettings` | Ready | ❌ 501 |
 | Admin | Staff and roles | Browser | `adminListStaff`, `adminInviteStaff`, `adminUpdateStaff`, `adminRemoveStaff`, `adminListRoles`, `adminSaveRole`, `adminDeleteRole` | Ready | ❌ 501 |
 
-## API compatibility matrix (all 102 endpoints)
+## API compatibility matrix (all 103 endpoints)
 
 How the "Backend" column was filled: GETs come from `npm run probe:live`, read-only. Mutations were sent an empty `{}` body once, on 28 Oct, only to tell "validates input" (400) from "not implemented" (501); this created two empty carts and nothing else. **No row is "confirmed".** A backend endpoint counts as confirmed only after a real request with real data succeeds end to end, which still needs Hermes's tests and a live session.
 
@@ -181,8 +210,8 @@ Legend: ❌ not working · ⚠️ answers in a different shape · 🟡 answers, 
 | getCollection | `GET /collections/:handle` | Storefront pages (server) | `{ handle: string }` / `Omit<ProductQuery, "collection" \| "options"> & { options?: string }` / – | `CollectionWithProducts` | public | ✅ implemented | 🟡 404 for probe id; unconfirmed |
 | listProducts | `GET /products` | Customer account, Storefront pages (server) | – / `Omit<ProductQuery, "options"> & { options?: string; ids?: string }` / – | `ProductListing` | public | ✅ implemented | 🟡 responds, shape OK (empty); not confirmed with data |
 | getProduct | `GET /products/:handle` | Storefront pages (server) | `{ handle: string }` / – / – | `ProductDetail` | public | ✅ implemented | 🟡 404 for probe id; unconfirmed |
-| listProductReviews | `GET /products/:productId/reviews` | Product reviews, Storefront pages (server) | `{ productId: string }` / `{ page?: number }` / – | `Paginated<Review>` | public | ✅ implemented | ❌ 500 internal_error |
-| createProductReview | `POST /products/:productId/reviews` | Product reviews | `{ productId: string }` / – / `ReviewInput` | `{ status: "pending" }` | public | ✅ implemented | 🟡 validates input (400 validation_error); success path unconfirmed |
+| listProductReviews | `GET /products/:productId/reviews` | Product reviews (server; a failure no longer takes the product page down) | `{ productId: string }` / `{ page?: number; sort?: ReviewSort }` / – | `ReviewPage` (optional `summary`) | public | ✅ implemented | ❌ 500 internal_error |
+| createProductReview | `POST /products/:productId/reviews` | Product reviews | `{ productId: string }` / – / `ReviewInput` | `ReviewSubmission` `{ id, status, createdAt }` | public (links session if present) | ✅ implemented | 🟡 validates input (400 validation_error, contract says 422); success shape changed 29 Oct, unconfirmed |
 | search | `GET /search` | Search, Storefront pages (server), Admin search, Admin media, Admin orders, Admin customers, Admin inventory, Admin products | – / `{ q: string; page?: number }` / – | `SearchResult` | public | ✅ implemented | ⚠️ responds, shape mismatch |
 | createCart | `POST /carts` | Cart | – / – / `{ lines?: AddCartLineInput[] }` | `Cart` | public | ✅ implemented | ⚠️ responds, shape mismatch |
 | getCart | `GET /carts/:cartId` | Cart | `{ cartId: string }` / – / – | `Cart` | public | ✅ implemented | ❌ 500 internal_error |
@@ -203,6 +232,7 @@ Legend: ❌ not working · ⚠️ answers in a different shape · 🟡 answers, 
 | getCustomer | `GET /customers/me/session` | Checkout, Customer account | – / – / – | `CustomerSession` | customer | ✅ implemented | 🟡 auth-gated (401); behaviour unconfirmed |
 | getCustomerAccount | `GET /customers/me` | not used by the UI yet | – / – / – | `Customer` | customer | ➖ contract only | 🟡 auth-gated (401); behaviour unconfirmed |
 | listCustomerOrders | `GET /customers/me/orders` | Customer account | – / – / – | `OrderSummary[]` | customer | ✅ implemented | 🟡 auth-gated (401); behaviour unconfirmed |
+| listCustomerReviews | `GET /customers/me/reviews` | Account, My reviews | – / – / – | `Review[]` (with `rejectionReason`) | customer | ✅ implemented (new 29 Oct) | ❓ new endpoint, not probed |
 | getWishlist | `GET /customers/me/wishlist` | Wishlist | – / – / – | `Wishlist` | customer | ✅ implemented | 🟡 auth-gated (401); behaviour unconfirmed |
 | customerRegister | `POST /customers/auth/register` | Customer account | – / – / `CustomerRegisterInput` | `CustomerSession` | public | ✅ implemented | 🟡 validates input (400 validation_error); success path unconfirmed |
 | customerRequestPasswordReset | `POST /customers/auth/password-reset` | Customer account | – / – / `{ email: string }` | `Ok` | public | ✅ implemented | ❌ 501 not implemented |
@@ -257,8 +287,8 @@ Legend: ❌ not working · ⚠️ answers in a different shape · 🟡 answers, 
 | adminCreateDiscount | `POST /admin/discounts` | Admin discounts | – / – / `DiscountInput` | `Discount` | admin | ✅ implemented | ❌ 501 not implemented |
 | adminUpdateDiscount | `PUT /admin/discounts/:id` | Admin discounts | `Id` / – / `DiscountInput` | `Discount` | admin | ✅ implemented | ❌ 501 not implemented |
 | adminDeleteDiscount | `DELETE /admin/discounts/:id` | Admin discounts | `Id` / – / – | `Ok` | admin | ✅ implemented | ❌ 501 not implemented |
-| adminListReviews | `GET /admin/reviews` | Admin reviews | – / `{ status?: ReviewStatus }` / – | `Review[]` | admin | ✅ implemented | ❌ 501 not implemented |
-| adminModerateReview | `PATCH /admin/reviews/:id` | Admin reviews | `Id` / – / `{ status: ReviewStatus; reply?: string \| null }` | `Review` | admin | ✅ implemented | ❌ 501 not implemented |
+| adminListReviews | `GET /admin/reviews` | Admin reviews | – / `{ status?: "pending" \| "approved" \| "rejected" }` / – | `Review[]` | admin | ✅ implemented | ❌ 501 not implemented |
+| adminModerateReview | `PATCH /admin/reviews/:id` | Admin reviews | `Id` / – / `{ status; reply?; rejectionReason? }` | `Review` | admin | ✅ implemented | ❌ 501 not implemented |
 | adminListInquiries | `GET /admin/inquiries` | Admin inquiries | – / `{ status?: InquiryStatus }` / – | `Inquiry[]` | admin | ✅ implemented | ❌ 501 not implemented |
 | adminUpdateInquiry | `PATCH /admin/inquiries/:id` | Admin inquiries | `Id` / – / `{ status?: InquiryStatus; reply?: string }` | `Inquiry` | admin | ✅ implemented | ❌ 501 not implemented |
 | adminGetShippingSettings | `GET /admin/settings/shipping` | Admin settings | – / – / – | `ShippingSettings` | admin | ✅ implemented | ❌ 501 not implemented |
@@ -287,7 +317,7 @@ Legend: ❌ not working · ⚠️ answers in a different shape · 🟡 answers, 
 
 ## Launch checklist
 
-1. **Hermes:** fix CORS and cookies, match the shapes above, implement the 501 endpoints the storefront needs (cart, checkout, orders, payments), and seed the catalog.
+1. **Hermes:** confirm the API host for `queenluxuryhair.store`, fix CORS and cookies for the new origins, match the shapes above, implement the 501 endpoints the storefront needs (cart, checkout, orders, payments), and seed the catalog.
 2. **Check:** run `npm run probe:live` until it reports no ❌ for the storefront endpoints and CORS is OK.
 3. **Staging test:** with live settings on a Vercel preview deployment, run one real order per payment method with a test card or small amount. Confirm the webhook marks it paid, the confirmation page shows the backend's status, and the admin sees it.
 4. **Vercel:** set the variables above for Production (removing any dashboard value of `mock`) and redeploy.

@@ -11,19 +11,34 @@ import { errorMessage } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
 import type { Review, ReviewStatus } from "@/lib/types";
 
+const STATUS_LABEL: Record<ReviewStatus, string> = { pending: "Waiting for approval", approved: "Approved", rejected: "Rejected" };
+const STATUS_TONE = { pending: "warning", approved: "success", rejected: "neutral" } as const;
+
 function ReviewsTab() {
   const toast = useToast();
   const [status, setStatus] = useState<ReviewStatus | "">("pending");
   const { data, setData, error, loading, reload } = useResource(() => api().call("adminListReviews", { query: { status: status || undefined } }), [status]);
   const [replies, setReplies] = useState<Record<string, string>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const moderate = async (r: Review, next: ReviewStatus, reply?: string) => {
+  const moderate = async (r: Review, next: ReviewStatus) => {
+    setBusy(r.id);
     try {
-      const updated = await api().call("adminModerateReview", { params: { id: r.id }, body: { status: next, reply } });
+      const updated = await api().call("adminModerateReview", {
+        params: { id: r.id },
+        body: {
+          status: next,
+          reply: replies[r.id] ?? r.reply,
+          ...(next === "rejected" ? { rejectionReason: (reasons[r.id] ?? r.rejectionReason ?? "").trim() || null } : {}),
+        },
+      });
       setData((list) => list?.map((x) => (x.id === r.id ? updated : x)).filter((x) => !status || x.status === status) ?? null);
-      toast(next === "published" ? "Review published" : next === "hidden" ? "Review hidden" : "Review saved");
+      toast(next === r.status ? "Review saved" : next === "approved" ? "Review approved and published" : next === "rejected" ? "Review rejected" : "Review moved back to waiting");
     } catch (err) {
       toast(errorMessage(err), "danger");
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -32,8 +47,8 @@ function ReviewsTab() {
       <div className="afilters">
         <select className="select" value={status} onChange={(e) => setStatus(e.target.value as ReviewStatus | "")} aria-label="Review status">
           <option value="pending">Waiting for approval</option>
-          <option value="published">Published</option>
-          <option value="hidden">Hidden</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
           <option value="">All reviews</option>
         </select>
       </div>
@@ -49,31 +64,52 @@ function ReviewsTab() {
                     {"★★★★★".slice(0, r.rating)}
                     <span className="muted">{"★★★★★".slice(r.rating)}</span>
                   </span>
-                  <strong>{r.title}</strong>
-                  <StatusBadge tone={r.status === "published" ? "success" : r.status === "pending" ? "warning" : "neutral"}>{r.status}</StatusBadge>
+                  <strong>{r.title || "Untitled review"}</strong>
+                  <StatusBadge tone={STATUS_TONE[r.status] ?? "neutral"}>{STATUS_LABEL[r.status] ?? r.status}</StatusBadge>
                 </div>
                 <p>{r.body}</p>
                 <p className="small muted">
                   {r.author}
                   {r.location ? `, ${r.location}` : ""} on {r.productTitle}, {formatDateTime(r.createdAt)}
                   {r.verifiedPurchase ? ", verified buyer" : ""}
+                  {r.moderatedAt ? `. Last moderated ${formatDateTime(r.moderatedAt)}` : ""}
                 </p>
-                <TextAreaField label="Public reply (optional)" value={replies[r.id] ?? r.reply ?? ""} onChange={(e) => setReplies((x) => ({ ...x, [r.id]: e.target.value }))} rows={2} />
+                <TextAreaField
+                  label="Public reply (optional)"
+                  hint="Shown under the review once it's approved."
+                  value={replies[r.id] ?? r.reply ?? ""}
+                  onChange={(e) => setReplies((x) => ({ ...x, [r.id]: e.target.value }))}
+                  rows={2}
+                />
+                {r.status !== "approved" ? (
+                  <TextAreaField
+                    label="Reason if rejected (optional)"
+                    hint="Only the customer who wrote it sees this, in their account."
+                    value={reasons[r.id] ?? r.rejectionReason ?? ""}
+                    onChange={(e) => setReasons((x) => ({ ...x, [r.id]: e.target.value }))}
+                    rows={2}
+                    maxLength={300}
+                  />
+                ) : null}
                 <div className="cluster">
-                  {r.status !== "published" ? (
-                    <button type="button" className="btn btn--sm" onClick={() => void moderate(r, "published", replies[r.id])}>
-                      Publish
+                  {r.status !== "approved" ? (
+                    <button type="button" className="btn btn--sm" disabled={busy === r.id} onClick={() => void moderate(r, "approved")}>
+                      Approve
                     </button>
                   ) : (
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => void moderate(r, "published", replies[r.id])}>
+                    <button type="button" className="btn btn--ghost btn--sm" disabled={busy === r.id} onClick={() => void moderate(r, "approved")}>
                       Save reply
                     </button>
                   )}
-                  {r.status !== "hidden" ? (
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => void moderate(r, "hidden", replies[r.id])}>
-                      Hide
+                  {r.status !== "rejected" ? (
+                    <button type="button" className="btn btn--ghost btn--sm" disabled={busy === r.id} onClick={() => void moderate(r, "rejected")}>
+                      Reject
                     </button>
-                  ) : null}
+                  ) : (
+                    <button type="button" className="btn btn--ghost btn--sm" disabled={busy === r.id} onClick={() => void moderate(r, "rejected")}>
+                      Save reason
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
@@ -89,7 +125,7 @@ function ReviewsTab() {
 export default function ReviewsPage() {
   return (
     <RequirePermission permission="reviews:moderate">
-      <PageHeader title="Reviews" description="Customer reviews wait here for approval before they appear on the store. Ratings are calculated only from published reviews." />
+      <PageHeader title="Reviews" description="Customer reviews wait here for approval before they appear on the store. Ratings are calculated only from approved reviews." />
       <ReviewsTab />
     </RequirePermission>
   );

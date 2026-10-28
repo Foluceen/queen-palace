@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import { CareTips, CollectionTiles, CtaBand, Editorial, Faq, Hero, MarqueeBand, Newsletter, ProductRail, Promises, Promo, ReviewsStrip, ShadeGuide, Testimonials } from "@/components/store/home/Sections";
 import { getSettings, storefront } from "@/lib/data/storefront";
 
 export const revalidate = 60;
+
+// Canonical is the bare domain (NEXT_PUBLIC_SITE_URL), so www and legacy hosts consolidate here.
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 /** Homepage is fully driven by sections the vendor arranges in admin → Homepage and menus. */
 export default async function HomePage() {

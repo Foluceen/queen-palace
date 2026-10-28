@@ -161,3 +161,23 @@ describe("checkout safety", () => {
     assert.equal(shouldRotateIdempotencyKey(new ApiError(422, "validation_failed", "x")), true);
   });
 });
+
+describe("review response checks", () => {
+  // Imported lazily so the module list at the top stays focused on the client.
+  const load = () => import("../src/lib/api/validate");
+  const review = { id: "r1", productId: "p1", productTitle: "Wig", author: "A", rating: 5, title: "", body: "Lovely hair", verifiedPurchase: false, status: "approved", reply: null, rejectionReason: null, createdAt: "2026-10-01T00:00:00Z", moderatedAt: null };
+
+  it("accepts a review page with or without a summary", async () => {
+    const { validateResponse } = await load();
+    const page = { items: [review], page: 1, pageSize: 6, total: 1, totalPages: 1 };
+    assert.equal(validateResponse("listProductReviews", page), null);
+    assert.equal(validateResponse("listProductReviews", { ...page, summary: { average: 5, count: 1, distribution: { "5": 1 } } }), null);
+  });
+
+  it("refuses review statuses the storefront can't explain to customers", async () => {
+    const { validateResponse } = await load();
+    assert.match(validateResponse("createProductReview", { id: "r1", status: "published", createdAt: "2026-10-01T00:00:00Z" }) ?? "", /status/);
+    assert.match(validateResponse("listCustomerReviews", [{ ...review, status: "hidden" }]) ?? "", /status/);
+    assert.equal(validateResponse("createProductReview", { id: "r1", status: "pending", createdAt: "2026-10-01T00:00:00Z" }), null);
+  });
+});

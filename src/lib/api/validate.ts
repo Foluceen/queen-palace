@@ -51,7 +51,21 @@ const cart: Check = (v) =>
 
 const collection = (v: unknown, where: string) => fields(v, { id: "string", handle: "string", title: "string", summary: "string", status: "string" }, where);
 
+const REVIEW_STATUSES = ["pending", "approved", "rejected"];
+const reviewStatus = (v: unknown, where: string) =>
+  REVIEW_STATUSES.includes((v as { status?: unknown })?.status as string) ? null : `${where}.status should be one of ${REVIEW_STATUSES.join(", ")}`;
+const review = (v: unknown, where: string) =>
+  fields(v, { id: "string", productId: "string", productTitle: "string", author: "string", rating: "number", title: "string", body: "string", verifiedPurchase: "boolean", status: "string", reply: "string|null", createdAt: "string" }, where) ?? reviewStatus(v, where);
+
 export const validators: Partial<Record<EndpointName, Check>> = {
+  listProductReviews: (v) =>
+    fields(v, { items: "array", page: "number", pageSize: "number", total: "number", totalPages: "number" }, "reviews") ??
+    each((v as { items: unknown }).items, review, "reviews.items") ??
+    ((v as { summary?: unknown }).summary === undefined
+      ? null
+      : fields((v as { summary: unknown }).summary, { average: "number", count: "number", distribution: "object" }, "reviews.summary")),
+  createProductReview: (v) => fields(v, { id: "string", status: "string", createdAt: "string" }, "reviewSubmission") ?? reviewStatus(v, "reviewSubmission"),
+  listCustomerReviews: (v) => each(v, review, "customerReviews"),
   getStoreSettings: (v) =>
     fields(v, { name: "string", tagline: "string", metaDescription: "string", address: "string", currency: "string", branding: "object", theme: "object", productPageNotes: "object", social: "object", announcement: "object", contactEmail: "string|null", phone: "string|null", whatsapp: "string|null", openingHours: "string|null" }, "settings") ??
     fields((v as { branding: unknown }).branding, { colors: "object", radius: "number" }, "settings.branding"),

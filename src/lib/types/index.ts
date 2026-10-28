@@ -231,12 +231,19 @@ export interface SearchResult {
 
 /* ---------------------------------------------------------------- reviews */
 
-export type ReviewStatus = "pending" | "published" | "hidden";
+/**
+ * pending: waiting for moderation, never shown publicly.
+ * approved: public on the product page and counted in the rating.
+ * rejected: not public; the author sees it in their account with the reason, if one was given.
+ */
+export type ReviewStatus = "pending" | "approved" | "rejected";
 
 export interface Review {
   id: ID;
   productId: ID;
   productTitle: string;
+  /** Present on the author's own reviews and in admin; public lists may omit it. */
+  productHandle?: string;
   author: string;
   location: string | null;
   rating: number;
@@ -244,8 +251,12 @@ export interface Review {
   body: string;
   verifiedPurchase: boolean;
   status: ReviewStatus;
+  /** Public reply from the store. */
   reply: string | null;
+  /** Shown only to the author and staff. Always null in public lists. */
+  rejectionReason: string | null;
   createdAt: ISODate;
+  moderatedAt: ISODate | null;
 }
 
 export interface ReviewInput {
@@ -255,6 +266,39 @@ export interface ReviewInput {
   rating: number;
   title: string;
   body: string;
+}
+
+/** Limits shared by the review form and the mock backend. The live backend enforces its own. */
+export const REVIEW_LIMITS = {
+  authorMin: 2,
+  authorMax: 60,
+  locationMax: 60,
+  titleMax: 100,
+  bodyMin: 20,
+  bodyMax: 2000,
+} as const;
+
+/** What POST /products/:productId/reviews returns. Usually pending; approved if the store auto-approves. */
+export interface ReviewSubmission {
+  id: ID;
+  status: ReviewStatus;
+  createdAt: ISODate;
+  /** Set when the review is rejected on submission (for example, by an automatic filter). */
+  rejectionReason?: string | null;
+}
+
+/** Approved reviews only. distribution keys are star values "1" to "5". */
+export interface ReviewSummary {
+  average: number;
+  count: number;
+  distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
+}
+
+export type ReviewSort = "newest" | "highest" | "lowest";
+
+export interface ReviewPage extends Paginated<Review> {
+  /** Optional: when absent the page falls back to the product's rating fields. */
+  summary?: ReviewSummary;
 }
 
 /* -------------------------------------------------------------------- cart */

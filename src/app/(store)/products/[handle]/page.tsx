@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import { ProductGrid } from "@/components/store/ProductCard";
 import { ProductExperience } from "@/components/store/product/ProductExperience";
 import { Reviews } from "@/components/store/product/Reviews";
@@ -31,12 +31,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/**
+ * Reviews are secondary: if they fail to load, the product still renders and the reviews
+ * section says so with a retry. Nothing is substituted for the missing reviews.
+ */
+async function reviewsOrNull(productId: string) {
+  try {
+    return await storefront().reviews(productId);
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("[product] reviews unavailable:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 export default async function ProductPage({ params, searchParams }: Props) {
   const [{ handle }, sp] = await Promise.all([params, searchParams]);
   const data = await getProduct(handle);
   if (!data) notFound();
   const { product, collections, related, attributes, productType } = data;
-  const [reviews, settings] = await Promise.all([storefront().reviews(product.id), getSettings()]);
+  const [reviews, settings] = await Promise.all([reviewsOrNull(product.id), getSettings()]);
   const details = attributes.filter((a) => a.group === "details");
   const care = attributes.filter((a) => a.group === "care");
   const usage = attributes.filter((a) => a.group === "usage");
@@ -151,7 +165,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       </div>
 
       <div className="container">
-        <Reviews productId={product.id} initial={reviews} average={product.rating.average} />
+        <Reviews productId={product.id} productTitle={product.title} initial={reviews} rating={product.rating} />
       </div>
 
       {related.length ? (

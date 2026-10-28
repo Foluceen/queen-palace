@@ -12,7 +12,7 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 - Query strings: option filters are encoded as `options=Length:16",18"|Colour:1B`.
 - Types referenced below live in `src/lib/types/index.ts`.
 
-102 endpoints.
+103 endpoints.
 
 ## Storefront
 
@@ -27,8 +27,8 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | getCollection | `GET /collections/:handle` | public | `{ handle: string }` | `Omit<ProductQuery, "collection" \| "options"> & { options?: string }` |  | `CollectionWithProducts` |
 | listProducts | `GET /products` | public |  | `Omit<ProductQuery, "options"> & { options?: string; ids?: string }` |  | `ProductListing` |
 | getProduct | `GET /products/:handle` | public | `{ handle: string }` |  |  | `ProductDetail` |
-| listProductReviews | `GET /products/:productId/reviews` | public | `{ productId: string }` | `{ page?: number }` |  | `Paginated<Review>` |
-| createProductReview | `POST /products/:productId/reviews` | public | `{ productId: string }` |  | `ReviewInput` | `{ status: "pending" }` |
+| listProductReviews | `GET /products/:productId/reviews` | public | `{ productId: string }` | `{ page?: number; sort?: ReviewSort }` |  | `ReviewPage` |
+| createProductReview | `POST /products/:productId/reviews` | public | `{ productId: string }` |  | `ReviewInput` | `ReviewSubmission` |
 | search | `GET /search` | public |  | `{ q: string; page?: number }` |  | `SearchResult` |
 
 ## Cart
@@ -68,6 +68,7 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | customerLogout | `POST /customers/auth/logout` | customer |  |  |  | `Ok` |
 | getCustomer | `GET /customers/me/session` | customer |  |  |  | `CustomerSession` |
 | listCustomerOrders | `GET /customers/me/orders` | customer |  |  |  | `OrderSummary[]` |
+| listCustomerReviews | `GET /customers/me/reviews` | customer |  |  |  | `Review[]` |
 | getWishlist | `GET /customers/me/wishlist` | customer |  |  |  | `Wishlist` |
 | replaceWishlist | `PUT /customers/me/wishlist` | customer |  |  | `Wishlist` | `Wishlist` |
 | getCustomerAccount | `GET /customers/me` | customer |  |  |  | `Customer` |
@@ -134,7 +135,7 @@ Generated from `src/lib/api/contract.ts`, which is the source of truth. The type
 | adminUpdateDiscount | `PUT /admin/discounts/:id` | admin | `Id` |  | `DiscountInput` | `Discount` |
 | adminDeleteDiscount | `DELETE /admin/discounts/:id` | admin | `Id` |  |  | `Ok` |
 | adminListReviews | `GET /admin/reviews` | admin |  | `{ status?: ReviewStatus }` |  | `Review[]` |
-| adminModerateReview | `PATCH /admin/reviews/:id` | admin | `Id` |  | `{ status: ReviewStatus; reply?: string \| null }` | `Review` |
+| adminModerateReview | `PATCH /admin/reviews/:id` | admin | `Id` |  | `{ status: ReviewStatus; reply?: string \| null; rejectionReason?: string \| null }` | `Review` |
 | adminListInquiries | `GET /admin/inquiries` | admin |  | `{ status?: InquiryStatus }` |  | `Inquiry[]` |
 | adminUpdateInquiry | `PATCH /admin/inquiries/:id` | admin | `Id` |  | `{ status?: InquiryStatus; reply?: string }` | `Inquiry` |
 | adminGetShippingSettings | `GET /admin/settings/shipping` | admin |  |  |  | `ShippingSettings` |

@@ -721,25 +721,63 @@ const reviewBodies: [string, string, string, number, string][] = [
   ["Zainab M.", "Ilorin", "Perfect bonnet", 5, "Fits over my 26 inch unit with room to spare and the band does not slip."],
 ];
 
-export const seedReviews: Review[] = seedProducts.flatMap((p, pi) =>
+/** Mock-only fields: who wrote the review, so "My reviews" can find it. Never sent to the browser. */
+export type MockReview = Review & { email: string | null; customerId: string | null };
+
+const sampleReviews: MockReview[] = seedProducts.flatMap((p, pi) =>
   [0, 1, 2].map((k) => {
     const [author, location, title, rating, body] = reviewBodies[(pi + k * 3) % reviewBodies.length]!;
+    const status = pi % 6 === 0 && k === 2 ? "pending" : "approved";
     return {
       id: `rev_${pi + 1}_${k + 1}`,
       productId: p.id,
       productTitle: p.title,
+      productHandle: p.handle,
       author,
       location,
       rating,
       title,
       body,
       verifiedPurchase: k !== 2,
-      status: pi % 6 === 0 && k === 2 ? "pending" : "published",
+      status,
       reply: k === 0 && rating < 4 ? "Thank you for the honest review. We have passed this on." : null,
+      rejectionReason: null,
       createdAt: iso(pi + k * 4, 14),
-    } satisfies Review;
+      moderatedAt: status === "approved" ? iso(Math.max(0, pi + k * 4 - 1), 10) : null,
+      email: null,
+      customerId: null,
+    } satisfies MockReview;
   }),
 );
+
+// The demo customer's own reviews, one in each state, so the account page can show all three.
+const demoCustomerReviews: MockReview[] = (["approved", "pending", "rejected"] as const).map((status, i) => {
+  const p = seedProducts[i + 1]!;
+  return {
+    id: `rev_demo_${i + 1}`,
+    productId: p.id,
+    productTitle: p.title,
+    productHandle: p.handle,
+    author: "Demo C.",
+    location: "Ilesha",
+    rating: status === "rejected" ? 2 : 5,
+    title: status === "approved" ? "Sample review: soft and full" : status === "pending" ? "Sample review: waiting for approval" : "Sample review: not published",
+    body:
+      status === "rejected"
+        ? "Sample text for demo mode. Contains a phone number and a link, which the store does not publish."
+        : "Sample text for demo mode. It shows how a customer's own review appears in their account.",
+    verifiedPurchase: true,
+    status,
+    reply: null,
+    rejectionReason: status === "rejected" ? "Reviews can't include phone numbers or links. You're welcome to submit it again without them." : null,
+    createdAt: iso(3 + i * 2, 11),
+    moderatedAt: status === "pending" ? null : iso(2 + i * 2, 9),
+    email: "customer@queenluxuryhair.test",
+    customerId: "cus_1",
+  } satisfies MockReview;
+});
+
+export const seedReviews: MockReview[] = [...demoCustomerReviews, ...sampleReviews];
 
 /* --------------------------------------------------------------- settings */
 

@@ -64,6 +64,9 @@ import type {
   Review,
   ReviewInput,
   ReviewStatus,
+  ReviewPage,
+  ReviewSort,
+  ReviewSubmission,
   Role,
   SearchResult,
   ShippingQuote,
@@ -100,8 +103,8 @@ export interface Contract {
   getCollection: Endpoint<{ handle: string }, Omit<ProductQuery, "collection" | "options"> & { options?: string }, undefined, CollectionWithProducts>;
   listProducts: Endpoint<undefined, Omit<ProductQuery, "options"> & { options?: string; /** Comma-separated product ids (wishlist). */ ids?: string }, undefined, ProductListing>;
   getProduct: Endpoint<{ handle: string }, undefined, undefined, ProductDetail>;
-  listProductReviews: Endpoint<{ productId: string }, { page?: number }, undefined, Paginated<Review>>;
-  createProductReview: Endpoint<{ productId: string }, undefined, ReviewInput, { status: "pending" }>;
+  listProductReviews: Endpoint<{ productId: string }, { page?: number; sort?: ReviewSort }, undefined, ReviewPage>;
+  createProductReview: Endpoint<{ productId: string }, undefined, ReviewInput, ReviewSubmission>;
   search: Endpoint<undefined, { q: string; page?: number }, undefined, SearchResult>;
 
   /* ----------------------------------------------------------------- cart */
@@ -130,6 +133,8 @@ export interface Contract {
   customerLogout: Endpoint<undefined, undefined, undefined, Ok>;
   getCustomer: Endpoint<undefined, undefined, undefined, CustomerSession>;
   listCustomerOrders: Endpoint<undefined, undefined, undefined, OrderSummary[]>;
+  /** The signed-in customer's own reviews, every status, newest first, with rejectionReason. */
+  listCustomerReviews: Endpoint<undefined, undefined, undefined, Review[]>;
   getWishlist: Endpoint<undefined, undefined, undefined, Wishlist>;
   replaceWishlist: Endpoint<undefined, undefined, Wishlist, Wishlist>;
   getCustomerAccount: Endpoint<undefined, undefined, undefined, Customer>;
@@ -205,7 +210,7 @@ export interface Contract {
   adminDeleteDiscount: Endpoint<Id, undefined, undefined, Ok>;
 
   adminListReviews: Endpoint<undefined, { status?: ReviewStatus }, undefined, Review[]>;
-  adminModerateReview: Endpoint<Id, undefined, { status: ReviewStatus; reply?: string | null }, Review>;
+  adminModerateReview: Endpoint<Id, undefined, { status: ReviewStatus; reply?: string | null; rejectionReason?: string | null }, Review>;
   adminListInquiries: Endpoint<undefined, { status?: InquiryStatus }, undefined, Inquiry[]>;
   adminUpdateInquiry: Endpoint<Id, undefined, { status?: InquiryStatus; reply?: string }, Inquiry>;
 
@@ -263,6 +268,7 @@ export const routes: { [K in EndpointName]: { method: HttpMethod; path: string; 
   getCustomer: { method: "GET", path: "/customers/me/session", auth: "customer" },
   getCustomerAccount: { method: "GET", path: "/customers/me", auth: "customer" },
   listCustomerOrders: { method: "GET", path: "/customers/me/orders", auth: "customer" },
+  listCustomerReviews: { method: "GET", path: "/customers/me/reviews", auth: "customer" },
   getWishlist: { method: "GET", path: "/customers/me/wishlist", auth: "customer" },
   customerRegister: { method: "POST", path: "/customers/auth/register" },
   customerRequestPasswordReset: { method: "POST", path: "/customers/auth/password-reset" },

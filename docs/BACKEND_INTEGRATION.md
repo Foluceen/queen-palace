@@ -35,7 +35,7 @@ Everything below works in mock mode, but only as a stand-in. Each item needs a r
 - **Product types.** Each product has `productTypeId` and an `attributes` record keyed by the type's attribute `key`. `GET /products/:handle` returns `productType` and `attributes: ResolvedAttribute[]` (labels from the type, empty values omitted, in the type's order). Deleting a type that products use returns `409 in_use`.
 - **Collections.** Deleting a collection never deletes products. Return `{ ok: true, unassignedProductIds }` listing products that are now in no collection, remove the collection from homepage sections, and support `GET /admin/products?collectionId=none`.
 - **Duplicate product.** `POST /admin/products/:id/duplicate` creates a `draft` with a unique handle, SKUs suffixed `-COPY` and zero stock.
-- **Ratings.** `rating` on products is computed from **published** reviews only.
+- **Ratings.** `rating` on products is computed from **approved** reviews only (status `pending | approved | rejected`; see docs/REVIEWS_API.md).
 - **Order numbers.** Use the `QLH-` prefix (e.g. `QLH-10417`).
 - **Guest order access.** `GET /orders/:number?token=` must require the opaque `accessToken`. Tracking needs number **and** email.
 - **Admin authorisation.** Check the permission on every admin endpoint (table below). Return `401` when not signed in, `403` when the role lacks the permission. Staff can't change their own role or suspend themselves, and the Owner role can't be edited.

@@ -8,9 +8,10 @@ It has a storefront with guest checkout and optional accounts, and a permission-
 
 ## Data mode
 
-- **Production builds are live.** `.env.production` sets `NEXT_PUBLIC_DATA_MODE=live` and `NEXT_PUBLIC_API_BASE_URL=https://api.queenpalacebeauty.store/v1`. A live build talks only to the real API, and when the API is down or incompatible it shows a clear unavailable state. There is no fallback to demo data.
+- **Production builds are live.** `.env.production` sets `NEXT_PUBLIC_DATA_MODE=live`, `NEXT_PUBLIC_SITE_URL=https://queenluxuryhair.store` and, until Hermes confirms the API host for the new domain, `NEXT_PUBLIC_API_BASE_URL=https://api.queenpalacebeauty.store/v1`. A live build talks only to the real API, and when the API is down or incompatible it shows a clear unavailable state. There is no fallback to demo data.
 - **Local development is mock** by default (`npm run dev`), with the labelled demo store. Use `npm run build:mock` / `npm run start:mock` for a production-like demo build.
-- `docs/LIVE_READINESS.md` has the current backend status, the API compatibility matrix and the launch checklist. `npm run probe:live` re-checks the real API (read-only).
+- `docs/REVIEWS_API.md` specifies the customer review endpoints (submit, list, My reviews, moderation).
+- `docs/LIVE_READINESS.md` has the domain change, the current backend status, the API compatibility matrix and the launch checklist. `npm run probe:live` re-checks the real API (read-only).
 
 ## Quick start
 

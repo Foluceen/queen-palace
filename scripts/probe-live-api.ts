@@ -1,8 +1,8 @@
 /**
  * Read-only compatibility probe for the real API.
  *
- *   npm run probe:live                                   # https://api.queenpalacebeauty.store/v1
- *   API=https://staging.example/v1 ORIGIN=https://www.example npm run probe:live
+ *   npm run probe:live                                   # API from NEXT_PUBLIC_API_BASE_URL in .env.production
+ *   API=https://api.queenluxuryhair.store/v1 ORIGIN=https://queenluxuryhair.store npm run probe:live
  *
  * What it does (no data is created or changed):
  * - CORS preflight from the storefront origin (credentials must be allowed).
@@ -13,11 +13,22 @@
  *
  * Output: a Markdown table on stdout. Exit code 1 if anything the storefront needs is failing.
  */
+import { readFileSync } from "node:fs";
 import { routes, type EndpointName } from "../src/lib/api/contract";
 import { validateResponse } from "../src/lib/api/validate";
 
-const API = (process.env.API ?? "https://api.queenpalacebeauty.store/v1").replace(/\/+$/, "");
-const ORIGIN = process.env.ORIGIN ?? "https://www.queenpalacebeauty.store";
+const envProduction = (() => {
+  try {
+    return readFileSync(new URL("../.env.production", import.meta.url), "utf8");
+  } catch {
+    return "";
+  }
+})();
+const fromEnvFile = (key: string) => envProduction.match(new RegExp(`^${key}=(.+)$`, "m"))?.[1]?.trim();
+
+const API = (process.env.API ?? fromEnvFile("NEXT_PUBLIC_API_BASE_URL") ?? "").replace(/\/+$/, "");
+if (!API) throw new Error("Set API=https://…/v1 or NEXT_PUBLIC_API_BASE_URL in .env.production.");
+const ORIGIN = process.env.ORIGIN ?? fromEnvFile("NEXT_PUBLIC_SITE_URL") ?? "https://queenluxuryhair.store";
 
 const samples: Record<string, string> = {
   handle: "bone-straight",

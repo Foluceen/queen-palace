@@ -697,6 +697,10 @@ button {
   background: var(--warning-bg);
   color: var(--warning);
 }
+.badge--neutral {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
 .badge--danger {
   background: var(--danger-bg);
   color: var(--danger);

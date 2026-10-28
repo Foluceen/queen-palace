@@ -8,3 +8,6 @@ next-env.d.ts
 .DS_Store
 src/app/fonts/*.woff2
 dist-preview
+
+# e2e screenshots
+e2e-*.png

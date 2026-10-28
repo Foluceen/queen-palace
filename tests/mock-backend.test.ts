@@ -64,7 +64,7 @@ describe("catalog", () => {
     assert.ok(!care.attributes.some((a) => a.label === "Lace"), "hair care must not show wig fields");
   });
 
-  it("computes ratings only from published reviews", () => {
+  it("computes ratings only from approved reviews", () => {
     const { product } = callMock("getProduct", { params: { handle: "futura-body-wave" } });
     const reviews = callMock("listProductReviews", { params: { productId: product.id }, query: {} });
     assert.equal(product.rating.count, reviews.total);
@@ -312,5 +312,70 @@ describe("admin authorisation sweep (reference behaviour for the real backend)",
     const ctx = signInOwner();
     callMock("adminLogout", {}, ctx);
     expectError(() => callMock("adminDashboard", { query: {} }, ctx), 401);
+  });
+});
+
+describe("reviews", () => {
+  const product = () => callMock("getProduct", { params: { handle: "bone-straight-double-drawn" } }).product;
+  const valid = { author: "Test Buyer", email: "buyer@example.com", location: "Ilesha", rating: 4, title: "Good", body: "Installed easily and still full after two washes." };
+
+  it("validates submissions and returns field errors", () => {
+    const err = expectError(() => callMock("createProductReview", { params: { productId: product().id }, body: { ...valid, rating: 0, body: "short", author: "" } }, session()), 422);
+    assert.ok(err.fields?.rating && err.fields?.body && err.fields?.author);
+  });
+
+  it("stores new reviews as pending, hidden from the public list and the rating", () => {
+    const p = product();
+    const before = callMock("listProductReviews", { params: { productId: p.id }, query: {} });
+    const res = callMock("createProductReview", { params: { productId: p.id }, body: valid }, session());
+    assert.equal(res.status, "pending");
+    assert.ok(res.id && res.createdAt);
+    const after = callMock("listProductReviews", { params: { productId: p.id }, query: {} });
+    assert.equal(after.total, before.total);
+    assert.equal(product().rating.count, before.total);
+  });
+
+  it("rejects a second review of the same product from the same email", () => {
+    const p = product();
+    callMock("createProductReview", { params: { productId: p.id }, body: valid }, session());
+    expectError(() => callMock("createProductReview", { params: { productId: p.id }, body: { ...valid, email: "BUYER@example.com" } }, session()), 409);
+  });
+
+  it("publishes on approval, updates the summary, and never exposes emails or rejection notes publicly", () => {
+    const p = product();
+    const { id } = callMock("createProductReview", { params: { productId: p.id }, body: { ...valid, rating: 5 } }, session());
+    const owner = signInOwner();
+    const approved = callMock("adminModerateReview", { params: { id }, body: { status: "approved" } }, owner);
+    assert.equal(approved.status, "approved");
+    assert.ok(approved.moderatedAt);
+    const list = callMock("listProductReviews", { params: { productId: p.id }, query: { sort: "highest" } });
+    assert.ok(list.items.some((r) => r.id === id));
+    assert.equal(list.summary?.count, list.total);
+    assert.equal(product().rating.count, list.total);
+    const sum = Object.values(list.summary!.distribution).reduce((a, b) => a + b, 0);
+    assert.equal(sum, list.total);
+    for (const r of list.items) {
+      assert.equal(r.rejectionReason, null);
+      assert.ok(!("email" in r), "public reviews must not carry the author's email");
+    }
+  });
+
+  it("shows the author their own reviews with status and rejection reason", () => {
+    const customer = session();
+    callMock("customerLogin", { body: { email: "customer@queenluxuryhair.test", password: "demo-customer" } }, customer);
+    const p = product();
+    const { id } = callMock("createProductReview", { params: { productId: p.id }, body: { ...valid, email: "someone-else@example.com" } }, customer);
+    callMock("adminModerateReview", { params: { id }, body: { status: "rejected", rejectionReason: "Please remove the phone number." } }, signInOwner());
+    const mine = callMock("listCustomerReviews", {}, customer);
+    const r = mine.find((x) => x.id === id);
+    assert.equal(r?.status, "rejected");
+    assert.equal(r?.rejectionReason, "Please remove the phone number.");
+    assert.deepEqual(new Set(mine.map((x) => x.status)), new Set(["approved", "pending", "rejected"]));
+    assert.ok(mine.every((x) => !("email" in x)));
+  });
+
+  it("requires sign-in for My reviews and the reviews:moderate permission for moderation", () => {
+    expectError(() => callMock("listCustomerReviews", {}, session()), 401);
+    expectError(() => callMock("adminListReviews", { query: {} }, session()), 401);
   });
 });

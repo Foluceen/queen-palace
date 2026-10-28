@@ -14,12 +14,11 @@ import type {
   ContentPage,
   Homepage,
   Navigation,
-  Paginated,
   ProductDetail,
   ProductListing,
   ProductQuery,
   PublicPaymentOptions,
-  Review,
+  ReviewPage,
   SearchResult,
   StoreSettings,
 } from "@/lib/types";
@@ -32,7 +31,7 @@ export interface StorefrontRepository {
   collection(handle: string, query: Omit<ProductQuery, "collection">): Promise<CollectionWithProducts | null>;
   products(query: ProductQuery): Promise<ProductListing>;
   product(handle: string): Promise<ProductDetail | null>;
-  reviews(productId: string, page?: number): Promise<Paginated<Review>>;
+  reviews(productId: string, page?: number): Promise<ReviewPage>;
   search(q: string, page?: number): Promise<SearchResult>;
   page(slug: string): Promise<ContentPage | null>;
   paymentOptions(): Promise<PublicPaymentOptions>;

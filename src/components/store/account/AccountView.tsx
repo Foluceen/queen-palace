@@ -14,6 +14,7 @@ import { PHONE_HINT } from "@/lib/phone";
 import { safeNext } from "@/lib/redirect";
 import type { Address, Customer, OrderSummary, SavedAddress } from "@/lib/types";
 import { AddressFields, emptyAddress } from "./AddressForm";
+import { MyReviews } from "./MyReviews";
 
 const setHint = (on: boolean) => {
   try {
@@ -129,6 +130,7 @@ export function AccountView() {
         </section>
         <Addresses />
       </div>
+      <MyReviews />
     </div>
   );
 }

@@ -19,7 +19,7 @@ export default async function CollectionsPage() {
     <div className="container section--tight">
       <header className="page-head">
         <h1 className="h1">All collections</h1>
-        <p className="lede">Every collection in the palace, from ready-to-wear wigs to the care that keeps them looking new.</p>
+        <p className="lede">Every collection in the store, from ready-to-wear wigs to the care that keeps them looking new.</p>
       </header>
       {collections.length === 0 ? (
         <EmptyStateStatic title="No collections yet" body="Check back soon, new hair is on the way." />
