@@ -1,0 +1,38 @@
+{
+  "name": "irun-commerce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Premium hair commerce storefront and admin for a Nigerian hair vendor (Next.js App Router).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run lint && npm run build",
+    "fonts": "node scripts/copy-fonts.mjs",
+    "postinstall": "node scripts/copy-fonts.mjs",
+    "media:placeholder": "python3 scripts/generate-placeholder-media.py",
+    "smoke": "node scripts/smoke-routes.mjs"
+  },
+  "dependencies": {
+    "animejs": "^4.2.0",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "^15.5.0",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
