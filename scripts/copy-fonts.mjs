@@ -11,8 +11,10 @@ mkdirSync(out, { recursive: true });
 const files = [
   ["@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2", "manrope-latin.woff2"],
   ["@fontsource-variable/manrope/files/manrope-latin-ext-wght-normal.woff2", "manrope-latin-ext.woff2"],
-  ["@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2", "fraunces-latin.woff2"],
-  ["@fontsource-variable/fraunces/files/fraunces-latin-ext-opsz-normal.woff2", "fraunces-latin-ext.woff2"],
+  ["@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-wght-normal.woff2", "cormorant-latin.woff2"],
+  ["@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-wght-italic.woff2", "cormorant-latin-italic.woff2"],
+  ["@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-ext-wght-normal.woff2", "cormorant-latin-ext.woff2"],
+  ["@fontsource/great-vibes/files/great-vibes-latin-400-normal.woff2", "great-vibes-latin.woff2"],
 ];
 
 let missing = 0;

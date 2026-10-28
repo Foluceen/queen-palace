@@ -660,7 +660,7 @@ function buildProduct(seed: ProductSeed, index: number): Product {
     return {
       id: `var_${index + 1}_${vi + 1}`,
       productId: id,
-      sku: `QP-${seed.handle.split("-").map((p) => p[0]?.toUpperCase()).join("")}-${Object.values(options).join("-").replace(/[^A-Za-z0-9-]/g, "")}`,
+      sku: `QLH-${seed.handle.split("-").map((p) => p[0]?.toUpperCase()).join("")}-${Object.values(options).join("-").replace(/[^A-Za-z0-9-]/g, "")}`,
       title: Object.values(options).join(" / "),
       options,
       price,
@@ -744,9 +744,9 @@ export const seedReviews: Review[] = seedProducts.flatMap((p, pi) =>
 /* --------------------------------------------------------------- settings */
 
 export const seedSettings: StoreSettings = {
-  name: "Queen Palace Beauty World",
-  tagline: "Hair and beauty, fit for a queen.",
-  metaDescription: "Wigs, bone straight hair, factory wigs, braid extensions and hair care. Shop online or visit Queen Palace Beauty World in Ijoka, Ilesha, Osun State.",
+  name: "Queen Luxury Hair",
+  tagline: "Luxury hair, crowned for you.",
+  metaDescription: "Wigs, bone straight hair, factory wigs, braid extensions and hair care. Shop online or visit Queen Luxury Hair in Ijoka, Ilesha, Osun State.",
   logo: null,
   logoDark: null,
   contactEmail: null,
@@ -756,8 +756,8 @@ export const seedSettings: StoreSettings = {
   openingHours: null,
   currency: "NGN",
   branding: {
-    colors: { gold: "#C9A45C", burgundy: "#6B1630", lightBackground: "#FAF6EF", lightSurface: "#F4ECDF", darkBackground: "#0E0B0C", darkSurface: "#191516" },
-    radius: 6,
+    colors: { gold: "#B88A4A", burgundy: "#5B3220", lightBackground: "#F8F1EA", lightSurface: "#F1E6DB", darkBackground: "#120D0B", darkSurface: "#1B1411" },
+    radius: 999,
   },
   theme: { defaultMode: "system" },
   productPageNotes: {
@@ -818,13 +818,20 @@ export const seedPayments: PaymentSettings = {
 
 const homepageSections: HomepageSection[] = [
   {
+    id: "sec_marquee",
+    type: "marquee",
+    enabled: true,
+    position: 0,
+    items: ["Delivery across Nigeria", "Pickup in Ijoka, Ilesha", "Secure checkout", "Shades 1B to 613", "Wigs, bundles and braids"],
+  },
+  {
     id: "sec_hero",
     type: "hero",
     enabled: true,
     position: 0,
-    heading: "Hair that crowns every look.",
-    body: "Wigs, bone straight, braid extensions and hair care, chosen with care in Ijoka, Ilesha and delivered across Nigeria.",
-    primaryCta: { label: "Shop all hair", href: "/collections" },
+    heading: "Luxury hair, crowned for you.",
+    body: "Wigs, bone straight, braid extensions and hair care from Ijoka, Ilesha. Delivered across Nigeria, or collect in store.",
+    primaryCta: { label: "Shop the collection", href: "/collections" },
     secondaryCta: { label: "Bone straight", href: "/collections/bone-straight" },
     image: mediaById("med_hero-main"),
     layerImage: mediaById("med_hero-layer"),
@@ -835,20 +842,23 @@ const homepageSections: HomepageSection[] = [
     ],
   },
   {
-    id: "sec_marquee",
-    type: "marquee",
-    enabled: true,
-    position: 0,
-    items: ["Futura wigs", "Double drawn bone straight", "Factory wigs", "Knotless braiding hair", "Edge control and bonnets", "Shades 1B to 613", "Pickup in Ijoka, Ilesha"],
-  },
-  {
     id: "sec_collections",
     type: "collections",
     enabled: true,
     position: 0,
-    heading: "Shop by collection",
-    body: "From ready-to-wear units to the care that keeps them looking new.",
+    heading: "Shop by style",
+    body: "",
     collectionIds: [],
+  },
+  {
+    id: "sec_best",
+    type: "product_rail",
+    enabled: true,
+    position: 0,
+    heading: "Best seller",
+    body: "",
+    source: { kind: "best_sellers" },
+    limit: 8,
   },
   {
     id: "sec_promo",
@@ -868,52 +878,10 @@ const homepageSections: HomepageSection[] = [
     type: "product_rail",
     enabled: true,
     position: 0,
-    heading: "Featured",
-    body: "Chosen by the store this month.",
+    heading: "Trending now",
+    body: "",
     source: { kind: "featured" },
-    limit: 4,
-  },
-  {
-    id: "sec_best",
-    type: "product_rail",
-    enabled: true,
-    position: 0,
-    heading: "Best sellers",
-    body: "The styles customers order most.",
-    source: { kind: "best_sellers" },
-    limit: 4,
-  },
-  {
-    id: "sec_story",
-    type: "editorial",
-    enabled: true,
-    position: 0,
-    heading: "A beauty house in the heart of Ilesha.",
-    body: "Queen Palace Beauty World is in Ijoka, beside Ibiyemi Building Material. Come in to see textures and shades in person, or shop here and have your order delivered.",
-    image: mediaById("med_editorial-store"),
-    cta: { label: "Find the store", href: "/contact" },
-    imageSide: "left",
-  },
-  {
-    id: "sec_new",
-    type: "product_rail",
-    enabled: true,
-    position: 0,
-    heading: "New arrivals",
-    body: "Recently added to the store.",
-    source: { kind: "newest" },
-    limit: 4,
-  },
-  {
-    id: "sec_quality",
-    type: "editorial",
-    enabled: true,
-    position: 0,
-    heading: "Double drawn means full to the very end.",
-    body: "In double-drawn hair, the shorter strands are removed so the ends are nearly as thick as the root. A long unit keeps its fullness instead of thinning out at the bottom.",
-    image: mediaById("med_editorial-bone-straight"),
-    cta: { label: "Shop bone straight", href: "/collections/bone-straight" },
-    imageSide: "right",
+    limit: 8,
   },
   {
     id: "sec_trust",
@@ -925,6 +893,38 @@ const homepageSections: HomepageSection[] = [
       { title: "Clear prices in naira", body: "Delivery is shown at checkout before you pay." },
       { title: "Pay your way", body: "Card online, or pay on delivery where it's available." },
     ],
+  },
+  {
+    id: "sec_story",
+    type: "editorial",
+    enabled: true,
+    position: 0,
+    heading: "A luxury hair house in the heart of Ilesha.",
+    body: "Queen Luxury Hair is in Ijoka, beside Ibiyemi Building Material. Come in to see textures and shades in person, or shop here and have your order delivered.",
+    image: mediaById("med_editorial-store"),
+    cta: { label: "Find the store", href: "/contact" },
+    imageSide: "left",
+  },
+  {
+    id: "sec_new",
+    type: "product_rail",
+    enabled: true,
+    position: 0,
+    heading: "New arrivals",
+    body: "",
+    source: { kind: "newest" },
+    limit: 8,
+  },
+  {
+    id: "sec_quality",
+    type: "editorial",
+    enabled: true,
+    position: 0,
+    heading: "Double drawn means full to the very end.",
+    body: "In double-drawn hair, the shorter strands are removed so the ends are nearly as thick as the root. A long unit keeps its fullness instead of thinning out at the bottom.",
+    image: mediaById("med_editorial-bone-straight"),
+    cta: { label: "Shop bone straight", href: "/collections/bone-straight" },
+    imageSide: "right",
   },
   {
     id: "sec_shades",
@@ -1002,6 +1002,7 @@ const homepageSections: HomepageSection[] = [
     cta: { label: "Ask us", href: "/contact" },
     whatsapp: true,
   },
+
 ];
 
 /** Positions follow array order. */
@@ -1050,7 +1051,7 @@ export const seedNavigation: Navigation = {
     },
     {
       id: "foot_about",
-      title: "Queen Palace",
+      title: "Queen Luxury Hair",
       items: [
         { id: "f10", label: "About us", href: "/about" },
         { id: "f11", label: "Hair care guide", href: "/hair-care" },
@@ -1065,7 +1066,7 @@ export const seedNavigation: Navigation = {
 export const seedPages: ContentPage[] = [
   {
     slug: "about",
-    title: "About Queen Palace Beauty World",
+    title: "About Queen Luxury Hair",
     intro: "A hair and beauty store in Ijoka, Ilesha, Osun State, selling wigs, bundles, braiding hair and hair care.",
     blocks: [
       { kind: "heading", text: "What we sell" },
@@ -1221,7 +1222,7 @@ export const seedDiscounts: Discount[] = [
 /* ---------------------------------------------------------------- inquiries */
 
 export const seedInquiries: Inquiry[] = [
-  { id: "inq_1", name: "Sample customer", email: "customer1@example.com", phone: null, topic: "order", orderNumber: "QP-10412", message: "Hello, is my order ready for pickup at the store?", status: "new", replies: [], createdAt: iso(0, 9) },
+  { id: "inq_1", name: "Sample customer", email: "customer1@example.com", phone: null, topic: "order", orderNumber: "QLH-10412", message: "Hello, is my order ready for pickup at the store?", status: "new", replies: [], createdAt: iso(0, 9) },
   { id: "inq_2", name: "Sample customer", email: "customer2@example.com", phone: null, topic: "product", orderNumber: null, message: "Do you have the 26 inch bone straight in 250% density with a closure instead of a frontal?", status: "open", replies: [{ id: "rep_1", author: "Demo Manager", body: "We can check with our supplier and get back to you.", createdAt: iso(1, 12) }], createdAt: iso(1, 10) },
   { id: "inq_3", name: "Sample customer", email: "customer3@example.com", phone: null, topic: "wholesale", orderNumber: null, message: "I run a salon in Osogbo and want to order braiding hair every month. Do you offer wholesale prices?", status: "new", replies: [], createdAt: iso(2, 15) },
 ];
@@ -1239,9 +1240,9 @@ export const seedRoles: Role[] = [
 ];
 
 export const seedStaff: Staff[] = [
-  { id: "staff_owner", name: "Demo Owner", email: "owner@queenpalace.test", roleId: "role_owner", status: "active", lastActiveAt: iso(0, 8) },
-  { id: "staff_manager", name: "Demo Manager", email: "manager@queenpalace.test", roleId: "role_manager", status: "active", lastActiveAt: iso(0, 7) },
-  { id: "staff_fulfil", name: "Demo Fulfilment", email: "fulfilment@queenpalace.test", roleId: "role_fulfilment", status: "active", lastActiveAt: iso(1, 16) },
+  { id: "staff_owner", name: "Demo Owner", email: "owner@queenluxuryhair.test", roleId: "role_owner", status: "active", lastActiveAt: iso(0, 8) },
+  { id: "staff_manager", name: "Demo Manager", email: "manager@queenluxuryhair.test", roleId: "role_manager", status: "active", lastActiveAt: iso(0, 7) },
+  { id: "staff_fulfil", name: "Demo Fulfilment", email: "fulfilment@queenluxuryhair.test", roleId: "role_fulfilment", status: "active", lastActiveAt: iso(1, 16) },
 ];
 
 /**
@@ -1249,9 +1250,9 @@ export const seedStaff: Staff[] = [
  * never return them. These exist so the permission-aware admin UI can be exercised locally.
  */
 export const seedStaffPasswords: Record<string, string> = {
-  "owner@queenpalace.test": "demo-owner",
-  "manager@queenpalace.test": "demo-manager",
-  "fulfilment@queenpalace.test": "demo-fulfilment",
+  "owner@queenluxuryhair.test": "demo-owner",
+  "manager@queenluxuryhair.test": "demo-manager",
+  "fulfilment@queenluxuryhair.test": "demo-fulfilment",
 };
 
 export const seedCustomerAddresses: SavedAddress[] = [
@@ -1259,6 +1260,6 @@ export const seedCustomerAddresses: SavedAddress[] = [
 ];
 
 export const seedCustomer = {
-  customer: { id: "cus_1", firstName: "Demo", lastName: "Customer", email: "customer@queenpalace.test", phone: null as string | null, createdAt: iso(120) },
+  customer: { id: "cus_1", firstName: "Demo", lastName: "Customer", email: "customer@queenluxuryhair.test", phone: null as string | null, createdAt: iso(120) },
   password: "demo-customer",
 };

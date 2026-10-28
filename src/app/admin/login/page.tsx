@@ -11,9 +11,9 @@ import { isMockMode } from "@/lib/api/config";
 import { safeNext } from "@/lib/redirect";
 
 const demoAccounts = [
-  { email: "owner@queenpalace.test", password: "demo-owner", role: "Owner, full access" },
-  { email: "manager@queenpalace.test", password: "demo-manager", role: "Store manager" },
-  { email: "fulfilment@queenpalace.test", password: "demo-fulfilment", role: "Fulfilment" },
+  { email: "owner@queenluxuryhair.test", password: "demo-owner", role: "Owner, full access" },
+  { email: "manager@queenluxuryhair.test", password: "demo-manager", role: "Store manager" },
+  { email: "fulfilment@queenluxuryhair.test", password: "demo-fulfilment", role: "Fulfilment" },
 ];
 
 function LoginForm() {
@@ -45,7 +45,7 @@ function LoginForm() {
         }}
       >
         <span className="alogin__logo">
-          <Logo variant="stacked" title="Queen Palace Beauty World" />
+          <Logo variant="stacked" title="Queen Luxury Hair" />
         </span>
         <h1 className="h3" style={{ textAlign: "center" }}>
           Store admin

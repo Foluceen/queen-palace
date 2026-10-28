@@ -6,12 +6,12 @@ import { Marquee } from "@/components/motion/Marquee";
 import { Reveal } from "@/components/motion/Reveal";
 import { Monogram } from "@/components/brand/Logo";
 import { NewsletterForm } from "@/components/store/NewsletterForm";
-import { ProductGrid } from "@/components/store/ProductCard";
+import { ProductCard } from "@/components/store/ProductCard";
+import { Carousel } from "./Carousel";
 import { isMockMode } from "@/lib/api/config";
 import { whatsappHref } from "@/lib/contact";
 import { CopyCode } from "./CopyCode";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { formatPriceRange } from "@/lib/format";
 import type {
   CareTipsSection,
   Collection,
@@ -33,26 +33,49 @@ import type {
 
 /* --------------------------------------------------------------------- hero */
 
+/**
+ * Full-bleed photo hero (Shopify "image banner"): the campaign photo fills the frame,
+ * copy sits centred at the bottom over a soft shade, with a blush pill button. Up to two
+ * circular insets show featured products (or the secondary image) like the reference.
+ */
 export function Hero({ section }: { section: HeroSection }) {
   const words = section.heading.split(/\s+/).filter(Boolean);
-  const spotlight = section.spotlight ?? [];
-  // The last word carries the accent colour (e.g. "crowns every look." -> "look.").
-  const accentFrom = Math.max(1, words.length - 1);
+  const spotlight = (section.spotlight ?? []).filter((p) => p.image).slice(0, 2);
+  const insets: { key: string; href: string | null; url: string; alt: string; label?: string }[] = spotlight.length
+    ? spotlight.map((p) => ({ key: p.id, href: `/products/${p.handle}`, url: p.image!.url, alt: p.image!.alt, label: p.title }))
+    : section.layerImage
+      ? [{ key: "layer", href: null, url: section.layerImage.url, alt: section.layerImage.alt }]
+      : [];
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <HeroMotion className="hero__inner container">
-        <div className="hero__copy">
-          <p className="eyebrow hero__eyebrow" data-hero-fade>
-            <span className="hero__rule" aria-hidden />
-            Ilesha, Osun State
-          </p>
+      <HeroMotion className="hero__frame">
+        {section.image ? (
+          <div className="hero__media" data-depth="-20">
+            <Image src={section.image.url} alt={section.image.alt} fill priority quality={65} sizes="100vw" className="hero__img" />
+          </div>
+        ) : null}
+        <span className="hero__shade" aria-hidden />
+        {insets.length ? (
+          <div className="hero__insets">
+            {insets.map((it, i) =>
+              it.href ? (
+                <Link key={it.key} href={it.href} className={`hero__inset hero__inset--${i}`} data-hero-pop aria-label={it.label}>
+                  <Image src={it.url} alt="" fill sizes="(min-width: 960px) 180px, 120px" />
+                </Link>
+              ) : (
+                <span key={it.key} className={`hero__inset hero__inset--${i}`} data-hero-pop>
+                  <Image src={it.url} alt={it.alt} fill sizes="(min-width: 960px) 180px, 120px" />
+                </span>
+              ),
+            )}
+          </div>
+        ) : null}
+        <div className="hero__content container">
           <h1 id="hero-title" className="hero__title display">
             {words.map((w, i) => (
               <Fragment key={i}>
                 <span className="hero__word">
-                  <span data-hero-word className={i >= accentFrom ? "hero__accent" : undefined}>
-                    {w}
-                  </span>
+                  <span data-hero-word>{w}</span>
                 </span>
                 {i < words.length - 1 ? " " : null}
               </Fragment>
@@ -62,49 +85,30 @@ export function Hero({ section }: { section: HeroSection }) {
             {section.body}
           </p>
           <div className="hero__ctas" data-hero-fade>
-            <Link href={section.primaryCta.href} className="btn">
+            <Link href={section.primaryCta.href} className="btn btn--blush btn--lg hero__cta">
               {section.primaryCta.label}
             </Link>
             {section.secondaryCta ? (
-              <Link href={section.secondaryCta.href} className="btn btn--ghost">
-                {section.secondaryCta.label}
+              <Link href={section.secondaryCta.href} className="hero__link">
+                {section.secondaryCta.label} <Icon name="chevronRight" size={16} />
               </Link>
             ) : null}
           </div>
-          {section.stats?.length ? (
-            <dl className="hero__stats" data-hero-fade>
-              {section.stats.map((s) => (
-                <div key={s.label} className="hero__stat">
-                  <dt className="hero__stat-label">{s.label}</dt>
-                  <dd className="hero__stat-value">
-                    <span data-count={s.value}>{s.value.toLocaleString("en-NG")}</span>
-                    {s.suffix}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-        </div>
-
-        <div className="hero__art">
-          {section.image ? (
-            <div className="hero__arch" data-depth="-30">
-              <Image src={section.image.url} alt={section.image.alt} fill priority quality={62} sizes="(min-width: 960px) 36vw, 82vw" className="hero__img" />
-            </div>
-          ) : null}
-          {section.layerImage ? (
-            <div className="hero__inset" data-depth="50">
-              <Image src={section.layerImage.url} alt={section.layerImage.alt} fill sizes="(min-width: 960px) 14vw, 32vw" className="hero__img" />
-            </div>
-          ) : null}
-          {spotlight.slice(0, 2).map((p, i) => (
-            <Link key={p.id} href={`/products/${p.handle}`} className={`hero__tag hero__tag--${i}`} data-hero-pop data-depth={i === 0 ? "70" : "-50"}>
-              <span className="hero__tag-title">{p.title}</span>
-              <span className="hero__tag-price">{formatPriceRange(p.priceRange)}</span>
-            </Link>
-          ))}
         </div>
       </HeroMotion>
+      {section.stats?.length ? (
+        <dl className="hero__stats container">
+          {section.stats.map((s) => (
+            <div key={s.label} className="hero__stat">
+              <dd className="hero__stat-value">
+                <span data-count={s.value}>{s.value.toLocaleString("en-NG")}</span>
+                {s.suffix}
+              </dd>
+              <dt className="hero__stat-label">{s.label}</dt>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </section>
   );
 }
@@ -118,36 +122,33 @@ export function MarqueeBand({ section }: { section: MarqueeSection }) {
 export function CollectionTiles({ section, collections }: { section: CollectionsSection; collections: Collection[] }) {
   if (!collections.length) return null;
   return (
-    <section className="section" aria-labelledby={`${section.id}-title`}>
+    <section className="section circles-section" aria-labelledby={`${section.id}-title`}>
       <div className="container">
-        <header className="section-head section-head--row">
-          <div>
-            <p className="eyebrow">Collections</p>
-            <h2 id={`${section.id}-title`} className="h1">
-              {section.heading}
-            </h2>
-            {section.body ? <p className="lede">{section.body}</p> : null}
-          </div>
-          <Link href="/collections" className="btn btn--ghost btn--sm">
-            All collections
-          </Link>
+        <header className="section-head section-head--center">
+          <h2 id={`${section.id}-title`} className="section-title">
+            {section.heading}
+          </h2>
+          {section.body ? <p className="muted">{section.body}</p> : null}
         </header>
-        <Reveal as="ul" className="halls" items="li">
+        <Reveal as="ul" className="circles" items="li">
           {collections.map((c) => (
             <li key={c.id}>
-              <Link href={`/collections/${c.handle}`} className="hall">
-                <span className="hall__frame">
-                  {c.image ? <Image src={c.image.url} alt="" fill sizes="(min-width: 1100px) 19vw, (min-width: 640px) 31vw, 46vw" className="hall__img" /> : null}
-                </span>
-                <span className="hall__title">{c.title}</span>
-                <span className="hall__summary">{c.summary}</span>
-                <span className="hall__count">
-                  {c.productCount} {c.productCount === 1 ? "style" : "styles"} <Icon name="chevronRight" size={14} />
+              <Link href={`/collections/${c.handle}`} className="circle">
+                <span className="circle__glow" aria-hidden />
+                <span className="circle__frame">
+                  {c.image ? <Image src={c.image.url} alt="" fill sizes="(min-width: 1100px) 220px, 42vw" className="circle__img" /> : null}
+                  <span className="circle__shade" aria-hidden />
+                  <span className="circle__label script">{c.title}</span>
                 </span>
               </Link>
             </li>
           ))}
         </Reveal>
+        <p className="circles__all">
+          <Link href="/collections" className="btn btn--ghost btn--sm">
+            View all collections
+          </Link>
+        </p>
       </div>
     </section>
   );
@@ -159,20 +160,24 @@ export function ProductRail({ section }: { section: ProductRailSection }) {
   if (!section.products?.length) return null;
   const href = section.href ?? "/search";
   return (
-    <section className="section section--tight" aria-labelledby={`${section.id}-title`}>
+    <section className="section section--tight rail" aria-labelledby={`${section.id}-title`}>
       <div className="container">
-        <header className="section-head section-head--row">
-          <div>
-            <h2 id={`${section.id}-title`} className="h2">
-              {section.heading}
-            </h2>
-            {section.body ? <p className="muted">{section.body}</p> : null}
-          </div>
-          <Link href={href} className="btn btn--ghost btn--sm">
-            Shop all
-          </Link>
+        <header className="section-head section-head--center">
+          <h2 id={`${section.id}-title`} className="section-title">
+            {section.heading}
+          </h2>
+          {section.body ? <p className="muted">{section.body}</p> : null}
         </header>
-        <ProductGrid products={section.products} className="pgrid--rail" />
+        <Carousel label={section.heading}>
+          {section.products.map((p) => (
+            <ProductCard key={p.id} product={p} sizes="(min-width: 1100px) 22vw, (min-width: 640px) 40vw, 72vw" />
+          ))}
+        </Carousel>
+        <p className="rail__all">
+          <Link href={href} className="btn btn--ghost btn--sm">
+            View all
+          </Link>
+        </p>
       </div>
     </section>
   );
@@ -290,7 +295,7 @@ const promiseIcon = (title: string): IconName => {
 
 export function Promises({ section }: { section: PromiseSection }) {
   return (
-    <section className="section--tight" aria-label="Our promises">
+    <section className="features" aria-label="Why shop with us">
       <Reveal as="ul" className="container trust" items="li">
         {section.items.map((p) => (
           <li key={p.title} className="trust__item">

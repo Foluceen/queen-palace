@@ -25,14 +25,15 @@ SHADES = {
     "350": (165, 72, 42),
 }
 
-# Queen Palace palette: burgundy, champagne gold, warm ivory, charcoal.
+# Queen Luxury Hair palette: burgundy, champagne gold, warm ivory, charcoal.
+# Queen Luxury Hair palette: cocoa, espresso, cream, blush and champagne.
 BACKDROPS = {
-    "plum": ((88, 22, 44), (34, 9, 18)),        # deep burgundy
-    "mist": ((52, 38, 40), (18, 13, 14)),       # warm charcoal
-    "pearl": ((244, 236, 223), (222, 206, 182)),  # ivory cream
-    "indigo": ((34, 28, 30), (12, 10, 11)),     # near black
-    "honey": ((226, 198, 140), (176, 136, 70)),  # champagne gold
-    "rose": ((238, 222, 204), (206, 176, 150)),  # soft nude
+    "plum": ((112, 64, 40), (44, 24, 14)),       # cocoa
+    "mist": ((58, 40, 32), (22, 15, 12)),        # espresso
+    "pearl": ((250, 242, 234), (232, 214, 196)),  # cream
+    "indigo": ((36, 26, 22), (14, 10, 8)),       # near black
+    "honey": ((232, 205, 160), (190, 150, 96)),  # champagne
+    "rose": ((246, 222, 230), (226, 186, 202)),  # blush
 }
 LIGHT = ("honey", "rose", "pearl")
 
@@ -159,7 +160,7 @@ def care(img, accent_shade, rng):
     floor = h * 0.8
     shapes = rng.randint(3, 4)
     xs = sorted(rng.uniform(0.15, 0.85) * w for _ in range(shapes))
-    palette = [(107, 22, 48), (201, 164, 92), (35, 28, 30), (238, 226, 204), (140, 34, 66)]
+    palette = [(91, 50, 32), (201, 154, 85), (36, 23, 15), (242, 201, 218), (160, 104, 72)]
     for i, x in enumerate(xs):
         kind = rng.choice(["bottle", "jar", "tube"])
         col = palette[(i + rng.randint(0, 4)) % len(palette)]

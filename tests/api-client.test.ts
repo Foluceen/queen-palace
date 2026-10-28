@@ -76,7 +76,7 @@ describe("errors", () => {
   });
 
   it("rejects a response whose shape doesn't match the contract", async () => {
-    stub(json(200, { name: "Queen Palace Beauty World", address: "Ijoka", currency: "NGN" }));
+    stub(json(200, { name: "Queen Luxury Hair", address: "Ijoka", currency: "NGN" }));
     await assert.rejects(createApiClient("https://x.test").call("getStoreSettings"), (e: unknown) => e instanceof ApiError && e.code === "contract_mismatch" && /tagline/.test(e.fields?._contract ?? ""));
   });
 

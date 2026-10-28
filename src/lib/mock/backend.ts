@@ -702,7 +702,7 @@ export const handlers: Handlers = {
       if (disc) disc.usageCount++;
     }
 
-    const number = `QP-${++db.seq}`;
+    const number = `QLH-${++db.seq}`;
     const order: Order = {
       id: newId("ord"),
       number,

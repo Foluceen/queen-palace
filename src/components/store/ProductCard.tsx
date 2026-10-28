@@ -22,7 +22,7 @@ export function ProductCard({ product, priority = false, sizes = "(min-width: 11
           {product.badges.length ? (
             <div className="pcard__badges">
               {product.badges.map((b) => (
-                <span key={b} className={`badge ${b === "Sold out" ? "badge--ink" : b === "Sale" ? "badge--gold" : "badge--pink"}`}>
+                <span key={b} className={`badge ${b === "Sold out" ? "badge--ink" : b === "Sale" ? "badge--sale" : "badge--blush"}`}>
                   {b}
                 </span>
               ))}
@@ -30,6 +30,14 @@ export function ProductCard({ product, priority = false, sizes = "(min-width: 11
           ) : null}
         </div>
         <div className="pcard__body">
+          {product.rating.count ? (
+            <span className="pcard__rating" role="img" aria-label={`Rated ${product.rating.average.toFixed(1)} out of 5 from ${product.rating.count} reviews`}>
+              <span className="pcard__stars" style={{ ["--rating" as string]: product.rating.average }} aria-hidden />
+              <span className="pcard__count" aria-hidden>
+                ({product.rating.count})
+              </span>
+            </span>
+          ) : null}
           <h3 className="pcard__title">{product.title}</h3>
           <p className="pcard__sub">{product.subtitle}</p>
           <div className="pcard__meta">

@@ -9,7 +9,7 @@ export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "All collections",
-  description: "Shop Futura wigs, bone straight hair, factory wigs, braid extensions and hair care at Queen Palace Beauty World.",
+  description: "Shop Futura wigs, bone straight hair, factory wigs, braid extensions and hair care at Queen Luxury Hair.",
   alternates: { canonical: "/collections" },
 };
 

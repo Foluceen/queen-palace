@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 /** Static on purpose: the web app manifest must not depend on the API being up. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Queen Palace Beauty World",
-    short_name: "Queen Palace",
-    description: "Hair and beauty from Queen Palace Beauty World, Ilesha.",
+    name: "Queen Luxury Hair",
+    short_name: "Queen Luxury Hair",
+    description: "Hair and beauty from Queen Luxury Hair, Ilesha.",
     start_url: "/",
     display: "standalone",
     background_color: "#faf6ef",

@@ -58,7 +58,7 @@ export function buildSampleOrders(products: Product[]): Order[] {
     const pickup = shippingTotal === 0;
     const created = new Date(Date.UTC(2026, 9, 26, 9 + (i % 8), 0, 0));
     created.setUTCDate(created.getUTCDate() - Math.floor(i * 1.8));
-    const number = `QP-${10400 + i}`;
+    const number = `QLH-${10400 + i}`;
     const createdAt = created.toISOString();
     const shipped = ["shipped", "out_for_delivery", "delivered"].includes(fulfillmentStatus);
     return {

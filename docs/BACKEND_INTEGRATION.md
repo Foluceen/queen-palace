@@ -36,7 +36,7 @@ Everything below works in mock mode, but only as a stand-in. Each item needs a r
 - **Collections.** Deleting a collection never deletes products. Return `{ ok: true, unassignedProductIds }` listing products that are now in no collection, remove the collection from homepage sections, and support `GET /admin/products?collectionId=none`.
 - **Duplicate product.** `POST /admin/products/:id/duplicate` creates a `draft` with a unique handle, SKUs suffixed `-COPY` and zero stock.
 - **Ratings.** `rating` on products is computed from **published** reviews only.
-- **Order numbers.** Use the `QP-` prefix (e.g. `QP-10417`).
+- **Order numbers.** Use the `QLH-` prefix (e.g. `QLH-10417`).
 - **Guest order access.** `GET /orders/:number?token=` must require the opaque `accessToken`. Tracking needs number **and** email.
 - **Admin authorisation.** Check the permission on every admin endpoint (table below). Return `401` when not signed in, `403` when the role lacks the permission. Staff can't change their own role or suspend themselves, and the Owner role can't be edited.
 - **Public payment settings.** Never return secret keys. `GET /admin/settings/payments` returns public keys only; secrets live in the backend environment.

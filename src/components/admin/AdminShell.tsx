@@ -76,7 +76,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className={`ashell ${open ? "is-nav-open" : ""}`}>
       <aside className="ashell__nav" aria-label="Admin">
         <div className="ashell__brand">
-          <Link href="/admin" className="ashell__logo" aria-label="Queen Palace admin home">
+          <Link href="/admin" className="ashell__logo" aria-label="Queen Luxury Hair admin home">
             <Logo variant="horizontal" title="" />
           </Link>
         </div>

@@ -12,11 +12,11 @@ import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
 import type { BrandColors, StoreSettings, ThemeMode } from "@/lib/types";
 
-const DEFAULT_COLORS: BrandColors = { gold: "#C9A45C", burgundy: "#6B1630", lightBackground: "#FAF6EF", lightSurface: "#F4ECDF", darkBackground: "#0E0B0C", darkSurface: "#191516" };
+const DEFAULT_COLORS: BrandColors = { gold: "#B88A4A", burgundy: "#5B3220", lightBackground: "#F8F1EA", lightSurface: "#F1E6DB", darkBackground: "#120D0B", darkSurface: "#1B1411" };
 
 const colorFields: { key: keyof BrandColors; label: string; hint: string }[] = [
-  { key: "burgundy", label: "Burgundy", hint: "Light mode buttons, links and the wordmark." },
-  { key: "gold", label: "Champagne gold", hint: "Accents, the crown mark, dark mode buttons." },
+  { key: "burgundy", label: "Cocoa", hint: "Links, prices on sale and the glow behind category photos." },
+  { key: "gold", label: "Gold", hint: "Star ratings and the crown." },
   { key: "lightBackground", label: "Light background", hint: "Warm ivory page colour." },
   { key: "lightSurface", label: "Light surface", hint: "Cards, drawers and panels in light mode." },
   { key: "darkBackground", label: "Dark background", hint: "Near-black page colour." },
@@ -31,16 +31,16 @@ function Preview({ s, dark }: { s: StoreSettings; dark: boolean }) {
   const bg = dark ? c.darkBackground : c.lightBackground;
   const surface = dark ? c.darkSurface : c.lightSurface;
   const text = dark ? "#F6EFE4" : "#231D1F";
-  const cta = dark ? c.gold : c.burgundy;
+  const cta = dark ? "#F1C6D8" : "#24170F";
   return (
-    <div className="abrand-preview" style={{ background: bg, color: text, ["--logo-mark" as string]: dark ? c.gold : "#A9833D", ["--logo-text" as string]: dark ? "#F6EFE4" : c.burgundy }}>
+    <div className="abrand-preview" style={{ background: bg, color: text, ["--logo-mark" as string]: c.gold, ["--logo-text" as string]: dark ? "#F6ECE3" : "#1F1612" }}>
       <Logo variant="horizontal" className="abrand-preview__logo" title="" />
       <div className="abrand-preview__card" style={{ background: surface }}>
         <p className="small" style={{ opacity: 0.7 }}>
           Bone Straight
         </p>
         <p style={{ fontWeight: 700 }}>₦165,000</p>
-        <span className="abrand-preview__btn" style={{ background: cta, color: dark ? "#170F05" : "#FBF7F1", borderRadius: Math.min(s.branding.radius, 999) }}>
+        <span className="abrand-preview__btn" style={{ background: cta, color: dark ? "#1F1210" : "#FBF3EC", borderRadius: Math.min(s.branding.radius, 999) }}>
           Add to bag
         </span>
       </div>
@@ -133,11 +133,11 @@ function BrandingPageInner() {
                 max={999}
                 value={String(s.branding.radius)}
                 onChange={(e) => set({ branding: { ...s.branding, radius: Math.max(0, Math.min(999, Number(e.target.value) || 0)) } })}
-                hint="6 is the house style. 999 gives pill buttons."
+                hint="999 (pill buttons) is the house style. 0 gives square buttons."
               />
             </div>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => set({ branding: { ...s.branding, colors: DEFAULT_COLORS, radius: 6 } })}>
-              Restore Queen Palace colours
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => set({ branding: { ...s.branding, colors: DEFAULT_COLORS, radius: 999 } })}>
+              Restore Queen Luxury Hair colours
             </button>
           </Panel>
 

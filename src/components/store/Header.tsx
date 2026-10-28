@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 import type { Navigation, StoreSettings } from "@/lib/types";
-import { HeaderActions, MobileMenu } from "./HeaderClient";
+import { HeaderActions, HeaderSearch, MobileMenu } from "./HeaderClient";
 
 /** Uploaded logos when set (with an optional dark-mode version), otherwise the built-in vector logo. */
 export function Wordmark({ settings }: { settings: StoreSettings }) {
@@ -25,10 +25,18 @@ export function Header({ settings, navigation }: { settings: StoreSettings; navi
         </div>
       ) : null}
       <div className="site-header__bar container">
-        <MobileMenu navigation={navigation} storeName={settings.name} />
+        <div className="site-header__left">
+          <MobileMenu navigation={navigation} storeName={settings.name} />
+          <HeaderSearch />
+        </div>
         <Link href="/" className="site-header__logo">
           <Wordmark settings={settings} />
         </Link>
+        <div className="site-header__right">
+          <HeaderActions />
+        </div>
+      </div>
+      <div className="site-header__navrow">
         <nav className="site-nav" aria-label="Main">
           <ul>
             {navigation.main.map((item) => (
@@ -56,7 +64,6 @@ export function Header({ settings, navigation }: { settings: StoreSettings; navi
             ))}
           </ul>
         </nav>
-        <HeaderActions />
       </div>
     </header>
   );

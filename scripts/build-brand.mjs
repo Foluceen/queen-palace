@@ -1,4 +1,4 @@
-// Generates the Queen Palace Beauty World logo system from one source of truth.
+// Generates the Queen Luxury Hair logo system from one source of truth.
 //   node scripts/build-brand.mjs
 // Outputs vector SVGs to public/brand, the favicon to src/app/icon.svg, path data for the
 // <Logo> React component, and PNGs (app icons, social avatar, OG image) via Playwright.
@@ -13,12 +13,13 @@ const out = join(root, "public", "brand");
 mkdirSync(out, { recursive: true });
 
 const COLORS = {
-  burgundy: "#6B1630",
-  gold: "#C9A45C",
-  goldDeep: "#A9833D",
-  ivory: "#FAF5EC",
-  charcoal: "#221C1E",
-  night: "#0E0B0C",
+  espresso: "#1F1612",
+  cocoa: "#5B3220",
+  gold: "#C99A55",
+  goldDeep: "#B0874A",
+  cream: "#F8F1EA",
+  blush: "#F2C9DA",
+  night: "#120D0B",
 };
 
 /* ------------------------------------------------------------- monogram */
@@ -34,10 +35,10 @@ const monoPath = Object.values(MONO_PATHS).join(" ");
 
 /* ------------------------------------------------------------- wordmark */
 const require = createRequire(import.meta.url);
-const fontFile = (w) => require.resolve(`@fontsource/fraunces/files/fraunces-latin-${w}-normal.woff`);
 const toArrayBuffer = (b) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-const display = opentype.parse(toArrayBuffer(readFileSync(fontFile(600))));
-const subline = opentype.parse(toArrayBuffer(readFileSync(fontFile(500))));
+const load = (id) => opentype.parse(toArrayBuffer(readFileSync(require.resolve(id))));
+const serif = load("@fontsource/cormorant-garamond/files/cormorant-garamond-latin-600-normal.woff");
+const script = load("@fontsource/great-vibes/files/great-vibes-latin-400-normal.woff");
 
 /** Lays out text with tracking (in em) and returns path data + width. */
 function setText(font, text, size, trackingEm, x, baseline) {
@@ -54,48 +55,56 @@ function setText(font, text, size, trackingEm, x, baseline) {
   });
   return { d: parts.join(""), width: cursor - x };
 }
+const measure = (font, text, size, tracking) => setText(font, text, size, tracking, 0, 0).width;
 
-const line1Size = 27;
-const line1 = setText(display, "QUEEN PALACE", line1Size, 0.06, 0, 0);
-// Justify the second line to the first line's width.
-const line2Size = 12.6;
-const raw2 = setText(subline, "BEAUTY WORLD", line2Size, 0, 0, 0);
-const gaps2 = "BEAUTY WORLD".length - 1;
-const track2 = (line1.width - raw2.width) / gaps2 / line2Size;
+// Wordmark lockup: a small crown, "QUEEN" in spaced serif capitals, "Luxury Hair" in script.
+const QUEEN = "QUEEN";
+const SCRIPT = "Luxury Hair";
+const qSize = 21;
+const qTrack = 0.42;
+const sSize = 36;
+const qW = measure(serif, QUEEN, qSize, qTrack);
+const sW = measure(script, SCRIPT, sSize, 0);
+const W = Math.ceil(Math.max(qW, sW) + 8);
+const crownScale = 0.42;
+// Crown + jewels occupy x 16.5..47.5, y 2.3..24 on the 64 grid.
+const crownW = 31 * crownScale;
+const crownTransform = (cx, top) => `translate(${(cx - 32 * crownScale).toFixed(2)} ${(top - 2.3 * crownScale).toFixed(2)}) scale(${crownScale})`;
+const CROWN_PATH = [crown, jewels].join(" ");
+const H_TOP = 0;
+const qBase = 34; // baseline of QUEEN
+const sBase = 66; // baseline of the script line
+const L1 = setText(serif, QUEEN, qSize, qTrack, (W - qW) / 2 + (qTrack * qSize) / 2, qBase);
+const L2 = setText(script, SCRIPT, sSize, 0, (W - sW) / 2, sBase);
+const H = { width: W, height: 76, markTransform: crownTransform(W / 2, H_TOP) };
+void crownW;
 
-const markSize = 64;
-const gap = 16;
-const textX = markSize + gap;
-const L1 = setText(display, "QUEEN PALACE", line1Size, 0.06, textX, 34);
-const L2 = setText(subline, "BEAUTY WORLD", line2Size, track2, textX, 54);
-const H = { width: Math.ceil(textX + line1.width + 2), height: 64 };
-
-// Stacked lockup for square spaces (centred under the mark).
-const stackW = Math.ceil(line1.width + 4);
+// Stacked lockup for square spaces: the crowned-Q monogram above the wordmark (no small crown).
+const stackW = W;
 const stackMarkX = (stackW - 64) / 2;
-const S1 = setText(display, "QUEEN PALACE", line1Size, 0.06, 2, 100);
-const S2 = setText(subline, "BEAUTY WORLD", line2Size, track2, 2, 120);
-const S = { width: stackW, height: 126 };
+const S1 = setText(serif, QUEEN, qSize, qTrack, (W - qW) / 2 + (qTrack * qSize) / 2, 64 + 34);
+const S2 = setText(script, SCRIPT, sSize, 0, (W - sW) / 2, 64 + 66);
+const S = { width: stackW, height: 64 + 76 };
 
 /* ---------------------------------------------------------------- files */
 const svg = (w, h, body, title) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w * 4}" height="${h * 4}" role="img" aria-label="${title}"><title>${title}</title>${body}</svg>\n`;
-const NAME = "Queen Palace Beauty World";
+const NAME = "Queen Luxury Hair";
 
-const horizontal = (mark, text) => svg(H.width, H.height, `<path fill="${mark}" d="${monoPath}"/><path fill="${text}" d="${L1.d}"/><path fill="${mark}" d="${L2.d}"/>`, NAME);
-const stacked = (mark, text) => svg(S.width, S.height, `<g transform="translate(${stackMarkX} 0)"><path fill="${mark}" d="${monoPath}"/></g><path fill="${text}" d="${S1.d}"/><path fill="${mark}" d="${S2.d}"/>`, NAME);
+const horizontal = (mark, text) => svg(H.width, H.height, `<g transform="${H.markTransform}"><path fill="${mark}" d="${CROWN_PATH}"/></g><path fill="${text}" d="${L1.d}"/><path fill="${text}" d="${L2.d}"/>`, NAME);
+const stacked = (mark, text) => svg(S.width, S.height, `<g transform="translate(${stackMarkX} 0)"><path fill="${mark}" d="${monoPath}"/></g><path fill="${text}" d="${S1.d}"/><path fill="${text}" d="${S2.d}"/>`, NAME);
 const monogram = (fill) => svg(64, 64, `<path fill="${fill}" d="${monoPath}"/>`, NAME);
 const appIcon = (bg, fill, radius = 14) => svg(64, 64, `<rect width="64" height="64" rx="${radius}" fill="${bg}"/><g transform="translate(6.4 7.2) scale(.8)"><path fill="${fill}" d="${monoPath}"/></g>`, NAME);
 
 const files = {
-  "logo-horizontal-light.svg": horizontal(COLORS.goldDeep, COLORS.burgundy),
-  "logo-horizontal-dark.svg": horizontal(COLORS.gold, COLORS.ivory),
-  "logo-stacked-light.svg": stacked(COLORS.goldDeep, COLORS.burgundy),
-  "logo-stacked-dark.svg": stacked(COLORS.gold, COLORS.ivory),
+  "logo-horizontal-light.svg": horizontal(COLORS.goldDeep, COLORS.espresso),
+  "logo-horizontal-dark.svg": horizontal(COLORS.gold, COLORS.cream),
+  "logo-stacked-light.svg": stacked(COLORS.goldDeep, COLORS.espresso),
+  "logo-stacked-dark.svg": stacked(COLORS.gold, COLORS.cream),
   "monogram-gold.svg": monogram(COLORS.gold),
-  "monogram-burgundy.svg": monogram(COLORS.burgundy),
-  "monogram-ivory.svg": monogram(COLORS.ivory),
-  "app-icon.svg": appIcon(COLORS.burgundy, COLORS.gold),
+  "monogram-espresso.svg": monogram(COLORS.espresso),
+  "monogram-cream.svg": monogram(COLORS.cream),
+  "app-icon.svg": appIcon(COLORS.espresso, COLORS.gold),
   "app-icon-dark.svg": appIcon(COLORS.night, COLORS.gold),
 };
 for (const [name, content] of Object.entries(files)) writeFileSync(join(out, name), content);
@@ -104,7 +113,8 @@ writeFileSync(join(root, "src", "app", "icon.svg"), files["app-icon.svg"]);
 /* ------------------------------------------------------ React path data */
 const ts = `/* Generated by scripts/build-brand.mjs. Do not edit by hand. */
 export const MONOGRAM_PATH = ${JSON.stringify(monoPath)};
-export const HORIZONTAL = ${JSON.stringify({ width: H.width, height: H.height, line1: L1.d, line2: L2.d })};
+export const CROWN_PATH = ${JSON.stringify(CROWN_PATH)};
+export const HORIZONTAL = ${JSON.stringify({ width: H.width, height: H.height, markTransform: H.markTransform, line1: L1.d, line2: L2.d })};
 export const STACKED = ${JSON.stringify({ width: S.width, height: S.height, markX: stackMarkX, line1: S1.d, line2: S2.d })};
 `;
 mkdirSync(join(root, "src", "components", "brand"), { recursive: true });
@@ -123,21 +133,21 @@ async function png(name, html, width, height) {
 const img = (file, w, h) => `<img src="data:image/svg+xml;base64,${Buffer.from(files[file]).toString("base64")}" width="${w}" height="${h}" style="display:block">`;
 await png("icon-512.png", img("app-icon.svg", 512, 512), 512, 512);
 await png("icon-192.png", img("app-icon.svg", 192, 192), 192, 192);
-await png("apple-touch-icon.png", `<div style="width:180px;height:180px;background:${COLORS.burgundy};display:grid;place-items:center">${img("monogram-gold.svg", 132, 132)}</div>`, 180, 180);
+await png("apple-touch-icon.png", `<div style="width:180px;height:180px;background:${COLORS.espresso};display:grid;place-items:center">${img("monogram-gold.svg", 132, 132)}</div>`, 180, 180);
 await png(
   "social-avatar.png",
-  `<div style="width:1080px;height:1080px;background:radial-gradient(circle at 50% 40%,#7d1d3a,${COLORS.burgundy} 60%,#4c0f22);display:grid;place-items:center">
-     <div style="width:720px;height:720px;border-radius:50%;border:6px solid ${COLORS.gold}55;display:grid;place-items:center">${img("monogram-gold.svg", 660, 660)}</div></div>`,
+  `<div style="width:1080px;height:1080px;background:${COLORS.cream};display:grid;place-items:center">
+     <div style="width:860px;height:860px;border-radius:50%;background:radial-gradient(circle at 50% 45%,#f9e3ec 0%,${COLORS.cream} 70%);display:grid;place-items:center">${img("logo-stacked-light.svg", Math.round(S.width * 4.6), Math.round(S.height * 4.6))}</div></div>`,
   1080,
   1080,
 );
 await png(
   "og-image.png",
-  `<div style="width:1200px;height:630px;background:${COLORS.ivory};display:flex;flex-direction:column;justify-content:center;padding:0 96px;box-sizing:border-box;font-family:Georgia,serif;position:relative;overflow:hidden">
-     <div style="position:absolute;right:-120px;top:-120px;width:560px;height:560px;border-radius:50%;background:${COLORS.burgundy}"></div>
-     <div style="position:absolute;right:40px;top:60px">${img("monogram-gold.svg", 260, 260)}</div>
-     ${img("logo-horizontal-light.svg", Math.round(H.width * 6.2), Math.round(H.height * 6.2))}
-     <div style="margin-top:36px;font-size:30px;color:${COLORS.charcoal};font-family:system-ui,sans-serif">Wigs, bone straight, braids and hair care · Ilesha, Osun State</div>
+  `<div style="width:1200px;height:630px;background:${COLORS.cream};display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;position:relative;overflow:hidden">
+     <div style="position:absolute;left:50%;top:50%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;background:radial-gradient(circle,#f8dce8 0%,${COLORS.cream} 62%)"></div>
+     <div style="position:relative">${img("logo-horizontal-light.svg", Math.round(H.width * 3.4), Math.round(H.height * 3.4))}</div>
+     <div style="position:relative;margin-top:34px;font-size:28px;letter-spacing:.14em;text-transform:uppercase;color:${COLORS.cocoa};font-family:system-ui,sans-serif">Wigs · Bone straight · Braids · Hair care</div>
+     <div style="position:relative;margin-top:12px;font-size:24px;color:${COLORS.espresso};font-family:system-ui,sans-serif">Ijoka, Ilesha, Osun State</div>
    </div>`,
   1200,
   630,

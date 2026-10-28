@@ -30,7 +30,7 @@ function expectError(fn: () => unknown, status: number) {
 
 function signInOwner() {
   const ctx = session();
-  callMock("adminLogin", { body: { email: "owner@queenpalace.test", password: "demo-owner" } }, ctx);
+  callMock("adminLogin", { body: { email: "owner@queenluxuryhair.test", password: "demo-owner" } }, ctx);
   return ctx;
 }
 
@@ -171,7 +171,7 @@ describe("admin catalog management", () => {
       mediaIds: [],
       video: null,
       options: [{ name: "Size", values: ["100ml"] }],
-      variants: [{ sku: "QP-SSO-100", title: "100ml", options: { Size: "100ml" }, price: 450000, compareAtPrice: null, mediaId: null, position: 0, inventory: { tracked: true, policy: "deny", lowStockThreshold: 2, available: 12 } }],
+      variants: [{ sku: "QLH-SSO-100", title: "100ml", options: { Size: "100ml" }, price: 450000, compareAtPrice: null, mediaId: null, position: 0, inventory: { tracked: true, policy: "deny", lowStockThreshold: 2, available: 12 } }],
       productTypeId: "type_care",
       attributes: { volume: "100ml", usage: "Part your braids.\nApply a few drops to the scalp." },
       tags: ["care"],
@@ -218,7 +218,7 @@ describe("admin catalog management", () => {
 
   it("enforces permissions on the backend", () => {
     const fulfil = session();
-    callMock("adminLogin", { body: { email: "fulfilment@queenpalace.test", password: "demo-fulfilment" } }, fulfil);
+    callMock("adminLogin", { body: { email: "fulfilment@queenluxuryhair.test", password: "demo-fulfilment" } }, fulfil);
     expectError(() => callMock("adminGetPaymentSettings", {}, fulfil), 403);
     expectError(() => callMock("adminDuplicateProduct", { params: { id: "prod_1" } }, fulfil), 403);
     expectError(() => callMock("adminAnalytics", { query: {} }, fulfil), 403);
@@ -247,7 +247,7 @@ describe("customer accounts", () => {
 
   it("password reset requests never reveal whether an account exists", () => {
     assert.deepEqual(callMock("customerRequestPasswordReset", { body: { email: "nobody@example.com" } }), { ok: true });
-    assert.deepEqual(callMock("customerRequestPasswordReset", { body: { email: "customer@queenpalace.test" } }), { ok: true });
+    assert.deepEqual(callMock("customerRequestPasswordReset", { body: { email: "customer@queenluxuryhair.test" } }), { ok: true });
   });
 });
 
@@ -284,7 +284,7 @@ describe("admin authorisation sweep (reference behaviour for the real backend)",
 
   it("a role without a permission gets 403 on mutations it can't perform", () => {
     const fulfil = session();
-    callMock("adminLogin", { body: { email: "fulfilment@queenpalace.test", password: "demo-fulfilment" } }, fulfil);
+    callMock("adminLogin", { body: { email: "fulfilment@queenluxuryhair.test", password: "demo-fulfilment" } }, fulfil);
     const denied: [string, unknown][] = [
       ["adminCreateProduct", { body: {} }],
       ["adminUpdateStoreSettings", { body: {} }],

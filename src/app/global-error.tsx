@@ -8,7 +8,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
     <html lang="en-NG">
       <body>
         <main className="unavailable" role="alert">
-          <h1 className="h2">Queen Palace Beauty World is temporarily unavailable</h1>
+          <h1 className="h2">Queen Luxury Hair is temporarily unavailable</h1>
           <p className="muted">Please try again in a few minutes.</p>
           <button type="button" className="btn" onClick={reset}>
             Try again

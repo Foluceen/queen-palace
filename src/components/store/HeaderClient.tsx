@@ -15,10 +15,22 @@ import { useWishlist } from "./WishlistProvider";
 // Search UI is only needed once someone opens it.
 const SearchDialog = dynamic(() => import("./SearchDialog").then((m) => m.SearchDialog), { ssr: false });
 
+/** Search button with its dialog (left side of the header, as on Shopify themes). */
+export function HeaderSearch() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="icon-btn" onClick={() => setOpen(true)} aria-label="Search">
+        <Icon name="search" />
+      </button>
+      {open ? <SearchDialog onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
 export function HeaderActions() {
   const { cart, openDrawer } = useCart();
   const { ids } = useWishlist();
-  const [searchOpen, setSearchOpen] = useState(false);
   const countRef = useRef<HTMLSpanElement>(null);
   const prevCount = useRef(0);
   const count = cart?.itemCount ?? 0;
@@ -32,15 +44,12 @@ export function HeaderActions() {
 
   return (
     <div className="site-header__actions">
-      <button type="button" className="icon-btn" onClick={() => setSearchOpen(true)} aria-label="Search">
-        <Icon name="search" />
-      </button>
       <ThemeToggle className="hide-sm" />
       <Link href="/wishlist" className="icon-btn hide-sm" aria-label={`Wishlist, ${ids.length} saved`}>
         <Icon name="heart" />
         {ids.length ? <span className="icon-btn__count">{ids.length}</span> : null}
       </Link>
-      <Link href="/account" className="icon-btn hide-sm" aria-label="Account">
+      <Link href="/account" className="icon-btn" aria-label="Account">
         <Icon name="user" />
       </Link>
       <button type="button" className="icon-btn" onClick={openDrawer} aria-label={`Open bag, ${count} item${count === 1 ? "" : "s"}`}>
@@ -49,7 +58,6 @@ export function HeaderActions() {
           {count}
         </span>
       </button>
-      {searchOpen ? <SearchDialog onClose={() => setSearchOpen(false)} /> : null}
     </div>
   );
 }

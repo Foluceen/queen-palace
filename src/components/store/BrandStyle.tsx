@@ -4,12 +4,12 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Built-in palette. Only colours the owner changes in admin → Branding are emitted. */
 const DEFAULTS: BrandColors = {
-  gold: "#c9a45c",
-  burgundy: "#6b1630",
-  lightBackground: "#faf6ef",
-  lightSurface: "#f4ecdf",
-  darkBackground: "#0e0b0c",
-  darkSurface: "#191516",
+  gold: "#b88a4a",
+  burgundy: "#5b3220",
+  lightBackground: "#f8f1ea",
+  lightSurface: "#f1e6db",
+  darkBackground: "#120d0b",
+  darkSurface: "#1b1411",
 };
 
 const changed = (c: BrandColors, k: keyof BrandColors) => HEX.test(c[k]) && c[k].toLowerCase() !== DEFAULTS[k];
@@ -35,7 +35,7 @@ export function BrandStyle({ settings }: { settings: StoreSettings }) {
   if (changed(c, "darkBackground")) dark.push(`--bg:${c.darkBackground}`);
   if (changed(c, "darkSurface")) dark.push(`--surface:${c.darkSurface}`, `--surface-2:color-mix(in srgb,${c.darkSurface} 88%,white)`);
   const r = settings.branding.radius;
-  if (Number.isFinite(r) && r !== 6) light.push(`--radius-control:${Math.max(0, Math.min(999, r))}px`);
+  if (Number.isFinite(r) && r !== 999) light.push(`--radius-control:${Math.max(0, Math.min(999, r))}px`);
   if (!light.length && !dark.length) return null;
   const d = dark.join(";");
   const css =

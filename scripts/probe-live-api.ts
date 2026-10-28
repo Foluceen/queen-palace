@@ -25,7 +25,7 @@ const samples: Record<string, string> = {
   productId: "probe",
   cartId: "probe",
   lineId: "probe",
-  number: "QP-00000",
+  number: "QLH-00000",
   code: "PROBE",
   variantId: "probe",
   id: "probe",

@@ -83,7 +83,7 @@ function PageEditor({ page, onSaved }: { page: ContentPage; onSaved(p: ContentPa
       <div className="astack">
         {!d.reviewed ? (
           <p className="notice notice--warning small">
-            This is starter text. Check every statement matches how Queen Palace actually works (fees, timings, what can be returned), then mark it reviewed. Until then the store shows a short “being finalised” note on the page.
+            This is starter text. Check every statement matches how Queen Luxury Hair actually works (fees, timings, what can be returned), then mark it reviewed. Until then the store shows a short “being finalised” note on the page.
           </p>
         ) : null}
         <Switch checked={d.reviewed} onChange={(v) => change({ reviewed: v })} label="I've reviewed this page and it is accurate" />

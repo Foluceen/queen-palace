@@ -32,7 +32,7 @@ const check = (cond, msg) => {
     await p.waitForTimeout(500);
     check((await p.evaluate(() => document.documentElement.dataset.theme)) === "dark", "toggle switches to dark");
     const bg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    check(bg === "rgb(14, 11, 12)", `dark body background (${bg})`);
+    check(bg === "rgb(18, 13, 11)", `dark body background (${bg})`);
     // Reload: the inline script must set dark before any paint.
     await p.goto(BASE + "/collections", { waitUntil: "commit" });
     const early = await p.evaluate(() => document.documentElement.dataset.theme);
@@ -48,10 +48,10 @@ const check = (cond, msg) => {
     const p = await ctx.newPage();
     watch(p, "shop");
     await p.goto(BASE + "/products/care-silk-bonnet", { waitUntil: "networkidle" });
-    check((await p.locator(".pdp-details .specs").count()) === 1, "hair care product shows its own details table");
-    check(!(await p.locator(".pdp-details dt").allTextContents()).includes("Lace"), "no wig fields on a bonnet");
+    check((await p.locator(".pdp__tabs .specs").count()) === 1, "hair care product shows its own details table");
+    check(!(await p.locator(".pdp__tabs dt").allTextContents()).includes("Lace"), "no wig fields on a bonnet");
     const sku = await p.locator(".pdp__sku").textContent();
-    check(/SKU QP-/.test(sku), `variant SKU shown (${sku.trim()})`);
+    check(/SKU QLH-/.test(sku), `variant SKU shown (${sku.trim()})`);
     check((await p.locator(".pdp__wa").count()) === 0, "no WhatsApp button while no number is configured");
     await p.getByRole("button", { name: "Buy now" }).click();
     await p.waitForURL("**/checkout", { timeout: 10000 });
@@ -75,7 +75,7 @@ const check = (cond, msg) => {
     await p.waitForURL("**/order/**", { timeout: 10000 });
     await p.waitForTimeout(800);
     const body = await p.locator("main").textContent();
-    check(/QP-\d+/.test(body), "confirmation shows a QP- order number");
+    check(/QLH-\d+/.test(body), "confirmation shows a QLH- order number");
     check(!/payment (received|successful)/i.test(body) && !/\bPaid\b/.test(body.replace(/Pay on delivery/g, "")), "confirmation never claims payment was taken");
     await p.screenshot({ path: `${OUT}/e2e-confirm-dark.png`, fullPage: true });
     await ctx.close();
@@ -136,7 +136,7 @@ const check = (cond, msg) => {
     const optValues = p.getByLabel("Values").first();
     await optValues.fill("50ml");
     await p.waitForTimeout(300);
-    await p.locator('input[aria-label="SKU"]').first().fill("QP-E2E-SERUM");
+    await p.locator('input[aria-label="SKU"]').first().fill("QLH-E2E-SERUM");
     await p.locator('input[aria-label="Price"]').first().fill("5500");
     await p.getByRole("button", { name: "Create product" }).click();
     await p.waitForURL(/\/admin\/products\/(?!new)/, { timeout: 10000 });
@@ -161,7 +161,7 @@ const check = (cond, msg) => {
     check((await p.locator(".atable tbody tr").count()) >= 3, "unassigned products are listed under No collection");
     await p.goto(BASE + "/admin/analytics", { waitUntil: "networkidle" });
     check((await p.locator("text=demo data, not real sales").count()) === 1, "analytics labelled as demo data");
-    await p.locator(".asearch__input").fill("QP-104");
+    await p.locator(".asearch__input").fill("QLH-104");
     await p.waitForSelector(".asearch__hit", { timeout: 5000 });
     check((await p.locator(".asearch__hit").count()) > 0, "global admin search finds orders");
     await ctx.close();

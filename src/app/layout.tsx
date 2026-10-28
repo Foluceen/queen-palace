@@ -23,20 +23,32 @@ const manropeExt = localFont({
   adjustFontFallback: false,
   fallback: [],
 });
-const fraunces = localFont({
-  src: [{ path: "./fonts/fraunces-latin.woff2", weight: "100 900", style: "normal" }],
-  variable: "--font-fraunces",
+const cormorant = localFont({
+  src: [
+    { path: "./fonts/cormorant-latin.woff2", weight: "300 700", style: "normal" },
+    { path: "./fonts/cormorant-latin-italic.woff2", weight: "300 700", style: "italic" },
+  ],
+  variable: "--font-cormorant",
   display: "swap",
   preload: true,
   adjustFontFallback: "Times New Roman",
 });
-const frauncesExt = localFont({
-  src: [{ path: "./fonts/fraunces-latin-ext.woff2", weight: "100 900", style: "normal" }],
-  variable: "--font-fraunces-ext",
+const cormorantExt = localFont({
+  src: [{ path: "./fonts/cormorant-latin-ext.woff2", weight: "300 700", style: "normal" }],
+  variable: "--font-cormorant-ext",
   display: "swap",
   preload: false,
   adjustFontFallback: false,
   fallback: [],
+});
+/* Script face for the wordmark and category labels only. */
+const greatVibes = localFont({
+  src: [{ path: "./fonts/great-vibes-latin.woff2", weight: "400", style: "normal" }],
+  variable: "--font-script-face",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["cursive"],
 });
 
 /**
@@ -45,7 +57,7 @@ const frauncesExt = localFont({
  * brand fact, and to "match device" for the theme. No catalog or business data is substituted:
  * the storefront layout below still fails and shows its unavailable state.
  */
-const BRAND_NAME = "Queen Palace Beauty World";
+const BRAND_NAME = "Queen Luxury Hair";
 async function settingsOrNull() {
   try {
     return await getSettings();
@@ -83,7 +95,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const settings = await settingsOrNull();
   return (
-    <html lang="en-NG" className={`${manrope.variable} ${manropeExt.variable} ${fraunces.variable} ${frauncesExt.variable}`} suppressHydrationWarning>
+    <html lang="en-NG" className={`${manrope.variable} ${manropeExt.variable} ${cormorant.variable} ${cormorantExt.variable} ${greatVibes.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript(settings?.theme?.defaultMode ?? "system") }} />
         <MotionTierScript />

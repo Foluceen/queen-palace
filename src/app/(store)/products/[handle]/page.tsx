@@ -43,6 +43,81 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const img = product.media[0];
   const collection = collections[0];
 
+  const paragraphs = (text: string) => text.split(/\n{2,}/).map((para, i) => <p key={i}>{para}</p>);
+  const attrBody = (a: (typeof attributes)[number]) =>
+    a.kind === "list" ? (
+      <ul>
+        {a.value
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+      </ul>
+    ) : (
+      paragraphs(a.value)
+    );
+  // Shopify-style collapsible tabs under the buy box. Empty ones are left out.
+  const tabs: { id: string; title: string; open?: boolean; content: React.ReactNode }[] = [
+    { id: "description", title: "Description", open: true, content: paragraphs(product.description) },
+    ...(details.length || productType
+      ? [
+          {
+            id: "details",
+            title: "Details",
+            content: (
+              <dl className="specs">
+                {productType ? (
+                  <div>
+                    <dt>Type</dt>
+                    <dd>{productType.name}</dd>
+                  </div>
+                ) : null}
+                {details.map((a) => (
+                  <div key={a.key}>
+                    <dt>{a.label}</dt>
+                    <dd>{a.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ),
+          },
+        ]
+      : []),
+    ...[...usage, ...care].map((a) => ({
+      id: a.key,
+      title: a.label,
+      content: (
+        <>
+          {attrBody(a)}
+          {a.group === "care" ? (
+            <p>
+              <Link href="/hair-care">Read the full hair care guide</Link>
+            </p>
+          ) : null}
+        </>
+      ),
+    })),
+    ...(settings.productPageNotes.shipping ? [{ id: "delivery", title: "Delivery and pickup", content: paragraphs(settings.productPageNotes.shipping) }] : []),
+    ...(settings.productPageNotes.returns
+      ? [
+          {
+            id: "returns",
+            title: "Returns",
+            content: (
+              <>
+                {paragraphs(settings.productPageNotes.returns)}
+                <p>
+                  <Link href="/returns">Read the returns policy</Link>
+                </p>
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -71,63 +146,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
           whatsappNumber={whatsappNumber(settings)}
           storeName={settings.name}
           notes={settings.productPageNotes}
+          tabs={tabs}
         />
       </div>
-
-      <section className="container pdp-details" aria-label="Product details">
-        <div className="pdp-details__about">
-          <h2 className="h2">Description</h2>
-          {product.description.split(/\n{2,}/).map((para, i) => (
-            <p key={i} className={i === 0 ? "lede" : undefined}>
-              {para}
-            </p>
-          ))}
-        </div>
-        <div className="pdp-details__side">
-          {details.length ? (
-            <div>
-              <h2 className="h3">Details</h2>
-              <dl className="specs">
-                {productType ? (
-                  <div>
-                    <dt>Type</dt>
-                    <dd>{productType.name}</dd>
-                  </div>
-                ) : null}
-                {details.map((a) => (
-                  <div key={a.key}>
-                    <dt>{a.label}</dt>
-                    <dd>{a.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ) : null}
-          {[...usage, ...care].map((a) => (
-            <div key={a.key} className="pdp-details__care">
-              <h2 className="h3">{a.label}</h2>
-              {a.kind === "list" ? (
-                <ul>
-                  {a.value
-                    .split("\n")
-                    .map((l) => l.trim())
-                    .filter(Boolean)
-                    .map((l) => (
-                      <li key={l}>{l}</li>
-                    ))}
-                </ul>
-              ) : (
-                a.value.split(/\n{2,}/).map((para, i) => <p key={i}>{para}</p>)
-              )}
-            </div>
-          ))}
-          {care.length ? (
-            <Link href="/hair-care" className="small">
-              Read the full hair care guide
-            </Link>
-          ) : null}
-        </div>
-      </section>
 
       <div className="container">
         <Reviews productId={product.id} initial={reviews} average={product.rating.average} />
@@ -135,9 +156,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
       {related.length ? (
         <section className="container section--tight" aria-labelledby="related-title">
-          <h2 id="related-title" className="h2 section-head">
-            {collection ? `More from ${collection.title}` : "You may also like"}
-          </h2>
+          <header className="section-head section-head--center">
+            <h2 id="related-title" className="section-title">
+              You may also like
+            </h2>
+          </header>
           <ProductGrid products={related} />
         </section>
       ) : null}

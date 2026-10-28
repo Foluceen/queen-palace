@@ -58,7 +58,7 @@ ok(bad.status === 422, "invalid discount code rejected");
 const disc = await call("POST", `/carts/${cart.data.id}/discounts`, { code: "WELCOME10" });
 ok(disc.status === 200 && disc.data.totals.discountTotal > 0, "WELCOME10 applied by backend");
 // Bank transfer ships disabled until real account details exist; turn it on with test details for this run.
-const setup = await call("POST", "/admin/auth/login", { email: "owner@queenpalace.test", password: "demo-owner" });
+const setup = await call("POST", "/admin/auth/login", { email: "owner@queenluxuryhair.test", password: "demo-owner" });
 const pay = await call("GET", "/admin/settings/payments", null, setup.cookie);
 const enabled = await call("PUT", "/admin/settings/payments", { ...pay.data, bankTransfer: { ...pay.data.bankTransfer, enabled: true, bankName: "Test Bank", accountName: "Smoke Test", accountNumber: "0000000000" } }, setup.cookie);
 ok(enabled.status === 200, "owner enables bank transfer with test details (mock only)");
@@ -93,9 +93,9 @@ await page(`/order/${order.data.order.number}?token=${order.data.order.accessTok
 console.log("\nAdmin permissions");
 const anon = await call("GET", "/admin/dashboard?days=30");
 ok(anon.status === 401, "admin API rejects anonymous requests");
-const owner = await call("POST", "/admin/auth/login", { email: "owner@queenpalace.test", password: "demo-owner" });
+const owner = await call("POST", "/admin/auth/login", { email: "owner@queenluxuryhair.test", password: "demo-owner" });
 ok(owner.status === 200 && owner.cookie, "owner signs in");
-const fulfil = await call("POST", "/admin/auth/login", { email: "fulfilment@queenpalace.test", password: "demo-fulfilment" });
+const fulfil = await call("POST", "/admin/auth/login", { email: "fulfilment@queenluxuryhair.test", password: "demo-fulfilment" });
 ok(fulfil.status === 200, "fulfilment staff signs in");
 ok((await call("GET", "/admin/settings/payments", null, fulfil.cookie)).status === 403, "fulfilment cannot read payment settings");
 ok((await call("GET", "/admin/settings/payments", null, owner.cookie)).status === 200, "owner can read payment settings");

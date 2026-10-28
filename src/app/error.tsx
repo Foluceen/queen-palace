@@ -14,7 +14,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
   }, [error]);
   return (
     <main className="unavailable" role="alert">
-      <Logo variant="stacked" title="Queen Palace Beauty World" className="unavailable__logo" />
+      <Logo variant="stacked" title="Queen Luxury Hair" className="unavailable__logo" />
       <h1 className="h2">The store is temporarily unavailable</h1>
       <p className="muted">We couldn't load the shop just now. Please try again in a few minutes.</p>
       <button type="button" className="btn" onClick={reset}>

@@ -337,7 +337,7 @@ function SignIn({ onSignedIn }: { onSignedIn(): void }) {
         {busy ? <span className="spinner" aria-hidden /> : null}
         Sign in
       </button>
-      {isMockMode ? <p className="small muted">Demo account: customer@queenpalace.test / demo-customer</p> : null}
+      {isMockMode ? <p className="small muted">Demo account: customer@queenluxuryhair.test / demo-customer</p> : null}
     </form>
   );
 }

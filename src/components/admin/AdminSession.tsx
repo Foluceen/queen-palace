@@ -68,7 +68,7 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
   if (error) {
     return (
       <div className="admin-boot" role="alert">
-        <Logo variant="stacked" title="Queen Palace Beauty World" />
+        <Logo variant="stacked" title="Queen Luxury Hair" />
         <h1 className="h3">The admin can't reach the store API</h1>
         <p className="muted">{error}</p>
         <button type="button" className="btn" onClick={() => void load()}>

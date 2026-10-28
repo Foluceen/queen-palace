@@ -1,46 +1,52 @@
 /* ==========================================================================
-   Queen Palace Beauty World — design system.
-   Layout idea: an editorial beauty house. Arched "palace window" frames for
-   campaign imagery, quiet surfaces, gold used only where it means something.
+   Queen Luxury Hair — design system.
+   A Shopify-style beauty storefront: warm cream ground, espresso text and
+   buttons, blush pill accents, champagne gold for stars and the crown.
+   Square product imagery, circular category portraits, editorial serif
+   headings (Cormorant Garamond) and a script face for the wordmark.
 
    Theme model: light tokens on :root, dark tokens on [data-theme="dark"].
-   A pre-paint script (ThemeScript) resolves light / dark / system and sets
-   data-theme, so there is no flash. Without JS, the OS preference applies.
+   A pre-paint script resolves light / dark / system and sets data-theme, so
+   there is no flash. Without JS, the OS preference applies.
    Brand colours can be overridden from admin → Branding (BrandStyle).
    ========================================================================== */
 
 :root {
-  /* Brand (overridable) */
-  --gold: #c9a45c;
-  --burgundy: #6b1630;
-  --bg: #faf6ef;
-  --surface: #f4ecdf;
-  --surface-2: #eee2cc;
+  /* Brand (overridable): gold = stars and crown, burgundy = cocoa brown accent */
+  --gold: #b88a4a;
+  --burgundy: #5b3220;
 
-  /* Light theme, derived */
-  --field: #fffdf8;
-  --text: #231d1f;
-  --text-2: #4b4144;
-  --muted: #6a5d5e;
-  --line: #e6dbc9;
-  --line-strong: #d2c0a3;
-  --gold-ink: #87652a;
+  --bg: #f8f1ea;
+  --surface: #f1e6db;
+  --surface-2: #e8d9ca;
+  --field: #fffbf7;
+  --text: #1f1612;
+  --text-2: #4b3c35;
+  --muted: #6b5a52;
+  --line: #e4d5c7;
+  --line-strong: #cdb7a4;
+  --gold-ink: #8a5f2c;
   --burgundy-ink: var(--burgundy);
-  --on-gold: #1c1408;
-  --cta-bg: var(--burgundy);
-  --cta-fg: #fbf7f1;
-  --cta-hover: color-mix(in srgb, var(--burgundy) 84%, black);
-  --accent-soft: color-mix(in srgb, var(--burgundy) 8%, transparent);
-  --tint: rgb(35 29 31 / 0.045);
-  --tint-2: rgb(35 29 31 / 0.085);
-  --glass: color-mix(in srgb, var(--bg) 78%, transparent);
-  --scrim: rgb(28 18 20 / 0.48);
-  --shadow: 0 18px 44px -24px rgb(70 38 30 / 0.38);
-  --shadow-lg: 0 30px 70px -30px rgb(70 38 30 / 0.45);
-  --glow: 0 16px 36px -18px color-mix(in srgb, var(--burgundy) 70%, transparent);
-  --logo-mark: #a9833d;
-  --logo-text: var(--burgundy);
-  --image-bg: #eadfcd;
+  --on-gold: #1f1408;
+  --cta-bg: #24170f;
+  --cta-fg: #fbf3ec;
+  --cta-hover: #3d2719;
+  --blush: #f2c9da;
+  --blush-ink: #8f4466;
+  --pill-grad: linear-gradient(90deg, #fffaf7 0%, #f8dbe8 55%, #f2c2d9 100%);
+  --pill-fg: #24170f;
+  --glow-core: #5a2e19;
+  --accent-soft: color-mix(in srgb, var(--burgundy) 9%, transparent);
+  --tint: rgb(31 22 18 / 0.045);
+  --tint-2: rgb(31 22 18 / 0.085);
+  --glass: color-mix(in srgb, var(--bg) 82%, transparent);
+  --scrim: rgb(24 14 10 / 0.5);
+  --shadow: 0 18px 40px -24px rgb(60 34 20 / 0.4);
+  --shadow-lg: 0 30px 70px -30px rgb(60 34 20 / 0.5);
+  --glow: 0 14px 32px -16px rgb(36 23 15 / 0.55);
+  --logo-mark: #b0874a;
+  --logo-text: #1f1612;
+  --image-bg: #e9dccf;
 
   --danger: #a3283b;
   --danger-bg: #f8e3e5;
@@ -50,64 +56,70 @@
   --warning-bg: #f6ead1;
   --info: #2e4d79;
   --info-bg: #e4eaf4;
-  --focus: var(--burgundy);
+  --focus: #24170f;
 
   /* Type */
-  --font-display: var(--font-fraunces), var(--font-fraunces-ext), "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-display: var(--font-cormorant), var(--font-cormorant-ext), "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+  --font-script: var(--font-script-face), "Snell Roundhand", cursive;
   --font-body: var(--font-manrope), var(--font-manrope-ext), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --step--1: 0.8125rem;
   --step-0: 1rem;
   --step-1: 1.1875rem;
-  --step-2: 1.5rem;
-  --step-3: clamp(1.75rem, 1.35rem + 1.7vw, 2.55rem);
-  --step-4: clamp(2.25rem, 1.5rem + 3.2vw, 4.1rem);
-  --step-5: clamp(2.6rem, 1.4rem + 5.6vw, 6.1rem);
+  --step-2: 1.6rem;
+  --step-3: clamp(1.9rem, 1.45rem + 1.9vw, 2.8rem);
+  --step-4: clamp(2.4rem, 1.6rem + 3.4vw, 4.4rem);
+  --step-5: clamp(2.8rem, 1.6rem + 5.6vw, 6.4rem);
 
   /* Space and shape */
   --gutter: clamp(16px, 4vw, 48px);
-  --max: 1400px;
-  --section: clamp(64px, 9vw, 136px);
-  --radius-control: 6px;
-  --radius-sm: 8px;
-  --radius-field: 10px;
-  --radius: 12px;
-  --radius-lg: 18px;
+  --max: 1320px;
+  --section: clamp(56px, 8vw, 120px);
+  --radius-control: 999px;
+  --radius-sm: 6px;
+  --radius-field: 8px;
+  --radius: 10px;
+  --radius-lg: 16px;
   --arch: 999px 999px var(--radius) var(--radius);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --header-h: 72px;
+  --header-h: 76px;
   color-scheme: light;
 }
 
-/* Dark theme: chosen explicitly, or resolved from "system" by ThemeScript. */
+/* Dark theme: chosen explicitly, or resolved from "system" by the theme script. */
 :root[data-theme="dark"] {
-  --bg: #0e0b0c;
-  --surface: #191516;
-  --surface-2: #221d1f;
-  --gold: #d4b373;
-  --burgundy: #8c2242;
-  --field: #141011;
-  --text: #f6efe4;
-  --text-2: #d8cdbf;
-  --muted: #9e9289;
-  --line: #2b2427;
-  --line-strong: #4a3f33;
-  --gold-ink: #d9bc82;
-  --burgundy-ink: #dc9fb1;
-  --on-gold: #170f05;
-  --cta-bg: var(--gold);
-  --cta-fg: #170f05;
-  --cta-hover: color-mix(in srgb, var(--gold) 80%, white);
-  --accent-soft: color-mix(in srgb, var(--gold) 12%, transparent);
-  --tint: rgb(246 239 228 / 0.05);
-  --tint-2: rgb(246 239 228 / 0.09);
+  --bg: #120d0b;
+  --surface: #1b1411;
+  --surface-2: #251c17;
+  --gold: #d6ad6e;
+  --burgundy: #c39071;
+  --field: #17110e;
+  --text: #f6ece3;
+  --text-2: #dccdc0;
+  --muted: #a69385;
+  --line: #2e231e;
+  --line-strong: #4a3a30;
+  --gold-ink: #dcb77e;
+  --burgundy-ink: #d9a98b;
+  --on-gold: #1a1006;
+  --cta-bg: #f1c6d8;
+  --cta-fg: #1f1210;
+  --cta-hover: #f8dbe7;
+  --blush: #e9b6cc;
+  --blush-ink: #f1c6d8;
+  --pill-grad: linear-gradient(90deg, #f6e2ea 0%, #efc3d6 60%, #e6a9c4 100%);
+  --pill-fg: #1f1210;
+  --glow-core: #6a3a22;
+  --accent-soft: color-mix(in srgb, var(--blush) 12%, transparent);
+  --tint: rgb(246 236 227 / 0.05);
+  --tint-2: rgb(246 236 227 / 0.09);
   --scrim: rgb(0 0 0 / 0.64);
   --shadow: 0 24px 60px -26px rgb(0 0 0 / 0.8);
   --shadow-lg: 0 34px 80px -30px rgb(0 0 0 / 0.85);
-  --glow: 0 16px 40px -18px color-mix(in srgb, var(--gold) 55%, transparent);
+  --glow: 0 16px 40px -18px color-mix(in srgb, var(--blush) 45%, transparent);
   --logo-mark: var(--gold);
-  --logo-text: #f6efe4;
-  --image-bg: #1f1a1b;
+  --logo-text: #f6ece3;
+  --image-bg: #231a15;
   --danger: #ff8d9b;
   --danger-bg: rgb(255 141 155 / 0.12);
   --success: #80d6ad;
@@ -116,39 +128,56 @@
   --warning-bg: rgb(240 196 119 / 0.12);
   --info: #a9c3f0;
   --info-bg: rgb(169 195 240 / 0.12);
-  --focus: var(--gold);
+  --focus: var(--blush);
   color-scheme: dark;
 }
 
 /* No-JS fallback: follow the OS when the theme script never ran. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg: #0e0b0c;
-    --surface: #191516;
-    --surface-2: #221d1f;
-    --gold: #d4b373;
-    --burgundy: #8c2242;
-    --field: #141011;
-    --text: #f6efe4;
-    --text-2: #d8cdbf;
-    --muted: #9e9289;
-    --line: #2b2427;
-    --line-strong: #4a3f33;
-    --gold-ink: #d9bc82;
-    --burgundy-ink: #dc9fb1;
-    --cta-bg: var(--gold);
-    --cta-fg: #170f05;
-    --cta-hover: color-mix(in srgb, var(--gold) 80%, white);
-    --accent-soft: color-mix(in srgb, var(--gold) 12%, transparent);
-    --tint: rgb(246 239 228 / 0.05);
-    --tint-2: rgb(246 239 228 / 0.09);
+    --bg: #120d0b;
+    --surface: #1b1411;
+    --surface-2: #251c17;
+    --gold: #d6ad6e;
+    --burgundy: #c39071;
+    --field: #17110e;
+    --text: #f6ece3;
+    --text-2: #dccdc0;
+    --muted: #a69385;
+    --line: #2e231e;
+    --line-strong: #4a3a30;
+    --gold-ink: #dcb77e;
+    --burgundy-ink: #d9a98b;
+    --on-gold: #1a1006;
+    --cta-bg: #f1c6d8;
+    --cta-fg: #1f1210;
+    --cta-hover: #f8dbe7;
+    --blush: #e9b6cc;
+    --blush-ink: #f1c6d8;
+    --pill-grad: linear-gradient(90deg, #f6e2ea 0%, #efc3d6 60%, #e6a9c4 100%);
+    --pill-fg: #1f1210;
+    --glow-core: #6a3a22;
+    --accent-soft: color-mix(in srgb, var(--blush) 12%, transparent);
+    --tint: rgb(246 236 227 / 0.05);
+    --tint-2: rgb(246 236 227 / 0.09);
     --scrim: rgb(0 0 0 / 0.64);
+    --shadow: 0 24px 60px -26px rgb(0 0 0 / 0.8);
+    --shadow-lg: 0 34px 80px -30px rgb(0 0 0 / 0.85);
+    --glow: 0 16px 40px -18px color-mix(in srgb, var(--blush) 45%, transparent);
     --logo-mark: var(--gold);
-    --logo-text: #f6efe4;
-    --image-bg: #1f1a1b;
-    --focus: var(--gold);
+    --logo-text: #f6ece3;
+    --image-bg: #231a15;
+    --danger: #ff8d9b;
+    --danger-bg: rgb(255 141 155 / 0.12);
+    --success: #80d6ad;
+    --success-bg: rgb(128 214 173 / 0.12);
+    --warning: #f0c477;
+    --warning-bg: rgb(240 196 119 / 0.12);
+    --info: #a9c3f0;
+    --info-bg: rgb(169 195 240 / 0.12);
+    --focus: var(--blush);
     color-scheme: dark;
-  }
+}
 }
 
 /* Theme switches cross-fade via the View Transitions API where supported. */
@@ -261,6 +290,23 @@ button {
   top: 12px;
 }
 
+/* Script accent (wordmark, category labels, hero flourish) ------------------ */
+.script {
+  font-family: var(--font-script);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* Shopify-style centred, uppercase serif section title ("BEST SELLER"). */
+.section-title {
+  font-family: var(--font-display);
+  font-size: var(--step-3);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
 /* Logo -------------------------------------------------------------------- */
 .logo__mark {
   fill: var(--logo-mark);
@@ -281,21 +327,21 @@ button {
 
 .display {
   font-family: var(--font-display);
-  font-weight: 520;
-  letter-spacing: -0.025em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   font-optical-sizing: auto;
 }
 .h1 {
   font-family: var(--font-display);
   font-size: var(--step-4);
-  font-weight: 520;
-  letter-spacing: -0.025em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .h2 {
   font-family: var(--font-display);
   font-size: var(--step-3);
-  font-weight: 540;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  letter-spacing: -0.005em;
 }
 .h3 {
   font-size: var(--step-1);
@@ -391,8 +437,9 @@ button {
   background: var(--btn-bg);
   color: var(--btn-fg);
   font-weight: 700;
-  font-size: 0.9375rem;
-  letter-spacing: 0.01em;
+  font-size: 0.8125rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
   transition: transform 0.25s var(--ease-out), box-shadow 0.3s var(--ease-out), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
@@ -446,6 +493,22 @@ button {
 }
 .btn--ghost::after {
   display: none;
+}
+/* Blush pill, as in the client's reference ("Shop HD Lace Wigs"). */
+.btn--blush {
+  --btn-bg: transparent;
+  --btn-fg: var(--pill-fg);
+  --btn-border: color-mix(in srgb, var(--blush) 70%, transparent);
+  --btn-hover: transparent;
+  background-image: var(--pill-grad);
+}
+.btn--blush:hover {
+  filter: saturate(1.15) brightness(1.02);
+}
+.btn--lg {
+  min-height: 58px;
+  padding: 0 40px;
+  font-size: 0.875rem;
 }
 .btn--danger {
   --btn-bg: var(--danger);
@@ -609,6 +672,14 @@ button {
 .badge--accent {
   background: var(--cta-bg);
   color: var(--cta-fg);
+}
+.badge--sale {
+  background: #b3261e;
+  color: #fff;
+}
+.badge--blush {
+  background: var(--blush);
+  color: var(--pill-fg);
 }
 .badge--gold {
   background: var(--gold);

@@ -237,9 +237,11 @@ interface ExperienceProps {
   whatsappNumber: string | null;
   storeName: string;
   notes: { shipping: string; returns: string };
+  /** Collapsible information tabs rendered under the buy box (built on the server). */
+  tabs?: { id: string; title: string; open?: boolean; content: React.ReactNode }[];
 }
 
-export function ProductExperience({ product, initialVariantId, collection, whatsappNumber, storeName, notes }: ExperienceProps) {
+export function ProductExperience({ product, initialVariantId, collection, whatsappNumber, storeName, tabs = [] }: ExperienceProps) {
   const [selected, setSelected] = useState<Record<string, string>>(() => initialOptions(product, initialVariantId));
   const variant = useMemo(() => product.variants.find((v) => product.options.every((o) => v.options[o.name] === selected[o.name])), [product, selected]);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -296,6 +298,7 @@ export function ProductExperience({ product, initialVariantId, collection, whats
 
         <div className="pdp__price" ref={priceRef} aria-live="polite">
           {variant ? <Price amount={variant.price} compareAt={variant.compareAtPrice} /> : <Price range={product.priceRange} />}
+          {variant?.compareAtPrice && variant.compareAtPrice > variant.price ? <span className="badge badge--sale pdp__save">Save {Math.round((1 - variant.price / variant.compareAtPrice) * 100)}%</span> : null}
           {variant ? <span className={`pdp__stock pdp__stock--${variant.availability}`}>{variant.availability === "low_stock" && variant.inventory.tracked ? `Only ${variant.inventory.available} left` : availabilityLabel[variant.availability]}</span> : null}
         </div>
 
@@ -354,21 +357,36 @@ export function ProductExperience({ product, initialVariantId, collection, whats
         </div>
         {variant ? <p className="pdp__sku small muted">SKU {variant.sku}</p> : null}
 
-        <ul className="pdp__assurances small">
-          {notes.shipping ? (
-            <li>
-              <Icon name="truck" size={18} /> <span>{notes.shipping}</span>
-            </li>
-          ) : null}
-          {notes.returns ? (
-            <li>
-              <Icon name="box" size={18} />{" "}
-              <span>
-                {notes.returns} <Link href="/returns">Returns policy</Link>
-              </span>
-            </li>
-          ) : null}
+        <ul className="pdp__trust" aria-label="Shopping with us">
+          <li>
+            <Icon name="truck" size={20} />
+            <span>Delivery or pickup</span>
+          </li>
+          <li>
+            <Icon name="check" size={20} />
+            <span>Secure checkout</span>
+          </li>
+          <li>
+            <Link href="/contact">
+              <Icon name="chat" size={20} />
+              <span>Help choosing</span>
+            </Link>
+          </li>
         </ul>
+
+        {tabs.length ? (
+          <div className="pdp__tabs accordion">
+            {tabs.map((t) => (
+              <details key={t.id} className="accordion__item" open={t.open}>
+                <summary>
+                  {t.title}
+                  <Icon name="plus" size={18} className="accordion__icon" />
+                </summary>
+                <div className="accordion__body prose-sm">{t.content}</div>
+              </details>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
