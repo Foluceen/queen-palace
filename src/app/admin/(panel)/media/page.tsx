@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { RequirePermission, useAdmin } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
-import { MediaThumb, readImageFile } from "@/components/admin/MediaPicker";
+import { MediaThumb, readImageFile, type PreparedImage } from "@/components/admin/MediaPicker";
 import { useToast } from "@/components/admin/Toast";
 import { ConfirmButton, Empty, LoadError, LoadingRows, PageHeader, Sheet } from "@/components/admin/ui";
 import { TextField } from "@/components/ui/Field";
@@ -14,6 +14,8 @@ import type { Media } from "@/lib/types";
 
 interface PendingUpload {
   file: File;
+  /** What will actually be uploaded (resized and re-encoded when the original is large). */
+  image: PreparedImage;
   preview: string;
   width: number;
   height: number;
@@ -53,8 +55,8 @@ export default function MediaPage() {
                   e.target.value = "";
                   if (!file) return;
                   try {
-                    const { dataUrl, width, height } = await readImageFile(file);
-                    setPending({ file, preview: dataUrl, width, height, alt: "", tags: "" });
+                    const img = await readImageFile(file);
+                    setPending({ file, image: img, preview: img.dataUrl, width: img.width, height: img.height, alt: "", tags: "" });
                   } catch (err) {
                     toast(errorMessage(err), "danger");
                   }
@@ -141,8 +143,8 @@ export default function MediaPage() {
                 setUploading(true);
                 try {
                   const m = await api().call("adminUploadMedia", {
-                    body: { fileName: pending.file.name, mimeType: pending.file.type, sizeBytes: pending.file.size, width: pending.width, height: pending.height, alt: pending.alt.trim(), tags: pending.tags.split(",").map((t) => t.trim()).filter(Boolean), dataUrl: pending.preview },
-                  });
+                    body: { fileName: pending.image.fileName, mimeType: pending.image.mimeType, sizeBytes: pending.image.sizeBytes, width: pending.width, height: pending.height, alt: pending.alt.trim(), tags: pending.tags.split(",").map((t) => t.trim()).filter(Boolean), dataUrl: pending.preview },
+                  }, { timeoutMs: 60_000 });
                   setData((list) => [m, ...(list ?? [])]);
                   setPending(null);
                   toast("Image uploaded");

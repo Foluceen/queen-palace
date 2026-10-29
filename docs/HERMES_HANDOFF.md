@@ -50,6 +50,21 @@ Reading the deployed `backend/src/server.ts`, 67 of 103 contract endpoints are i
 | Fulfilment | Also `PATCH …/fulfillment` with `{status}` | Contract is `POST …/fulfillment` with `FulfillmentUpdate` | Keep the POST contract |
 | `/store/payment-options` | `{methods: []}` | Checkout shows no payment method | Return the enabled methods before taking orders |
 
+## Upload "We couldn't reach the store": root cause (29 Oct 2026 ~11:00 UTC)
+**nginx in front of the API still has the default `client_max_body_size 1m`.** Measured with unauthenticated `POST /v1/admin/media` bodies:
+- up to 900 KB reaches Fastify (JSON 401 with CORS headers);
+- **1,100 KB and above gets nginx `413 Request Entity Too Large` (text/html) with no `Access-Control-Allow-Origin`.**
+
+The browser hides a CORS-less response from the page, so `fetch` rejects and the admin shows "We couldn't reach the store". Raising Fastify's `bodyLimit` to 8 MB doesn't help while nginx stops the request first. A 68-byte test image never reaches the limit, which is why the diagnostic upload succeeded.
+
+Backend fix (Hermes), in the nginx `server` block for `api.queenluxuryhair.store`:
+```nginx
+client_max_body_size 8m;
+```
+Ideally also make nginx's own error responses carry CORS headers, so the browser shows the real status, e.g. `add_header Access-Control-Allow-Origin $http_origin always;` scoped to the allowed origins. Then `nginx -t && systemctl reload nginx`.
+
+Frontend fix (deployed): the media page now resizes images to at most 2000 px and re-encodes them as WebP (JPEG fallback) until the image is at most 700 KB, so the base64 JSON stays under 1 MB even with the current nginx limit. Originals up to 20 MB are accepted. What is sent (`mimeType`, `sizeBytes`, `fileName`) describes the re-encoded bytes exactly, so the backend's decoded-size check holds. The upload timeout is 60 s.
+
 ---
 
 ## Priority 1: create and manage products
