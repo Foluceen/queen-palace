@@ -30,3 +30,26 @@ Deferred, not falsely marked complete:
 - Payment-provider initialization/webhooks/refunds and email/SMS delivery require provider credentials/configuration.
 - Settings/content, discounts, customer admin, staff/role CRUD, analytics, search and remaining secondary contract routes still need implementation.
 - Frontend deployment remains owned by Claude; no frontend source was modified here.
+
+## Admin dashboard and operations batch
+
+Implemented and deployed:
+- `GET /admin/dashboard`: real PostgreSQL paid revenue, comparison period, order counts, awaiting payment/fulfillment, inquiries, pending reviews, low stock, recent orders and top products.
+- `GET /admin/analytics`: real daily series, paid order totals, product/collection/payment breakdowns and customer counts.
+- Customer list/detail routes with pagination and paid-order totals.
+- Inquiry list/update/reply persistence.
+- Persistent store and shipping settings; homepage/navigation/page persistence. Payment settings remain read-only/default-safe because provider integration is intentionally deferred.
+- Discount CRUD with validation, status and usage fields.
+- Staff list/update/suspend and role list/create/update/delete with owner-role protection.
+- Admin search across products, orders, customers and collections.
+
+Migration added: `009_admin_operations`.
+
+Verified using a temporary owner session and disposable records:
+- Dashboard and analytics returned contract-shaped responses with zero-data-safe series.
+- Role create/read/delete passed.
+- Discount create/read/delete passed.
+- Page create/read passed and was removed.
+- Store settings read/write passed without changing values.
+- Temporary sessions and records were removed.
+
