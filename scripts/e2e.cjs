@@ -20,25 +20,19 @@ const check = (cond, msg) => {
     page.on("pageerror", (e) => errors.push(`${tag}: ${String(e).slice(0, 240)}`));
   };
 
-  /* ---------- Theme: persisted, applied before paint, toggle works ---------- */
+  /* ---------- Theme: storefront always black/pink/gold; admin keeps its own preference ---------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, colorScheme: "light" });
     const p = await ctx.newPage();
     watch(p, "theme");
-    await p.goto(BASE + "/", { waitUntil: "networkidle" });
-    check((await p.evaluate(() => document.documentElement.dataset.theme)) === "light", "system light resolves to light");
-    await p.getByRole("button", { name: /theme|appearance/i }).first().click();
-    await p.getByRole("menuitemradio", { name: "Dark" }).click();
-    await p.waitForTimeout(500);
-    check((await p.evaluate(() => document.documentElement.dataset.theme)) === "dark", "toggle switches to dark");
+    await p.goto(BASE + "/", { waitUntil: "commit" });
+    check((await p.evaluate(() => document.documentElement.dataset.theme)) === "dark", "storefront is dark at first commit, even on a light OS");
+    await p.waitForLoadState("networkidle");
     const bg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    check(bg === "rgb(18, 13, 11)", `dark body background (${bg})`);
-    // Reload: the inline script must set dark before any paint.
-    await p.goto(BASE + "/collections", { waitUntil: "commit" });
-    const early = await p.evaluate(() => document.documentElement.dataset.theme);
-    check(early === "dark", "dark applied at first commit after navigation (no flash)");
+    check(bg === "rgb(5, 5, 5)", `black body background (${bg})`);
+    check((await p.getByRole("button", { name: /theme|appearance/i }).count()) === 0, "no theme switch on the storefront");
     await p.goto(BASE + "/admin/login", { waitUntil: "networkidle" });
-    check((await p.evaluate(() => document.documentElement.dataset.theme)) === "dark", "admin shares the saved theme");
+    check((await p.getByRole("button", { name: /theme|appearance/i }).count()) > 0, "admin keeps its theme switch");
     await ctx.close();
   }
 

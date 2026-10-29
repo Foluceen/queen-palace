@@ -1,16 +1,10 @@
+import { DEFAULT_BRAND_COLORS } from "@/lib/brand";
 import type { BrandColors, StoreSettings } from "@/lib/types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Built-in palette. Only colours the owner changes in admin → Branding are emitted. */
-const DEFAULTS: BrandColors = {
-  gold: "#b88a4a",
-  burgundy: "#5b3220",
-  lightBackground: "#f8f1ea",
-  lightSurface: "#f1e6db",
-  darkBackground: "#120d0b",
-  darkSurface: "#1b1411",
-};
+const DEFAULTS: BrandColors = DEFAULT_BRAND_COLORS;
 
 const changed = (c: BrandColors, k: keyof BrandColors) => HEX.test(c[k]) && c[k].toLowerCase() !== DEFAULTS[k];
 

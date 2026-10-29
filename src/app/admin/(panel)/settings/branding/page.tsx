@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_BRAND_COLORS } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import { RequirePermission } from "@/components/admin/AdminSession";
 import { useResource, useUnsavedWarning } from "@/components/admin/hooks";
@@ -12,10 +13,10 @@ import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
 import type { BrandColors, StoreSettings, ThemeMode } from "@/lib/types";
 
-const DEFAULT_COLORS: BrandColors = { gold: "#B88A4A", burgundy: "#5B3220", lightBackground: "#F8F1EA", lightSurface: "#F1E6DB", darkBackground: "#120D0B", darkSurface: "#1B1411" };
+const DEFAULT_COLORS: BrandColors = DEFAULT_BRAND_COLORS;
 
 const colorFields: { key: keyof BrandColors; label: string; hint: string }[] = [
-  { key: "burgundy", label: "Cocoa", hint: "Links, prices on sale and the glow behind category photos." },
+  { key: "burgundy", label: "Pink accent", hint: "Links, sale prices and the glow behind category photos." },
   { key: "gold", label: "Gold", hint: "Star ratings and the crown." },
   { key: "lightBackground", label: "Light background", hint: "Warm ivory page colour." },
   { key: "lightSurface", label: "Light surface", hint: "Cards, drawers and panels in light mode." },
@@ -121,7 +122,7 @@ function BrandingPageInner() {
               ))}
             </div>
             <div className="aform-grid">
-              <SelectField label="Default theme for new visitors" value={s.theme.defaultMode} onChange={(e) => set({ theme: { defaultMode: e.target.value as ThemeMode } })} hint="Shoppers can still switch. Their choice is remembered on their device.">
+              <SelectField label="Admin default theme" value={s.theme.defaultMode} onChange={(e) => set({ theme: { defaultMode: e.target.value as ThemeMode } })} hint="The storefront is always black, pink and gold. This only sets the admin's default.">
                 <option value="system">Match the visitor's device</option>
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>

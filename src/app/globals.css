@@ -1,7 +1,7 @@
 /* ==========================================================================
    Queen Luxury Hair — design system.
-   A Shopify-style beauty storefront: warm cream ground, espresso text and
-   buttons, blush pill accents, champagne gold for stars and the crown.
+   A Shopify-style beauty storefront in black, pink and a touch of gold.
+   The storefront is always dark; light tokens only serve the admin.
    Square product imagery, circular category portraits, editorial serif
    headings (Cormorant Garamond) and a script face for the wordmark.
 
@@ -88,38 +88,38 @@
 
 /* Dark theme: chosen explicitly, or resolved from "system" by the theme script. */
 :root[data-theme="dark"] {
-  --bg: #120d0b;
-  --surface: #1b1411;
-  --surface-2: #251c17;
-  --gold: #d6ad6e;
-  --burgundy: #c39071;
-  --field: #17110e;
-  --text: #f6ece3;
-  --text-2: #dccdc0;
-  --muted: #a69385;
-  --line: #2e231e;
-  --line-strong: #4a3a30;
-  --gold-ink: #dcb77e;
-  --burgundy-ink: #d9a98b;
-  --on-gold: #1a1006;
-  --cta-bg: #f1c6d8;
-  --cta-fg: #1f1210;
-  --cta-hover: #f8dbe7;
-  --blush: #e9b6cc;
-  --blush-ink: #f1c6d8;
-  --pill-grad: linear-gradient(90deg, #f6e2ea 0%, #efc3d6 60%, #e6a9c4 100%);
-  --pill-fg: #1f1210;
-  --glow-core: #6a3a22;
+  --bg: #050505;
+  --surface: #111011;
+  --surface-2: #1a1719;
+  --gold: #d4af6a;
+  --burgundy: #e8779f;
+  --field: #0d0c0d;
+  --text: #f8f0f2;
+  --text-2: #ddd0d5;
+  --muted: #a8999f;
+  --line: #262124;
+  --line-strong: #43383d;
+  --gold-ink: #e3c486;
+  --burgundy-ink: #f4a3c4;
+  --on-gold: #140f05;
+  --cta-bg: #f4a3c4;
+  --cta-fg: #0a0608;
+  --cta-hover: #f9c3d9;
+  --blush: #f4a3c4;
+  --blush-ink: #f7b8d1;
+  --pill-grad: linear-gradient(100deg, #fbd3e3 0%, #f4a3c4 45%, #e8779f 100%);
+  --pill-fg: #0a0608;
+  --glow-core: #8a2f58;
   --accent-soft: color-mix(in srgb, var(--blush) 12%, transparent);
-  --tint: rgb(246 236 227 / 0.05);
-  --tint-2: rgb(246 236 227 / 0.09);
-  --scrim: rgb(0 0 0 / 0.64);
-  --shadow: 0 24px 60px -26px rgb(0 0 0 / 0.8);
-  --shadow-lg: 0 34px 80px -30px rgb(0 0 0 / 0.85);
-  --glow: 0 16px 40px -18px color-mix(in srgb, var(--blush) 45%, transparent);
+  --tint: rgb(248 240 242 / 0.05);
+  --tint-2: rgb(248 240 242 / 0.09);
+  --scrim: rgb(0 0 0 / 0.7);
+  --shadow: 0 24px 60px -26px rgb(0 0 0 / 0.9);
+  --shadow-lg: 0 34px 80px -30px rgb(0 0 0 / 0.95);
+  --glow: 0 16px 40px -18px color-mix(in srgb, var(--blush) 55%, transparent);
   --logo-mark: var(--gold);
-  --logo-text: #f6ece3;
-  --image-bg: #231a15;
+  --logo-text: #f8f0f2;
+  --image-bg: #141214;
   --danger: #ff8d9b;
   --danger-bg: rgb(255 141 155 / 0.12);
   --success: #80d6ad;
@@ -135,38 +135,38 @@
 /* No-JS fallback: follow the OS when the theme script never ran. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg: #120d0b;
-    --surface: #1b1411;
-    --surface-2: #251c17;
-    --gold: #d6ad6e;
-    --burgundy: #c39071;
-    --field: #17110e;
-    --text: #f6ece3;
-    --text-2: #dccdc0;
-    --muted: #a69385;
-    --line: #2e231e;
-    --line-strong: #4a3a30;
-    --gold-ink: #dcb77e;
-    --burgundy-ink: #d9a98b;
-    --on-gold: #1a1006;
-    --cta-bg: #f1c6d8;
-    --cta-fg: #1f1210;
-    --cta-hover: #f8dbe7;
-    --blush: #e9b6cc;
-    --blush-ink: #f1c6d8;
-    --pill-grad: linear-gradient(90deg, #f6e2ea 0%, #efc3d6 60%, #e6a9c4 100%);
-    --pill-fg: #1f1210;
-    --glow-core: #6a3a22;
+    --bg: #050505;
+    --surface: #111011;
+    --surface-2: #1a1719;
+    --gold: #d4af6a;
+    --burgundy: #e8779f;
+    --field: #0d0c0d;
+    --text: #f8f0f2;
+    --text-2: #ddd0d5;
+    --muted: #a8999f;
+    --line: #262124;
+    --line-strong: #43383d;
+    --gold-ink: #e3c486;
+    --burgundy-ink: #f4a3c4;
+    --on-gold: #140f05;
+    --cta-bg: #f4a3c4;
+    --cta-fg: #0a0608;
+    --cta-hover: #f9c3d9;
+    --blush: #f4a3c4;
+    --blush-ink: #f7b8d1;
+    --pill-grad: linear-gradient(100deg, #fbd3e3 0%, #f4a3c4 45%, #e8779f 100%);
+    --pill-fg: #0a0608;
+    --glow-core: #8a2f58;
     --accent-soft: color-mix(in srgb, var(--blush) 12%, transparent);
-    --tint: rgb(246 236 227 / 0.05);
-    --tint-2: rgb(246 236 227 / 0.09);
-    --scrim: rgb(0 0 0 / 0.64);
-    --shadow: 0 24px 60px -26px rgb(0 0 0 / 0.8);
-    --shadow-lg: 0 34px 80px -30px rgb(0 0 0 / 0.85);
-    --glow: 0 16px 40px -18px color-mix(in srgb, var(--blush) 45%, transparent);
+    --tint: rgb(248 240 242 / 0.05);
+    --tint-2: rgb(248 240 242 / 0.09);
+    --scrim: rgb(0 0 0 / 0.7);
+    --shadow: 0 24px 60px -26px rgb(0 0 0 / 0.9);
+    --shadow-lg: 0 34px 80px -30px rgb(0 0 0 / 0.95);
+    --glow: 0 16px 40px -18px color-mix(in srgb, var(--blush) 55%, transparent);
     --logo-mark: var(--gold);
-    --logo-text: #f6ece3;
-    --image-bg: #231a15;
+    --logo-text: #f8f0f2;
+    --image-bg: #141214;
     --danger: #ff8d9b;
     --danger-bg: rgb(255 141 155 / 0.12);
     --success: #80d6ad;

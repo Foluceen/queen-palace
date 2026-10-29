@@ -76,8 +76,8 @@ describe("errors", () => {
   });
 
   it("rejects a response whose shape doesn't match the contract", async () => {
-    stub(json(200, { name: "Queen Luxury Hair", address: "Ijoka", currency: "NGN" }));
-    await assert.rejects(createApiClient("https://x.test").call("getStoreSettings"), (e: unknown) => e instanceof ApiError && e.code === "contract_mismatch" && /tagline/.test(e.fields?._contract ?? ""));
+    stub(json(200, { links: [] }));
+    await assert.rejects(createApiClient("https://x.test").call("getNavigation"), (e: unknown) => e instanceof ApiError && e.code === "contract_mismatch" && /main/.test(e.fields?._contract ?? ""));
   });
 
   it("times out instead of hanging", async () => {
@@ -179,5 +179,33 @@ describe("review response checks", () => {
     assert.match(validateResponse("createProductReview", { id: "r1", status: "published", createdAt: "2026-10-01T00:00:00Z" }) ?? "", /status/);
     assert.match(validateResponse("listCustomerReviews", [{ ...review, status: "hidden" }]) ?? "", /status/);
     assert.equal(validateResponse("createProductReview", { id: "r1", status: "pending", createdAt: "2026-10-01T00:00:00Z" }), null);
+  });
+});
+
+describe("settings adapter", () => {
+  it("maps the production settings format onto the contract without inventing contact details", async () => {
+    const { normalizeSettings } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    // Exact response from GET https://api.queenluxuryhair.store/v1/store/settings on 29 Oct 2026.
+    const prod = { name: "Queen Luxury Hair", address: "Ijoka, beside Ibiyemi Building Material, Ilesha, Osun State, Nigeria", currency: "NGN", timezone: "Africa/Lagos", phone: null, whatsapp: null, email: null, hours: [], socials: {} };
+    assert.match(validateResponse("getStoreSettings", prod) ?? "", /tagline/);
+    const s = normalizeSettings(prod) as Record<string, unknown>;
+    assert.equal(validateResponse("getStoreSettings", s), null);
+    assert.equal(s.name, "Queen Luxury Hair");
+    assert.equal(s.address, prod.address);
+    assert.equal(s.contactEmail, null);
+    assert.equal(s.phone, null);
+    assert.equal(s.whatsapp, null);
+    assert.equal(s.openingHours, null);
+    assert.deepEqual(s.social, { instagram: null, tiktok: null, facebook: null });
+  });
+
+  it("leaves contract-shaped settings values intact", async () => {
+    const { normalizeSettings } = await import("../src/lib/api/normalize");
+    const s = normalizeSettings({ name: "X", tagline: "T", contactEmail: "a@b.co", hours: ["Mon–Sat 9 to 6"], socials: { instagram: "https://instagram.com/x" } }) as Record<string, unknown>;
+    assert.equal(s.tagline, "T");
+    assert.equal(s.contactEmail, "a@b.co");
+    assert.equal(s.openingHours, "Mon–Sat 9 to 6");
+    assert.deepEqual(s.social, { instagram: "https://instagram.com/x", tiktok: null, facebook: null });
   });
 });

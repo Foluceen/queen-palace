@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Icon } from "@/components/ui/Icon";
 import { animate, stagger } from "@/lib/motion/anime";
 import type { Navigation } from "@/lib/types";
@@ -44,7 +43,6 @@ export function HeaderActions() {
 
   return (
     <div className="site-header__actions">
-      <ThemeToggle className="hide-sm" />
       <Link href="/wishlist" className="icon-btn hide-sm" aria-label={`Wishlist, ${ids.length} saved`}>
         <Icon name="heart" />
         {ids.length ? <span className="icon-btn__count">{ids.length}</span> : null}
@@ -133,10 +131,6 @@ export function MobileMenu({ navigation, storeName }: { navigation: Navigation; 
               </Link>
             </li>
           </ul>
-          <div className="mnav__foot">
-            <span className="small muted">Appearance</span>
-            <ThemeToggle />
-          </div>
         </div>
       </dialog>
     </>

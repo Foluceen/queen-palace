@@ -1,3 +1,4 @@
+import { DEFAULT_BRAND_COLORS } from "@/lib/brand";
 /**
  * Initial data for mock mode. This is SEED data, loaded into the mock database once per
  * server process; nothing in the UI imports it directly. The Fastify backend should seed
@@ -794,10 +795,10 @@ export const seedSettings: StoreSettings = {
   openingHours: null,
   currency: "NGN",
   branding: {
-    colors: { gold: "#B88A4A", burgundy: "#5B3220", lightBackground: "#F8F1EA", lightSurface: "#F1E6DB", darkBackground: "#120D0B", darkSurface: "#1B1411" },
+    colors: { ...DEFAULT_BRAND_COLORS },
     radius: 999,
   },
-  theme: { defaultMode: "system" },
+  theme: { defaultMode: "dark" },
   productPageNotes: {
     shipping: "Delivery fees and times are worked out at checkout from your state and town, before you pay. You can also collect from our store in Ijoka, Ilesha.",
     returns: "Tell us within the return window if your hair isn't right. Read the returns policy for what can be returned and how.",

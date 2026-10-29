@@ -87,15 +87,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf6ef" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0b0c" },
+    { media: "(prefers-color-scheme: light)", color: "#050505" },
+    { media: "(prefers-color-scheme: dark)", color: "#050505" },
   ],
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const settings = await settingsOrNull();
   return (
-    <html lang="en-NG" className={`${manrope.variable} ${manropeExt.variable} ${cormorant.variable} ${cormorantExt.variable} ${greatVibes.variable}`} suppressHydrationWarning>
+    <html lang="en-NG" className={`${manrope.variable} ${manropeExt.variable} ${cormorant.variable} ${cormorantExt.variable} ${greatVibes.variable}`} data-theme="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript(settings?.theme?.defaultMode ?? "system") }} />
         <MotionTierScript />

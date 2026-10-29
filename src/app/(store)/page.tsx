@@ -1,23 +1,53 @@
 import type { Metadata } from "next";
-import { CareTips, CollectionTiles, CtaBand, Editorial, Faq, Hero, MarqueeBand, Newsletter, ProductRail, Promises, Promo, ReviewsStrip, ShadeGuide, Testimonials } from "@/components/store/home/Sections";
+import { CareTips, CollectionTiles, CtaBand, Editorial, Faq, Newsletter, ProductRail, Promises, Promo, ReviewsStrip, ShadeGuide, Testimonials } from "@/components/store/home/Sections";
+import { LuxArrivals, LuxHero, LuxLooks, LuxMarquee, LuxStandard, LuxVisit } from "@/components/store/home/StaticHome";
 import { getSettings, storefront } from "@/lib/data/storefront";
+import { unstable_rethrow } from "next/navigation";
+import type { Homepage, ProductCard } from "@/lib/types";
 
 export const revalidate = 60;
 
 // Canonical is the bare domain (NEXT_PUBLIC_SITE_URL), so www and legacy hosts consolidate here.
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
-/** Homepage is fully driven by sections the vendor arranges in admin → Homepage and menus. */
+/** Homepage sections and new arrivals are optional: their failure never takes the home page down. */
+async function homepageOrEmpty(): Promise<Homepage> {
+  try {
+    return await storefront().homepage();
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("[home] homepage sections unavailable:", err instanceof Error ? err.message : err);
+    return { sections: [], collections: [] } as unknown as Homepage;
+  }
+}
+async function newArrivals(): Promise<ProductCard[] | null> {
+  try {
+    const listing = await storefront().products({ sort: "newest", page: 1, pageSize: 8 });
+    return listing.items;
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("[home] products unavailable:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/**
+ * The brand sections (hero, lookbook, standard, visit) are static and always render, so the
+ * site works with an empty catalogue. Sections arranged in admin → Homepage are added below
+ * the lookbook once they exist; until then, new arrivals or an honest "being added" panel.
+ */
 export default async function HomePage() {
-  const [home, settings] = await Promise.all([storefront().homepage(), getSettings()]);
+  const [home, settings, arrivals] = await Promise.all([homepageOrEmpty(), getSettings(), newArrivals()]);
+  const town = /\b(Ilesha|Ilesa)\b/i.exec(settings.address)?.[0] ?? null;
+  const sections = home.sections.filter((s) => s.type !== "hero" && s.type !== "marquee");
   return (
     <>
-      {home.sections.map((s) => {
+      <LuxHero settings={settings} />
+      <LuxMarquee town={town} />
+      <LuxLooks />
+      {sections.length ? null : <LuxArrivals products={arrivals} settings={settings} />}
+      {sections.map((s) => {
         switch (s.type) {
-          case "hero":
-            return <Hero key={s.id} section={s} />;
-          case "marquee":
-            return <MarqueeBand key={s.id} section={s} />;
           case "collections":
             return <CollectionTiles key={s.id} section={s} collections={home.collections} />;
           case "product_rail":
@@ -46,6 +76,8 @@ export default async function HomePage() {
             return null;
         }
       })}
+      {sections.length ? null : <LuxStandard />}
+      <LuxVisit settings={settings} />
     </>
   );
 }

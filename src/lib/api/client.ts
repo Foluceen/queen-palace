@@ -16,6 +16,7 @@
  */
 import type { ApiErrorBody } from "@/lib/types";
 import { routes, type EndpointName, type RequestOf, type ResponseOf } from "./contract";
+import { normalizeResponse } from "./normalize";
 import { validateResponse } from "./validate";
 
 export class ApiError extends Error {
@@ -139,6 +140,7 @@ export function createApiClient(baseUrl: string, defaults: ClientOptions = {}) {
             : `Request failed with status ${res.status}.`;
       throw new ApiError(res.status, body?.error?.code ?? (res.status === 501 ? "not_implemented" : "http_error"), body?.error?.message ?? fallback, body?.error?.fields);
     }
+    data = normalizeResponse(name, data);
     if (!(options.skipValidation ?? defaults.skipValidation)) {
       const problem = validateResponse(name, data);
       if (problem) {
