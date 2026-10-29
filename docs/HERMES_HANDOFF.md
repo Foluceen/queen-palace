@@ -29,6 +29,27 @@ All 103 contract endpoints were probed on **29 Oct 2026 at 09:33 UTC** against `
 - `PUT /admin/products/:id` and `DELETE /admin/products/:id` now answer **401** without a session (were 501 and 500).
 - Owner sign-in and dashboard work.
 
+## Update, 29 Oct 2026 ~10:30 UTC: upload fix applied, contract review of `server.ts`
+Hermes's upload package (`7f629fa` → `7f06423`) was applied to the frontend:
+- `api.queenluxuryhair.store` is always allowed for images.
+- The client rejects anything other than JPEG/PNG/WebP/AVIF, or over 3,000,000 bytes, before any request.
+- `backend/` snapshots are excluded from the typecheck. The `include` was **not** narrowed to `src/`, so `tests/` and `scripts/` stay type-checked.
+
+Reading the deployed `backend/src/server.ts`, 67 of 103 contract endpoints are implemented. Divergences found, and how each is handled:
+
+| Area | Backend does | Frontend now | Hermes, please |
+|---|---|---|---|
+| Product create/update | Requires top-level `price` (single price/stock per product; default variant) | Sends `price`, `compareAtPrice`, `sku` from the first option, and `stock` on create only. Shows a notice when more than one option is entered (only the first is stored). | Decide whether multi-option products (length/density) are needed. If so, persist `variants[]` as in `ProductInput`. |
+| Handles | `handle` required, `^[a-z0-9-]+$` | Generates it from the title when left empty (product and collection) | — |
+| Add to bag | Reads `productId` (or treats `variantId` as a product id) | Sends `productId` alongside `variantId` | Accept the variant id from `product.variants[].id` too |
+| Inventory | Rows `{productId, handle, title, sku, available}`; adjust by `productId` | Maps rows to `InventoryRow`; sends `productId` with adjustments | — |
+| `DELETE /admin/products/:id` | **Archives** instead of deleting | Unchanged: the UI says "deleted", but the product reappears as archived | Delete for real (or tell us to relabel the action "Archive") |
+| `GET /admin/dashboard` | `{orders:{total,pending}, revenue:{total,currency}, customers, products}` with **hard-coded zeros** | Shows the format-mismatch message (no crash, no invented numbers) | Return `DashboardSummary` computed from real orders |
+| Collections | `imageId`/`bannerId` ignored (`image: null`) | — | Persist collection images when convenient |
+| `POST /admin/orders/:id/notes` | Returns `{order}` | — | Return `Order` (contract) |
+| Fulfilment | Also `PATCH …/fulfillment` with `{status}` | Contract is `POST …/fulfillment` with `FulfillmentUpdate` | Keep the POST contract |
+| `/store/payment-options` | `{methods: []}` | Checkout shows no payment method | Return the enabled methods before taking orders |
+
 ---
 
 ## Priority 1: create and manage products

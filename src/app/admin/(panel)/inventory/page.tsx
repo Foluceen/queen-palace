@@ -26,7 +26,7 @@ function AdjustCell({ row, onDone }: { row: InventoryRow; onDone(r: InventoryRow
         if (!n) return;
         setBusy(true);
         try {
-          const r = await api().call("adminAdjustInventory", { body: { variantId: row.variantId, delta: n, reason } });
+          const r = await api().call("adminAdjustInventory", { body: { variantId: row.variantId, productId: row.productId, delta: n, reason } });
           onDone(r);
           setDelta("");
           toast(`${row.productTitle} ${row.variantTitle}: ${n > 0 ? "+" : ""}${n}, now ${r.available}`);

@@ -4,10 +4,16 @@ import type { NextConfig } from "next";
  * Remote image hosts are read from NEXT_PUBLIC_MEDIA_HOSTS (comma separated),
  * so the live backend's CDN can be allowed without a code change.
  */
-const mediaHosts = (process.env.NEXT_PUBLIC_MEDIA_HOSTS ?? "")
-  .split(",")
-  .map((h) => h.trim())
-  .filter(Boolean);
+const mediaHosts = Array.from(
+  new Set([
+    // Production media is served by the API (https://api.queenluxuryhair.store/v1/media/:id).
+    "api.queenluxuryhair.store",
+    ...(process.env.NEXT_PUBLIC_MEDIA_HOSTS ?? "")
+      .split(",")
+      .map((h) => h.trim())
+      .filter(Boolean),
+  ]),
+);
 
 // In live mode, images served by the API host itself are allowed too.
 if (process.env.NEXT_PUBLIC_DATA_MODE === "live" && process.env.NEXT_PUBLIC_API_BASE_URL) {

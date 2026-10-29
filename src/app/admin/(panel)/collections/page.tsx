@@ -10,6 +10,7 @@ import { ConfirmButton, Empty, LoadError, LoadingRows, PageHeader, Sheet, Status
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
+import { handleFor } from "@/lib/slug";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import type { Collection, Media, PublishStatus } from "@/lib/types";
 
@@ -74,7 +75,7 @@ export default function CollectionsAdminPage() {
     if (!draft) return;
     setSaving(true);
     setErrors({});
-    const body = { title: draft.title, handle: draft.handle, summary: draft.summary, description: draft.description, status: draft.status, imageId: draft.image?.id ?? null, bannerId: draft.banner?.id ?? null, seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined }, position: 0 };
+    const body = { title: draft.title, handle: handleFor(draft.handle, draft.title), summary: draft.summary, description: draft.description, status: draft.status, imageId: draft.image?.id ?? null, bannerId: draft.banner?.id ?? null, seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined }, position: 0 };
     try {
       if (draft.id) {
         const { position: _p, ...patch } = body;

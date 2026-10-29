@@ -172,7 +172,7 @@ function AddToCart({ variant, title }: { variant: Variant | undefined; title: st
 
   const add = async () => {
     clearError();
-    const ok = await addItem(variant.id, qty);
+    const ok = await addItem(variant.id, qty, variant.productId);
     if (ok) {
       setAdded(true);
       if (btnRef.current) void animate(btnRef.current, { scale: [0.94, 1.04, 1], duration: 520, ease: "outBack(1.6)" }, "essential");
@@ -187,7 +187,7 @@ function AddToCart({ variant, title }: { variant: Variant | undefined; title: st
   const buyNow = async () => {
     clearError();
     setBuying(true);
-    const ok = await addItem(variant.id, qty);
+    const ok = await addItem(variant.id, qty, variant.productId);
     if (ok) router.push("/checkout");
     else setBuying(false);
   };

@@ -9,7 +9,13 @@ import { useResource } from "./hooks";
 import { LoadError, LoadingRows } from "./ui";
 
 /** Reads an image file into what the upload endpoint needs (dimensions + data URL). */
+/** Must match the backend: JPEG, PNG, WebP or AVIF, at most 3,000,000 bytes. */
+export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"] as const;
+export const MAX_IMAGE_BYTES = 3_000_000;
+
 export async function readImageFile(file: File): Promise<{ dataUrl: string; width: number; height: number }> {
+  if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) throw new Error("Use a JPEG, PNG, WebP, or AVIF image.");
+  if (file.size > MAX_IMAGE_BYTES) throw new Error("Images must be 3 MB or smaller.");
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result));

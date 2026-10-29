@@ -11,6 +11,8 @@ import { ConfirmButton, LoadError, LoadingRows, MoneyInput, PageHeader, Panel, S
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
+import { isMockMode } from "@/lib/api/config";
+import { handleFor } from "@/lib/slug";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import type { Collection, Kobo, Media, Product, ProductInput, PublishStatus, Variant } from "@/lib/types";
 
@@ -205,7 +207,7 @@ export default function ProductEditorPage() {
     setFormError(null);
     const body: ProductInput = {
       title: draft.title,
-      handle: draft.handle,
+      handle: handleFor(draft.handle, draft.title),
       subtitle: draft.subtitle,
       description: draft.description,
       status: draft.status,
@@ -230,6 +232,15 @@ export default function ProductEditorPage() {
       video: draft.videoUrl.trim() ? { url: draft.videoUrl.trim(), posterId: draft.videoPoster?.id ?? null } : null,
       tags: parseValues(draft.tags),
       seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined },
+      // The production backend stores one price and stock per product: mirror the first option.
+      ...(draft.variants[0]
+        ? {
+            price: draft.variants[0].price ?? 0,
+            compareAtPrice: draft.variants[0].compareAtPrice,
+            sku: draft.variants[0].sku || undefined,
+            ...(isNew ? { stock: Math.max(0, Math.trunc(draft.variants[0].available || 0)) } : {}),
+          }
+        : {}),
     };
     try {
       const saved = isNew ? await api().call("adminCreateProduct", { body }) : await api().call("adminUpdateProduct", { params: { id }, body });
@@ -351,6 +362,11 @@ export default function ProductEditorPage() {
 
           <Panel title={`Variants (${draft.variants.length})`}>
             {errors.variants ? <p className="field__error">{errors.variants}</p> : null}
+            {!isMockMode && draft.variants.length > 1 ? (
+              <p className="notice notice--warning small" role="status">
+                The store currently saves one price, SKU and stock per product: the first row below. The other options aren&apos;t stored yet, so list them as separate products for now.
+              </p>
+            ) : null}
             <div className="atable-wrap">
               <table className="atable atable--edit">
                 <thead>

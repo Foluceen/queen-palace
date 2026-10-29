@@ -292,3 +292,20 @@ describe("admin permissions from the backend", () => {
     assert.deepEqual(fulfil.permissions, ["orders:read", "orders:write"]);
   });
 });
+
+describe("production backend compatibility", () => {
+  it("makes a valid handle from the title when the handle is empty", async () => {
+    const { handleFor, slugify } = await import("../src/lib/slug");
+    assert.equal(handleFor("", "Bone Straight 26\" — Double Drawn"), "bone-straight-26-double-drawn");
+    assert.equal(handleFor("  My-Handle ", "ignored"), "my-handle");
+    assert.match(slugify("Crème brûlée wig"), /^[a-z0-9-]+$/);
+  });
+
+  it("maps per-product inventory rows onto the inventory screen's format", async () => {
+    const { normalizeInventoryList } = await import("../src/lib/api/normalize");
+    const rows = normalizeInventoryList([{ productId: "p1", handle: "h", title: "Wig", sku: "S1", available: 3 }]) as Array<Record<string, unknown>>;
+    assert.equal(rows[0]!.productTitle, "Wig");
+    assert.equal(rows[0]!.variantId, "p1");
+    assert.equal(rows[0]!.availability, "low_stock");
+  });
+});

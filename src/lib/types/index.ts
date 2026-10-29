@@ -350,6 +350,11 @@ export interface Cart {
 export interface AddCartLineInput {
   variantId: ID;
   quantity: number;
+  /**
+   * Optional. The production backend currently keys cart lines by product (one price per
+   * product) and reads productId first; contract backends key by variantId and ignore it.
+   */
+  productId?: ID;
 }
 
 /* ---------------------------------------------------------------- checkout */
@@ -958,6 +963,8 @@ export interface InventoryRow {
 
 export interface InventoryAdjustment {
   variantId: ID;
+  /** Read by the production backend, which adjusts stock per product. */
+  productId?: ID;
   /** Positive to add stock, negative to remove. */
   delta: number;
   reason: "received" | "correction" | "damaged" | "returned";
@@ -969,6 +976,14 @@ export interface InventoryAdjustment {
  * is ignored: stock changes go through POST /admin/inventory/adjustments so they're audited.
  */
 export type ProductInput = Omit<Product, "id" | "priceRange" | "compareAtPriceRange" | "availability" | "rating" | "createdAt" | "updatedAt" | "variants" | "media" | "video"> & {
+  /**
+   * Single-price fields read by the current production backend (one price and stock per
+   * product). Mirrors the first variant; stock is only sent when creating a product.
+   */
+  price?: Kobo;
+  compareAtPrice?: Kobo | null;
+  sku?: string;
+  stock?: number;
   mediaIds: ID[];
   video: { url: string; posterId: ID | null } | null;
   variants: (Omit<Variant, "id" | "productId" | "availability" | "inventory"> & {

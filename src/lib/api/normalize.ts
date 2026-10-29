@@ -171,7 +171,34 @@ export function normalizeCart(raw: unknown): unknown {
   };
 }
 
+/**
+ * Inventory rows: the production API returns one row per product
+ * ({ productId, handle, title, sku, available }). Missing fields use the same defaults the
+ * backend's own product view applies (tracked, policy "deny", low-stock threshold 5).
+ */
+function inventoryRow(raw: unknown): unknown {
+  if (!isObj(raw) || "productTitle" in raw || typeof raw.productId !== "string") return raw;
+  const available = typeof raw.available === "number" ? raw.available : 0;
+  const threshold = typeof raw.lowStockThreshold === "number" ? raw.lowStockThreshold : 5;
+  return {
+    productId: raw.productId,
+    productTitle: str(raw.title) ?? str(raw.handle) ?? "",
+    variantId: str(raw.variantId) ?? raw.productId,
+    variantTitle: str(raw.variantTitle) ?? "Default",
+    sku: str(raw.sku) ?? "",
+    available,
+    tracked: raw.tracked !== false,
+    policy: raw.policy === "continue" ? "continue" : "deny",
+    lowStockThreshold: threshold,
+    availability: available <= 0 ? "out_of_stock" : available < threshold ? "low_stock" : "in_stock",
+  };
+}
+export const normalizeInventoryList = (raw: unknown) => (Array.isArray(raw) ? raw.map(inventoryRow) : raw);
+export const normalizeInventoryRow = inventoryRow;
+
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
+  adminListInventory: normalizeInventoryList,
+  adminAdjustInventory: normalizeInventoryRow,
   createCart: normalizeCart,
   getCart: normalizeCart,
   addCartLines: normalizeCart,

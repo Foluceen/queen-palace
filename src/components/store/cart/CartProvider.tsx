@@ -17,7 +17,7 @@ interface CartContextValue {
   drawerOpen: boolean;
   openDrawer(): void;
   closeDrawer(): void;
-  addItem(variantId: string, quantity: number): Promise<boolean>;
+  addItem(variantId: string, quantity: number, productId?: string): Promise<boolean>;
   updateQuantity(lineId: string, quantity: number): Promise<void>;
   removeLine(lineId: string): Promise<void>;
   applyCode(code: string): Promise<string | null>;
@@ -97,7 +97,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const addItem = useCallback(
-    async (variantId: string, quantity: number) => {
+    async (variantId: string, quantity: number, productId?: string) => {
       setPending("add");
       setError(null);
       try {
@@ -105,13 +105,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         let next: Cart;
         if (id) {
           try {
-            next = await api().call("addCartLines", { params: { cartId: id }, body: { lines: [{ variantId, quantity }] } });
+            next = await api().call("addCartLines", { params: { cartId: id }, body: { lines: [{ variantId, quantity, ...(productId ? { productId } : {}) }] } });
           } catch (err) {
             if (!(err instanceof ApiError && err.isNotFound)) throw err;
-            next = await api().call("createCart", { body: { lines: [{ variantId, quantity }] } });
+            next = await api().call("createCart", { body: { lines: [{ variantId, quantity, ...(productId ? { productId } : {}) }] } });
           }
         } else {
-          next = await api().call("createCart", { body: { lines: [{ variantId, quantity }] } });
+          next = await api().call("createCart", { body: { lines: [{ variantId, quantity, ...(productId ? { productId } : {}) }] } });
         }
         accept(next);
         return true;
