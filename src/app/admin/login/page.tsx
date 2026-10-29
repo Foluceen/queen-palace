@@ -7,7 +7,7 @@ import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TextField } from "@/components/ui/Field";
 import { api } from "@/lib/api/browser";
-import { errorMessage } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 import { safeNext } from "@/lib/redirect";
 
@@ -16,6 +16,38 @@ const demoAccounts = [
   { email: "manager@queenluxuryhair.test", password: "demo-manager", role: "Store manager" },
   { email: "fulfilment@queenluxuryhair.test", password: "demo-fulfilment", role: "Fulfilment" },
 ];
+
+/**
+ * Signs in, then confirms the session works before entering the admin.
+ * The backend decides whether the credentials are right (any 2xx means yes); the session
+ * cookie it sets is what authorises every later request, so that is what gets checked.
+ * Returns an error message, or null on success.
+ */
+async function signIn(email: string, password: string): Promise<string | null> {
+  try {
+    await api().call("adminLogin", { body: { email, password } }, { skipValidation: true });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (err.status === 401 || err.status === 400 || err.status === 422) return err.message || "That email and password don't match a staff account.";
+      if (err.status === 429) return "Too many sign-in attempts. Wait a few minutes before trying again.";
+      if (err.status === 403) return err.message || "This staff account can't sign in. Ask the store owner to check it.";
+    }
+    return errorMessage(err);
+  }
+  try {
+    await api().call("adminSession");
+    return null;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      return "The store accepted your password, but this browser didn't receive a session. The API needs to set its session cookie on sign-in (HttpOnly, Secure, SameSite=Lax). Please report this to the developer.";
+    }
+    if (err instanceof ApiError && err.code === "contract_mismatch") {
+      console.error("[admin] signed in, but the session response can't be read:", err.fields?._contract, "| fields:", err.fields?._shape);
+      return "The store accepted your password, but returned your staff profile in a format this admin can't read yet. Please report this to the developer.";
+    }
+    return errorMessage(err);
+  }
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -36,12 +68,12 @@ function LoginForm() {
           e.preventDefault();
           setBusy(true);
           setError(null);
-          try {
-            await api().call("adminLogin", { body: { email: normalizeEmail(email), password } });
-            router.replace(safeNext(next, "/admin", "/admin"));
-          } catch (err) {
-            setError(errorMessage(err));
+          const msg = await signIn(normalizeEmail(email), password);
+          if (msg) {
+            setError(msg);
             setBusy(false);
+          } else {
+            router.replace(safeNext(next, "/admin", "/admin"));
           }
         }}
       >

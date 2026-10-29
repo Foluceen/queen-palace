@@ -14,7 +14,6 @@
  *   `contract_mismatch` instead of letting the UI render wrong data.
  * - 401/403 on authenticated endpoints are reported through `onAuthError`.
  */
-import type { ApiErrorBody } from "@/lib/types";
 import { routes, type EndpointName, type RequestOf, type ResponseOf } from "./contract";
 import { normalizeResponse } from "./normalize";
 import { validateResponse } from "./validate";
@@ -120,32 +119,30 @@ export function createApiClient(baseUrl: string, defaults: ClientOptions = {}) {
     if (res.status === 204) return undefined as unknown as ResponseOf<K>;
     const text = await res.text();
     let data: unknown = undefined;
+    let parsed = true;
     if (text) {
       try {
         data = JSON.parse(text);
       } catch {
-        throw new ApiError(res.status || 502, "invalid_response", "The store returned an unexpected response.");
+        parsed = false;
       }
     }
     if (!res.ok) {
-      const body = data as Partial<ApiErrorBody> | undefined;
+      // Errors are classified by HTTP status first; the body only refines the message.
       if ((res.status === 401 || res.status === 403) && route.auth) {
         (options.onAuthError ?? defaults.onAuthError)?.({ status: res.status, scope: route.auth, endpoint: name });
       }
-      const fallback =
-        res.status === 501
-          ? "This part of the store isn't available yet."
-          : res.status >= 500
-            ? "The store is having trouble right now. Try again in a moment."
-            : `Request failed with status ${res.status}.`;
-      throw new ApiError(res.status, body?.error?.code ?? (res.status === 501 ? "not_implemented" : "http_error"), body?.error?.message ?? fallback, body?.error?.fields);
+      const e = readErrorBody(parsed ? data : undefined);
+      throw new ApiError(res.status, e.code ?? defaultCode(res.status), e.message ?? defaultMessage(res.status), e.fields);
     }
+    if (!parsed) throw new ApiError(502, "invalid_response", "The store returned an unexpected response.", { _contract: `non-JSON body (${res.headers.get("content-type") ?? "no content type"})` });
     data = normalizeResponse(name, data);
     if (!(options.skipValidation ?? defaults.skipValidation)) {
       const problem = validateResponse(name, data);
       if (problem) {
-        if (typeof console !== "undefined") console.error(`[api] ${route.method} ${route.path} returned a shape the frontend can't use: ${problem}`);
-        throw new ApiError(502, "contract_mismatch", "The store returned data in an unexpected format.", { _contract: problem });
+        // Field names only, never values, so the console never shows tokens or personal data.
+        if (typeof console !== "undefined") console.error(`[api] ${route.method} ${route.path} returned a shape the frontend can't use: ${problem}. Received fields: ${describeShape(data)}`);
+        throw new ApiError(502, "contract_mismatch", "The store returned data in an unexpected format.", { _contract: problem, _shape: describeShape(data) });
       }
     }
     return data as ResponseOf<K>;
@@ -169,6 +166,46 @@ export function createApiClient(baseUrl: string, defaults: ClientOptions = {}) {
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
+
+const defaultCode = (status: number) =>
+  status === 501 ? "not_implemented" : status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : status === 404 ? "not_found" : status === 429 ? "rate_limited" : status >= 500 ? "server_error" : "http_error";
+
+function defaultMessage(status: number): string {
+  if (status === 501) return "This part of the store isn't available yet.";
+  if (status === 401) return "You need to sign in to do that.";
+  if (status === 403) return "Your account doesn't have permission to do that.";
+  if (status === 404) return "We couldn't find that. It may have been removed.";
+  if (status === 429) return "Too many attempts. Wait a moment and try again.";
+  if (status >= 500) return "The store is having trouble right now. Try again in a moment.";
+  return `Request failed with status ${status}.`;
+}
+
+/**
+ * Reads the contract error envelope `{ error: { code, message, fields } }`, and also the common
+ * Fastify/HTTP shapes `{ statusCode, error: "Unauthorized", message }` and `{ message }`.
+ */
+export function readErrorBody(body: unknown): { code?: string; message?: string; fields?: Record<string, string> } {
+  if (!body || typeof body !== "object") return {};
+  const b = body as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  if (b.error && typeof b.error === "object") {
+    const e = b.error as Record<string, unknown>;
+    return { code: str(e.code), message: str(e.message), fields: (e.fields as Record<string, string>) ?? undefined };
+  }
+  return { code: str(b.code), message: str(b.message) ?? str(b.error), fields: (b.fields as Record<string, string>) ?? undefined };
+}
+
+/** Field names and kinds, two levels deep, without any values. */
+export function describeShape(v: unknown, depth = 0): string {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return depth > 1 ? "[…]" : `[${v.length ? describeShape(v[0], depth + 1) : ""}]`;
+  if (typeof v !== "object") return typeof v;
+  if (depth > 1) return "{…}";
+  return `{${Object.entries(v as Record<string, unknown>)
+    .slice(0, 20)
+    .map(([k, x]) => `${k}: ${describeShape(x, depth + 1)}`)
+    .join(", ")}}`;
+}
 
 export function errorMessage(err: unknown, fallback = "Something went wrong. Try again."): string {
   if (err instanceof ApiError) return err.message;

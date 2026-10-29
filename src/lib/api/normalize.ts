@@ -6,7 +6,7 @@
  * and never invented: a missing contact detail stays null and is hidden.
  */
 import { DEFAULT_BRAND_COLORS, DEFAULT_TAGLINE } from "@/lib/brand";
-import type { StoreSettings } from "@/lib/types";
+import { PERMISSIONS, type AdminSession, type Permission, type StoreSettings } from "@/lib/types";
 import type { EndpointName } from "./contract";
 
 type Obj = Record<string, unknown>;
@@ -69,8 +69,92 @@ export function normalizeSettings(raw: unknown): unknown {
   return settings;
 }
 
+/**
+ * Admin session: accepts the contract shape, or a staff/user/admin object with the role as a
+ * string or object, optionally wrapped in { session } or { data }. Permissions are taken from
+ * the response. Only when the response gives none and the role is the store owner does the
+ * UI show every section; the backend still authorises every request.
+ */
+export function normalizeAdminSession(raw: unknown): unknown {
+  let r: unknown = raw;
+  if (isObj(r) && !("staff" in r) && isObj(r.session)) r = r.session;
+  if (isObj(r) && !("staff" in r) && isObj(r.data)) r = r.data;
+  if (!isObj(r)) return raw;
+  const person = isObj(r.staff) ? r.staff : isObj(r.user) ? r.user : isObj(r.admin) ? r.admin : null;
+  if (!person) return raw;
+  const roleRaw = r.role ?? person.role;
+  const roleObj = isObj(roleRaw) ? roleRaw : null;
+  const roleName = str(roleObj?.name) ?? str(roleRaw) ?? "Staff";
+  const known = new Set<string>(PERMISSIONS);
+  const listed = [r.permissions, roleObj?.permissions, person.permissions].find(Array.isArray) as unknown[] | undefined;
+  let permissions: Permission[] | undefined = listed?.filter((p): p is Permission => typeof p === "string" && known.has(p));
+  if (!listed && /^(owner|super ?admin)$/i.test(roleName)) permissions = [...PERMISSIONS];
+  if (!permissions) return raw; // no permission information: let validation report it
+  const name =
+    str(person.name) ??
+    str(person.fullName) ??
+    ([str(person.firstName), str(person.lastName)].filter(Boolean).join(" ") || null) ??
+    str(person.email) ??
+    "Staff";
+  const session: AdminSession = {
+    staff: {
+      id: String(person.id ?? ""),
+      name,
+      email: str(person.email) ?? "",
+      roleId: String(roleObj?.id ?? person.roleId ?? roleName.toLowerCase()),
+      status: person.status === "invited" || person.status === "suspended" ? person.status : "active",
+      lastActiveAt: str(person.lastActiveAt),
+    },
+    role: {
+      id: String(roleObj?.id ?? person.roleId ?? roleName.toLowerCase()),
+      name: roleName,
+      description: str(roleObj?.description) ?? "",
+      permissions,
+      system: roleObj?.system === true || /^owner$/i.test(roleName),
+    },
+    permissions,
+    expiresAt: str(r.expiresAt) ?? str(r.expires_at) ?? "",
+  };
+  return session;
+}
+
+/**
+ * Cart: the production API returns totals at the top level ({ subtotal, discountTotal,
+ * shippingTotal, total }) without itemCount, discounts or notices. Amounts are copied as given;
+ * itemCount is the sum of line quantities. Contract-shaped carts pass through unchanged.
+ */
+export function normalizeCart(raw: unknown): unknown {
+  if (!isObj(raw) || typeof raw.id !== "string" || !Array.isArray(raw.lines) || isObj(raw.totals)) return raw;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const lines = raw.lines as unknown[];
+  return {
+    ...raw,
+    currency: str(raw.currency) ?? "NGN",
+    itemCount: typeof raw.itemCount === "number" ? raw.itemCount : lines.reduce<number>((n, l) => n + (isObj(l) ? num(l.quantity) : 0), 0),
+    discounts: Array.isArray(raw.discounts) ? raw.discounts : [],
+    notices: Array.isArray(raw.notices) ? raw.notices : [],
+    updatedAt: str(raw.updatedAt) ?? "",
+    totals: {
+      subtotal: num(raw.subtotal),
+      discountTotal: num(raw.discountTotal),
+      shippingTotal: typeof raw.shippingTotal === "number" ? raw.shippingTotal : null,
+      taxTotal: num(raw.taxTotal),
+      total: num(raw.total),
+    },
+  };
+}
+
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
+  createCart: normalizeCart,
+  getCart: normalizeCart,
+  addCartLines: normalizeCart,
+  updateCartLine: normalizeCart,
+  removeCartLine: normalizeCart,
+  applyDiscount: normalizeCart,
+  removeDiscount: normalizeCart,
   getStoreSettings: normalizeSettings,
+  adminSession: normalizeAdminSession,
+  adminLogin: normalizeAdminSession,
 };
 
 export function normalizeResponse(name: EndpointName, data: unknown): unknown {

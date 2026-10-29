@@ -209,3 +209,50 @@ describe("settings adapter", () => {
     assert.deepEqual(s.social, { instagram: "https://instagram.com/x", tiktok: null, facebook: null });
   });
 });
+
+describe("auth error and session parsing", () => {
+  it("classifies a non-JSON 401 by status, not as a malformed response", async () => {
+    stub(new Response("Unauthorized", { status: 401, headers: { "content-type": "text/plain" } }));
+    await assert.rejects(createApiClient("https://x.test").call("adminLogin", { body: { email: "a@b.co", password: "x" } }), (e: unknown) => e instanceof ApiError && e.status === 401 && e.code === "unauthenticated");
+  });
+
+  it("reads Fastify's default error format", async () => {
+    stub(json(401, { statusCode: 401, error: "Unauthorized", message: "Invalid credentials" }));
+    await assert.rejects(createApiClient("https://x.test").call("adminLogin", { body: { email: "a@b.co", password: "x" } }), (e: unknown) => e instanceof ApiError && e.status === 401 && e.message === "Invalid credentials");
+  });
+
+  it("adapts a user-shaped owner session and keeps backend permissions when given", async () => {
+    const { normalizeAdminSession } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    const owner = normalizeAdminSession({ user: { id: 1, email: "owner@x.co", firstName: "Ada", lastName: "O", role: "owner" } }) as { permissions: string[]; staff: { name: string } };
+    assert.equal(validateResponse("adminSession", owner), null);
+    assert.equal(owner.staff.name, "Ada O");
+    assert.ok(owner.permissions.includes("products:write"));
+    const limited = normalizeAdminSession({ session: { user: { id: "s1", email: "f@x.co", role: { id: "r2", name: "Fulfilment", permissions: ["orders:read", "made:up"] } } } }) as { permissions: string[] };
+    assert.deepEqual(limited.permissions, ["orders:read"]);
+  });
+
+  it("does not invent permissions for a non-owner role without any", async () => {
+    const { normalizeAdminSession } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    const raw = { user: { id: 2, email: "m@x.co", role: "manager" } };
+    assert.notEqual(validateResponse("adminSession", normalizeAdminSession(raw)), null);
+  });
+});
+
+describe("cart adapter", () => {
+  it("maps the production cart (flat totals) onto the contract", async () => {
+    const { normalizeCart } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    // Exact POST /v1/carts response, 29 Oct 2026.
+    const prod = { id: "bcb80f46", lines: [], subtotal: 0, discountTotal: 0, shippingTotal: 0, total: 0, currency: "NGN" };
+    assert.match(validateResponse("createCart", prod) ?? "", /itemCount|discounts|totals/);
+    const c = normalizeCart(prod) as { itemCount: number; totals: { total: number } };
+    assert.equal(validateResponse("createCart", c), null);
+    assert.equal(c.itemCount, 0);
+    assert.equal(c.totals.total, 0);
+    const withLines = normalizeCart({ ...prod, lines: [{ quantity: 2 }, { quantity: 1 }], subtotal: 30000, total: 30000 }) as { itemCount: number; totals: { subtotal: number } };
+    assert.equal(withLines.itemCount, 3);
+    assert.equal(withLines.totals.subtotal, 30000);
+  });
+});
