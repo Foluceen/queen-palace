@@ -4,10 +4,10 @@ import type { NextConfig } from "next";
  * Remote image hosts are read from NEXT_PUBLIC_MEDIA_HOSTS (comma separated),
  * so the live backend's CDN can be allowed without a code change.
  */
-const mediaHosts = (process.env.NEXT_PUBLIC_MEDIA_HOSTS ?? "")
-  .split(",")
-  .map((h) => h.trim())
-  .filter(Boolean);
+const mediaHosts = Array.from(new Set([
+  "api.queenluxuryhair.store",
+  ...(process.env.NEXT_PUBLIC_MEDIA_HOSTS ?? "").split(",").map((h) => h.trim()).filter(Boolean),
+]));
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

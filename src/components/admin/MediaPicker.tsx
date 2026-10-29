@@ -10,6 +10,9 @@ import { LoadError, LoadingRows } from "./ui";
 
 /** Reads an image file into what the upload endpoint needs (dimensions + data URL). */
 export async function readImageFile(file: File): Promise<{ dataUrl: string; width: number; height: number }> {
+  const accepted = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+  if (!accepted.has(file.type)) throw new Error("Use a JPEG, PNG, WebP, or AVIF image.");
+  if (file.size > 3_000_000) throw new Error("Images must be 3 MB or smaller.");
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result));
