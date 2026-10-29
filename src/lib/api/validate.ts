@@ -57,7 +57,40 @@ const reviewStatus = (v: unknown, where: string) =>
 const review = (v: unknown, where: string) =>
   fields(v, { id: "string", productId: "string", productTitle: "string", author: "string", rating: "number", title: "string", body: "string", verifiedPurchase: "boolean", status: "string", reply: "string|null", createdAt: "string" }, where) ?? reviewStatus(v, where);
 
+const paginated = (v: unknown, where: string) => fields(v, { items: "array", page: "number", pageSize: "number", total: "number", totalPages: "number" }, where);
+const list = (where: string): Check => (v) => (Array.isArray(v) ? null : `${where} is not an array`);
+
+/**
+ * Admin screens render straight from these responses, so a different format must surface as a
+ * clear in-page error, never as a crash. (A crash would otherwise reach an error boundary.)
+ */
+const adminValidators: Partial<Record<EndpointName, Check>> = {
+  adminDashboard: (v) =>
+    fields(
+      v,
+      { periodDays: "number", revenue: "number", orders: "number", averageOrderValue: "number", awaitingPayment: "number", awaitingFulfillment: "number", newInquiries: "number", pendingReviews: "number", revenueSeries: "array", lowStock: "array", recentOrders: "array", topProducts: "array" },
+      "dashboard",
+    ) ??
+    ((v as { revenueChangePct?: unknown }).revenueChangePct === null || typeof (v as { revenueChangePct?: unknown }).revenueChangePct === "number" ? null : "dashboard.revenueChangePct should be number|null"),
+  adminListProducts: (v) => paginated(v, "products"),
+  adminListOrders: (v) => paginated(v, "orders"),
+  adminListCustomers: (v) => paginated(v, "customers"),
+  adminListProductTypes: list("productTypes"),
+  adminListInventory: list("inventory"),
+  adminListCollections: list("collections"),
+  adminListMedia: list("media"),
+  adminListPages: list("pages"),
+  adminListDiscounts: list("discounts"),
+  adminListReviews: list("reviews"),
+  adminListInquiries: list("inquiries"),
+  adminListStaff: list("staff"),
+  adminListRoles: list("roles"),
+  adminGetNavigation: (v) => fields(v, { main: "array", footer: "array" }, "navigation"),
+  adminGetHomepage: (v) => fields(v, { sections: "array" }, "homepage"),
+};
+
 export const validators: Partial<Record<EndpointName, Check>> = {
+  ...adminValidators,
   listProductReviews: (v) =>
     fields(v, { items: "array", page: "number", pageSize: "number", total: "number", totalPages: "number" }, "reviews") ??
     each((v as { items: unknown }).items, review, "reviews.items") ??

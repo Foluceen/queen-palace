@@ -256,3 +256,13 @@ describe("cart adapter", () => {
     assert.equal(withLines.totals.subtotal, 30000);
   });
 });
+
+describe("admin response checks", () => {
+  it("rejects a dashboard without the arrays the page renders, instead of letting it crash", async () => {
+    const { validateResponse } = await import("../src/lib/api/validate");
+    assert.match(validateResponse("adminDashboard", { revenue: 0, orders: 0 }) ?? "", /dashboard\./);
+    const ok = { periodDays: 30, revenue: 0, revenueChangePct: null, orders: 0, averageOrderValue: 0, awaitingPayment: 0, awaitingFulfillment: 0, newInquiries: 0, pendingReviews: 0, revenueSeries: [], lowStock: [], recentOrders: [], topProducts: [] };
+    assert.equal(validateResponse("adminDashboard", ok), null);
+    assert.match(validateResponse("adminListProducts", []) ?? "", /products/);
+  });
+});

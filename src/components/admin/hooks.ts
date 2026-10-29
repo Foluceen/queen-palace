@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { errorMessage } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 
 /** Loads data with loading, error and retry states. `deps` re-run the loader. */
 export function useResource<T>(loader: () => Promise<T>, deps: unknown[] = []) {
@@ -17,7 +17,9 @@ export function useResource<T>(loader: () => Promise<T>, deps: unknown[] = []) {
     try {
       setData(await loaderRef.current());
     } catch (err) {
-      setError(errorMessage(err));
+      // Staff see what didn't match (field names only), which helps the backend fix it.
+      const detail = err instanceof ApiError && err.code === "contract_mismatch" && err.fields?._contract ? ` (${err.fields._contract})` : "";
+      setError(errorMessage(err) + detail);
     } finally {
       setLoading(false);
     }
