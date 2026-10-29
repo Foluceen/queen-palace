@@ -29,7 +29,7 @@ const check = (cond, msg) => {
     check((await p.evaluate(() => document.documentElement.dataset.theme)) === "dark", "storefront is dark at first commit, even on a light OS");
     await p.waitForLoadState("networkidle");
     const bg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    check(bg === "rgb(5, 5, 5)", `black body background (${bg})`);
+    check(bg === "rgb(0, 0, 0)", `black body background (${bg})`);
     check((await p.getByRole("button", { name: /theme|appearance/i }).count()) === 0, "no theme switch on the storefront");
     await p.goto(BASE + "/admin/login", { waitUntil: "networkidle" });
     check((await p.getByRole("button", { name: /theme|appearance/i }).count()) > 0, "admin keeps its theme switch");

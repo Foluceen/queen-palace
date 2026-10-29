@@ -16,8 +16,8 @@ import type { BrandColors, StoreSettings, ThemeMode } from "@/lib/types";
 const DEFAULT_COLORS: BrandColors = DEFAULT_BRAND_COLORS;
 
 const colorFields: { key: keyof BrandColors; label: string; hint: string }[] = [
-  { key: "burgundy", label: "Pink accent", hint: "Links, sale prices and the glow behind category photos." },
-  { key: "gold", label: "Gold", hint: "Star ratings and the crown." },
+  { key: "burgundy", label: "Hot pink", hint: "Buttons, highlights, prices and active states." },
+  { key: "gold", label: "Soft pink", hint: "Italic headings, labels, hover states and star ratings." },
   { key: "lightBackground", label: "Light background", hint: "Warm ivory page colour." },
   { key: "lightSurface", label: "Light surface", hint: "Cards, drawers and panels in light mode." },
   { key: "darkBackground", label: "Dark background", hint: "Near-black page colour." },
