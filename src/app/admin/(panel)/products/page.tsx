@@ -60,8 +60,8 @@ function ProductsInner() {
             </option>
           ))}
         </select>
-        <select className="select" value={productTypeId} onChange={(e) => (setProductTypeId(e.target.value), setPage(1))} aria-label="Product type">
-          <option value="">All types</option>
+        <select className="select" value={productTypeId} onChange={(e) => (setProductTypeId(e.target.value), setPage(1))} aria-label="Product type" disabled={!!types.error} title={types.error ? `Product types couldn't be loaded: ${types.error}` : undefined}>
+          <option value="">{types.error ? "Types unavailable" : "All types"}</option>
           {(types.data ?? []).map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}

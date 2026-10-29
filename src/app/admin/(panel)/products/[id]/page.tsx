@@ -466,6 +466,14 @@ export default function ProductEditorPage() {
                   </option>
                 ))}
               </SelectField>
+              {types.error ? (
+                <div className="notice notice--warning small" role="status">
+                  <span>Product types couldn&apos;t be loaded ({types.error}). You can still save this product without a type.</span>
+                  <button type="button" className="btn btn--sm btn--ghost" onClick={() => void types.reload()}>
+                    Try again
+                  </button>
+                </div>
+              ) : null}
             </div>
           </Panel>
           <Panel title="Collections">
@@ -484,6 +492,8 @@ export default function ProductEditorPage() {
                 ))}
               </ul>
               </>
+            ) : collections.error ? (
+              <LoadError message={`Collections couldn't be loaded: ${collections.error}`} onRetry={() => void collections.reload()} />
             ) : (
               <LoadingRows rows={3} />
             )}

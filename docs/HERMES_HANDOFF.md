@@ -1,81 +1,132 @@
-# Backend handoff for Hermes: launch blockers, 29 Oct 2026
+# Backend handoff for Hermes: admin integration, 29 Oct 2026
 
-The frontend owns nothing here except the contract it sends and reads. Every request and response type is in `docs/API_CONTRACT.md` and `src/lib/types/index.ts`. Reference behaviour (validation, status codes, permissions) is executable in `src/lib/mock/backend.ts` and `tests/mock-backend.test.ts`. Where production already returns an equivalent format, the frontend adapts it (`src/lib/api/normalize.ts`), so **the formats marked "accepted" below need no backend change**.
+**Ownership.** Hermes implements persistence and backend endpoints. The frontend integrates against the contract and adapts equivalent formats (`src/lib/api/normalize.ts`). Neither side changes the contract without agreeing first.
 
-Checked against `https://api.queenluxuryhair.store/v1` on 29 Oct 2026, ~06:30 UTC, without credentials.
+**Contract.** Every request and response type is in `docs/API_CONTRACT.md` (routes and type names) and `src/lib/types/index.ts` (field definitions). Reference behaviour (validation, status codes, permissions) is executable in `src/lib/mock/backend.ts` and `tests/mock-backend.test.ts`.
 
-## Fixed since the last check
-- CORS preflight now allows `GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS` with credentials for the production origin. ✅
-- `POST /carts` returns 201 and `GET /carts/:id` returns 200 for a real cart. ✅
+**Error format, for every endpoint:**
+- Body: `{ "error": { "code", "message", "fields"? } }`.
+- Status codes: 400/422 validation (with `fields`), 401 not signed in, 403 missing permission, 404 not found, 409 conflict, 429 rate limited, 5xx only for real faults.
+- Unimplemented endpoints should keep returning `501 not_implemented`. The admin shows that message as is; it never fakes success.
 
-## 0. Owner permissions (29 Oct 2026, ~09:30 UTC)
-The owner can sign in, but the admin showed "You don't have access to this section… dashboard:read".
+## How this was measured
+All 103 contract endpoints were probed on **29 Oct 2026 at 09:33 UTC** against `https://api.queenluxuryhair.store/v1`, **without credentials**:
+- `GET` requests as they are; mutations with an empty `{}` body.
+- Public endpoints that would create real records (`createCart`, `placeOrder`, `createInquiry`, `subscribeNewsletter`, `customerRegister`, `createProductReview`, password reset, logins) were not called.
+- Unimplemented routes answer `501` before authentication. Implemented routes answer `401` first, so **a 401 below means "auth-gated, behaviour not yet confirmed"**. The owner's signed-in check (end of this document) confirms those.
 
-Frontend (fixed in this deploy):
-- The session adapter used only the *first* permission list it found, so a top-level `permissions: []` hid the list on `role.permissions`. All lists are now merged.
-- Names that weren't spelled exactly like the frontend's (e.g. `dashboard.read`, `DASHBOARD_READ`) were silently dropped. They are now canonicalised. Explicit wildcards are honoured: `*` / `all` grant everything, and `products:*` grants every `products:` permission.
-- An explicitly empty list stays empty. The frontend never grants permissions the backend didn't send. The access screen now shows the role and the exact permission names received.
+| Result | Count |
+|---|---|
+| 501 `not_implemented` | **44** |
+| 401 (auth first) | 30 |
+| 200 / 404 / 400 as expected | 19 |
+| 500 `internal_error` | 1 (`GET /products/:id/reviews` for an unknown product, should be 404) |
+| Not called (would create data) | 9 |
 
-Backend/database (Hermes):
-- The seeded owner's role must carry every permission:
-  `dashboard:read, products:read, products:write, collections:write, inventory:write, media:write, orders:read, orders:write, orders:refund, customers:read, content:write, discounts:write, reviews:moderate, inquiries:respond, analytics:read, settings:write, staff:manage`
-  (or a single `*` grant, if your RBAC models the owner that way).
-- `GET /admin/auth/session` must return them in `permissions` (top level or on `role.permissions`).
-- If the owner still sees the access screen, its last line says "Permissions received from the store: …". If that says "none", the owner role's permission rows are missing in the database, or the session doesn't include them.
-- The backend must enforce the same permissions on every admin endpoint. The UI only hides sections.
+**Fixed since this morning:**
+- CORS allows `PUT`/`PATCH`/`DELETE`.
+- Unknown carts and lines return **404** (was 500).
+- `PUT /admin/products/:id` and `DELETE /admin/products/:id` now answer **401** without a session (were 501 and 500).
+- Owner sign-in and dashboard work.
 
-## 1. Admin sign-in (`POST /admin/auth/login`, `GET /admin/auth/session`, `POST /admin/auth/logout`)
-Request (unchanged, verified in the browser): JSON `{ "email": "<trimmed, lower-case>", "password": "..." }`, `credentials: include`.
+---
 
-- **Success:** any 2xx. The response **must set the session cookie**: `HttpOnly; Secure; SameSite=Lax; Path=/`, with `Domain` unset or `.queenluxuryhair.store`. The frontend then calls `GET /admin/auth/session` and only enters the admin if that returns 200.
-- **Session body:** the contract shape is `{ staff: { id, name, email, roleId, status, lastActiveAt }, role: { id, name, description, permissions, system }, permissions: string[], expiresAt }`.
-  - **Accepted, no change needed:** `{ user | admin | staff: { id, email, name | firstName + lastName, role? }, role?: string | { id, name, permissions }, permissions?: string[] }`, optionally wrapped in `{ session }` or `{ data }`.
-  - Permissions must come from the backend. Only when none are given **and** the role is `owner` does the UI show every section; the backend must still authorise each call.
-  - Permission names: `PERMISSIONS` in `src/lib/types/index.ts`.
-- **Failure:** `401 { "error": { "code": "invalid_credentials", "message": "..." } }`. This already works.
-- **What the login screen now reports:**
-  - "unexpected format" can no longer come from a successful sign-in.
-  - If the cookie is missing, it says so: "accepted your password, but this browser didn't receive a session".
-  - If the session body is unreadable, the browser console logs its **field names only** (no values) after `[admin] signed in, but the session response can't be read:`. Please compare those field names with the shape above, or send us a sanitised sample.
-- **Owner credentials:** if the owner still gets `invalid_credentials`, check how the seeded email is stored (the frontend sends it lower-case and trimmed) and the password hash and algorithm. We have not tried any real credentials.
+## Priority 1: create and manage products
 
-## 2. Carts
-The frontend adapts the production format (`{ id, lines, subtotal, discountTotal, shippingTotal, total, currency }`). Still needed:
+| # | Endpoint | Now | Dashboard screen | Contract |
+|---|---|---|---|---|
+| 1.1 | `GET /admin/product-types` | **501** | Product editor (type picker, attribute fields) and product list (type filter) | Returns `ProductType[]`: `{ id, name, description, optionNames: string[], attributes: AttributeDefinition[], productCount }`. An **empty array is a valid answer** for a new store. |
+| 1.2 | `PUT /admin/product-types` | **501** | Product types screen (create and edit) | Body `ProductTypeInput` (`ProductType` minus `id?`/`productCount`); returns `ProductType`. |
+| 1.3 | `DELETE /admin/product-types/:id` | **501** | Product types screen | `{ ok: true }`; 409 if products still use it. |
+| 1.4 | `POST /admin/products` | 401 (unconfirmed) | Product editor, Save (new) | Body `ProductInput`; returns `Product`. Must persist `status` (`draft \| published \| archived`), `collectionIds`, `mediaIds`, variants (price in kobo, SKU, inventory), `productTypeId` (nullable) and attribute values. 422 with `fields`. |
+| 1.5 | `PUT /admin/products/:id` | 401 (unconfirmed) | Product editor, Save, **Publish/Archive** (via `status`), collection membership | Same body; returns the saved `Product`; 404 for an unknown id. |
+| 1.6 | `DELETE /admin/products/:id` | 401 (unconfirmed) | Product editor, Delete | `{ ok: true }`; 404 for an unknown id. |
+| 1.7 | `POST /admin/products/:id/duplicate` | **501** | Product editor, Duplicate | Returns the new `Product` (as a draft). |
+| 1.8 | `PATCH /admin/products/:productId/variants/:variantId` | **501** | Not used by the UI today | Optional. |
 
-| Endpoint | Now | Needed |
+**Note:** the product editor does **not** need product types to save. With 1.1 at 501 it now shows "Product types couldn't be loaded (…). You can still save this product without a type." instead of silently showing no types.
+
+## Priority 2: product images
+| # | Endpoint | Now | Screen | Contract |
+|---|---|---|---|---|
+| 2.1 | `POST /admin/media` | 401 (unconfirmed) | Media library and the editor's image picker | Body today: `{ fileName, mimeType, sizeBytes, width, height, alt, tags, dataUrl }` (base64 data URL); returns `Media` `{ id, url, alt, width, height, mimeType, tags, createdAt }`. **`url` must be absolute https.** If you prefer signed direct uploads (better for large photos), propose `POST /admin/media/uploads` → `PUT` to storage → `POST /admin/media`, and we'll switch the frontend once agreed. |
+| 2.2 | `GET /admin/media`, `PATCH /admin/media/:id` (alt, tags), `DELETE /admin/media/:id` | 401 (unconfirmed) | Media library | `Media[]`, `Media`, `{ ok: true }`. |
+| 2.3 | Media response headers | `Cross-Origin-Resource-Policy: same-origin` on the API today | Every product image on the storefront | Serve media **without** CORP `same-origin` (or from a CDN), or images won't load on `queenluxuryhair.store`. |
+
+## Priority 3: collections
+| # | Endpoint | Now | Screen | Contract |
+|---|---|---|---|---|
+| 3.1 | `GET /admin/collections` | 401 (unconfirmed) | Collections screen, product editor (collection checkboxes), product list filter | `Collection[]`; an empty array is valid. |
+| 3.2 | `POST /admin/collections` | 401 (unconfirmed) | Collections, Create | Body `CollectionInput` (`title, handle, summary, description, status, imageId, bannerId, …`); returns `Collection`. |
+| 3.3 | `PATCH /admin/collections/:id` | 401 (unconfirmed) | Collections, Edit, publish | Partial `CollectionInput`; returns `Collection`. |
+| 3.4 | `DELETE /admin/collections/:id` | 401 (unconfirmed) | Collections, Delete | `{ ok: true, unassignedProductIds: string[] }`. |
+| 3.5 | `PUT /admin/collections/order` | 401 (unconfirmed) | Collections, drag to reorder | Body `{ ids: string[] }`; returns `Collection[]` in the new order. |
+| — | Membership | via `PUT /admin/products/:id` `collectionIds` | Product editor | Storefront `GET /collections/:handle` must return the product once it's assigned and published. |
+
+## Priority 4: orders (needed as soon as the first order arrives)
+| Endpoint | Now | Screen |
 |---|---|---|
-| `GET /carts/:id` (unknown id) | 500 | **404** `not_found`. With a 404 the frontend drops the stale id and starts a fresh bag; a 500 leaves the shopper stuck. |
-| `PATCH /carts/:id/lines/:lineId` (unknown) | 500 | 404 |
-| `DELETE /carts/:id/lines/:lineId` (unknown) | 500 | 404 |
-| `POST /carts/:id/lines` | 400 `Invalid cart lines` | Body is `{ "lines": [{ "variantId", "quantity" }] }`. Return `Cart`; 404 for an unknown cart or variant; 409 `insufficient_stock` with a message when quantity exceeds stock. |
+| `GET /admin/orders/:id` | **501** | Order detail (opening any order) |
+| `POST /admin/orders/:id/fulfillment` | **501** | Mark shipped or picked up, tracking number |
+| `POST /admin/orders/:id/transfer-received` | **501** | Confirm a bank transfer |
+| `POST /admin/orders/:id/cancel`, `/refunds`, `/notes` | **501** | Cancel, refund, internal notes |
+| `POST /orders/:number/verify-payment` | **501** | Customer order confirmation page (re-checks the payment provider) |
 
-Each cart line must carry: `id, productId, variantId, handle, productTitle, variantTitle, image (Media or null), quantity, unitPrice, compareAtPrice, lineTotal` (kobo integers), `maxQuantity` (most the backend will accept now) and `availability` (`in_stock | low_stock | out_of_stock | preorder`). Totals must be computed on the server.
+Contract types: `Order`, `FulfillmentUpdate` and the related types in `src/lib/types/index.ts`; routes in `docs/API_CONTRACT.md`. Payment status must come only from the provider or webhook, never from the client.
 
-## 3. Products (admin)
-| Endpoint | Now | Needed |
-|---|---|---|
-| `PUT /admin/products/:id` | **501** | Implement. Body is `ProductInput`. It handles editing, **publishing and archiving** (`status: "draft" \| "published" \| "archived"`) and **collection membership** (`collectionIds`). Return the saved `Product`. 422 with `fields` for validation, 404 for an unknown id. |
-| `DELETE /admin/products/:id` | **500 even without a session** | **Check auth before the handler (401 without a session)**, then 404 for an unknown id, then `{ "ok": true }`. A 500 for an unauthenticated request suggests the route runs or crashes before authentication: please check. |
-| `PUT` without a session | 501 | Should be 401. Auth before the "not implemented" stub. |
+## Priority 5: store settings the owner will need soon
+| Endpoints (all **501**) | Screen |
+|---|---|
+| `GET/PUT /admin/settings/store` | Branding and store details (contact email, phone, WhatsApp, hours, socials, announcement) |
+| `GET/PUT /admin/settings/shipping` | Shipping zones and rates |
+| `GET/PUT /admin/settings/payments` | Payment methods shown at checkout (never secret keys) |
+| `GET/PUT /admin/content/homepage`, `GET/PUT /admin/content/navigation`, `GET /admin/pages`, `PUT /admin/pages/:slug` | Homepage sections, menus, policy pages. The storefront already works without these: it shows static brand sections and fallback menus. |
 
-## 4. Collections and media (admin)
-All 501 today. Contract:
-- `POST /admin/collections` (`CollectionInput`) and `PATCH /admin/collections/:id` (partial) return `Collection`.
-- `DELETE /admin/collections/:id` returns `{ ok: true, unassignedProductIds }`.
-- `PUT /admin/collections/order` with `{ ids }` returns `Collection[]` in the new order.
-- Membership is set from the product side through `collectionIds` (section 3).
-- `GET /admin/media`, `POST /admin/media`, `DELETE /admin/media/:id`.
-  - The upload body today is `{ fileName, mimeType, sizeBytes, width, height, alt, tags, dataUrl }`. If you prefer signed direct uploads (recommended for production), propose the endpoints and we'll switch the frontend to match. Agree the format first.
-  - `Media.url` must be an absolute https URL. Media must not be served with `Cross-Origin-Resource-Policy: same-origin` (the API sends that header today), or images won't load on the storefront.
+## Priority 6: everything else that's 501
+- **Customers:** `GET /admin/customers`, `GET /admin/customers/:id`.
+- **Messages:** `GET /admin/inquiries`, `PATCH /admin/inquiries/:id`.
+- **Discounts:** `GET/POST /admin/discounts`, `PUT/DELETE /admin/discounts/:id`, plus storefront `POST /carts/:id/discounts` and `DELETE /carts/:id/discounts/:code`.
+- **Analytics:** `GET /admin/analytics`.
+- **Admin search box:** `GET /admin/search?q=`.
+- **Staff and roles:** `GET/POST /admin/staff`, `PATCH/DELETE /admin/staff/:id`, `GET/PUT /admin/roles`, `DELETE /admin/roles/:id`.
+- **Customer password reset confirm:** `POST /customers/auth/password-reset/confirm`.
+- **Reviews:** `GET /products/:id/reviews` returns 500 for an unknown id (should be 404). Full spec in `docs/REVIEWS_API.md`.
 
-## 5. Error format (all endpoints)
-`{ "error": { "code", "message", "fields"? } }`, with the status codes the UI relies on: 400/422 validation (with `fields`), 401 not signed in, 403 no permission, 404 not found, 409 conflict, 429 rate limited, 5xx only for real server faults. The frontend also reads Fastify's default `{ statusCode, error, message }`, but please keep the envelope.
+## Owner permissions (unchanged requirement)
+The owner role must carry all 17 permissions (or `*`), and `GET /admin/auth/session` must return them:
+`dashboard:read, products:read, products:write, collections:write, inventory:write, media:write, orders:read, orders:write, orders:refund, customers:read, content:write, discounts:write, reviews:moderate, inquiries:respond, analytics:read, settings:write, staff:manage`.
+Every admin endpoint must enforce its permission (map in `docs/BACKEND_INTEGRATION.md`).
 
-## Verification once deployed
-Tell us when sections 1–4 are live. We'll run the browser checks:
-- owner sign-in (entered by the owner), session persistence and logout;
-- product create, edit, publish, archive and delete;
-- collection create, edit, order and assignment;
-- cart create, quantity change, remove and persistence.
+---
 
-We'll use clearly named test records and delete them afterwards. Real store data won't be touched.
+## Signed-in, read-only check (for the owner)
+This confirms the 401 rows above without changing anything.
+1. Sign in at `https://www.queenluxuryhair.store/admin`.
+2. Open the browser console (F12 → Console) and paste the snippet below.
+
+It sends **only GET requests** with your own session and prints each endpoint's status. For successful responses it shows the field names only, never the values.
+
+```js
+(async () => {
+  const api = "https://api.queenluxuryhair.store/v1";
+  const paths = ["/admin/dashboard", "/admin/products", "/admin/product-types", "/admin/collections", "/admin/media", "/admin/inventory", "/admin/orders", "/admin/reviews", "/admin/customers", "/admin/analytics", "/admin/discounts", "/admin/inquiries", "/admin/content/homepage", "/admin/content/navigation", "/admin/pages", "/admin/settings/store", "/admin/settings/shipping", "/admin/settings/payments", "/admin/staff", "/admin/roles", "/admin/search?q=a"];
+  const rows = [];
+  for (const p of paths) {
+    const r = await fetch(api + p, { credentials: "include" });
+    let result = "";
+    try {
+      const j = await r.json();
+      result = j?.error?.code ?? (Array.isArray(j) ? `array(${j.length})` : Object.keys(j).slice(0, 10).join(", "));
+    } catch { result = "not JSON"; }
+    rows.push({ endpoint: "GET " + p, status: r.status, result });
+  }
+  console.table(rows);
+})();
+```
+
+## Verification once each priority is deployed
+Done in the real production dashboard with the owner signed in, using clearly named test records (prefix `TEST – delete me`), which are deleted afterwards. Real store data is never touched.
+- **P1:** create a draft product → reload (it persists) → edit → publish (visible on the storefront) → archive (hidden) → delete (gone after reload).
+- **P2:** upload an image → attach it to the test product → it shows on the storefront → delete it.
+- **P3:** create a collection → assign the test product → reorder → it shows on `/collections/:handle` → delete it (products unassigned).
+- **Cart:** with the published test product, add to bag → change quantity → remove → reload (state persists) → clean up.
