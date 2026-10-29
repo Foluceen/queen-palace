@@ -1,0 +1,5 @@
+import 'dotenv/config'; import pg from 'pg'; import argon2 from 'argon2';
+const pool=new pg.Pool({connectionString:process.env.DATABASE_URL});
+const cols: string[][]=[['col_futura','futura-wig','Futura Wig'],['col_bone','bone-straight','Bone Straight'],['col_factory','factory-wigs','Factory Wigs'],['col_braids','braids-extensions','Braids Extensions'],['col_maintains','hair-maintains','Hair Maintains']];
+for(let i=0;i<cols.length;i++){const [_id,handle,title]=cols[i]!;await pool.query('INSERT INTO collections(handle,title,position) VALUES($1,$2,$3) ON CONFLICT(handle) DO NOTHING',[handle,title,i]);}
+const password=process.env.SEED_ADMIN_PASSWORD; if(process.env.SEED_ADMIN_EMAIL&&password){const h=await argon2.hash(password,{type:argon2.argon2id});await pool.query('INSERT INTO staff(email,password_hash,name,role) VALUES($1,$2,$3,$4) ON CONFLICT(email) DO NOTHING',[process.env.SEED_ADMIN_EMAIL.toLowerCase(),h,'Queen Palace Owner','owner']);console.log('owner seed created');} else console.log('admin seed skipped: SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD not set'); await pool.end();
