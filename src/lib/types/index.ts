@@ -916,6 +916,8 @@ export interface AdminSession {
   role: Role;
   permissions: Permission[];
   expiresAt: ISODate;
+  /** Frontend-only: the permission names exactly as the backend sent them, for the access screen. */
+  receivedPermissions?: string[];
 }
 
 export interface AdminLoginInput {

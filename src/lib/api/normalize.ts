@@ -70,6 +70,30 @@ export function normalizeSettings(raw: unknown): unknown {
 }
 
 /**
+ * Maps the backend's permission names onto the frontend's names, without widening them:
+ * - separators and case: "dashboard.read", "DASHBOARD_READ", "read:dashboard" → "dashboard:read"
+ * - an explicit full grant: "*", "all", "*:*", "admin:*" → every permission
+ * - an explicit resource grant: "products:*" or "products:manage" → every "products:" permission
+ * Anything else that doesn't match a known permission is ignored (and shown on the access screen).
+ */
+export function canonicalPermissions(names: string[]): Permission[] {
+  const known = new Set<string>(PERMISSIONS);
+  const out = new Set<Permission>();
+  for (const raw of names) {
+    const n = raw.trim().toLowerCase().replace(/[._\-/ ]+/g, ":");
+    if (n === "*" || n === "all" || n === "*:*" || n === "admin:*" || n === "admin:all") {
+      PERMISSIONS.forEach((p) => out.add(p));
+      continue;
+    }
+    const [a = "", b = ""] = n.split(":");
+    if (known.has(n)) out.add(n as Permission);
+    else if (known.has(`${b}:${a}`)) out.add(`${b}:${a}` as Permission);
+    else if (b === "*" || b === "manage" || b === "all") PERMISSIONS.filter((p) => p.startsWith(`${a}:`)).forEach((p) => out.add(p));
+  }
+  return PERMISSIONS.filter((p) => out.has(p));
+}
+
+/**
  * Admin session: accepts the contract shape, or a staff/user/admin object with the role as a
  * string or object, optionally wrapped in { session } or { data }. Permissions are taken from
  * the response. Only when the response gives none and the role is the store owner does the
@@ -85,10 +109,12 @@ export function normalizeAdminSession(raw: unknown): unknown {
   const roleRaw = r.role ?? person.role;
   const roleObj = isObj(roleRaw) ? roleRaw : null;
   const roleName = str(roleObj?.name) ?? str(roleRaw) ?? "Staff";
-  const known = new Set<string>(PERMISSIONS);
-  const listed = [r.permissions, roleObj?.permissions, person.permissions].find(Array.isArray) as unknown[] | undefined;
-  let permissions: Permission[] | undefined = listed?.filter((p): p is Permission => typeof p === "string" && known.has(p));
-  if (!listed && /^(owner|super ?admin)$/i.test(roleName)) permissions = [...PERMISSIONS];
+  // Every list the backend sends counts (top level, role, user); names are canonicalised but
+  // never invented. An explicitly empty list stays empty.
+  const lists = [r.permissions, roleObj?.permissions, person.permissions].filter(Array.isArray) as unknown[][];
+  const received = [...new Set(lists.flat().filter((p): p is string => typeof p === "string"))];
+  let permissions: Permission[] | undefined = lists.length ? canonicalPermissions(received) : undefined;
+  if (!lists.length && /^(owner|super ?admin)$/i.test(roleName)) permissions = [...PERMISSIONS];
   if (!permissions) return raw; // no permission information: let validation report it
   const name =
     str(person.name) ??
@@ -114,6 +140,7 @@ export function normalizeAdminSession(raw: unknown): unknown {
     },
     permissions,
     expiresAt: str(r.expiresAt) ?? str(r.expires_at) ?? "",
+    receivedPermissions: received,
   };
   return session;
 }

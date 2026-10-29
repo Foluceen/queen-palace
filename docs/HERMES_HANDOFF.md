@@ -8,6 +8,22 @@ Checked against `https://api.queenluxuryhair.store/v1` on 29 Oct 2026, ~06:30 UT
 - CORS preflight now allows `GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS` with credentials for the production origin. ✅
 - `POST /carts` returns 201 and `GET /carts/:id` returns 200 for a real cart. ✅
 
+## 0. Owner permissions (29 Oct 2026, ~09:30 UTC)
+The owner can sign in, but the admin showed "You don't have access to this section… dashboard:read".
+
+Frontend (fixed in this deploy):
+- The session adapter used only the *first* permission list it found, so a top-level `permissions: []` hid the list on `role.permissions`. All lists are now merged.
+- Names that weren't spelled exactly like the frontend's (e.g. `dashboard.read`, `DASHBOARD_READ`) were silently dropped. They are now canonicalised. Explicit wildcards are honoured: `*` / `all` grant everything, and `products:*` grants every `products:` permission.
+- An explicitly empty list stays empty. The frontend never grants permissions the backend didn't send. The access screen now shows the role and the exact permission names received.
+
+Backend/database (Hermes):
+- The seeded owner's role must carry every permission:
+  `dashboard:read, products:read, products:write, collections:write, inventory:write, media:write, orders:read, orders:write, orders:refund, customers:read, content:write, discounts:write, reviews:moderate, inquiries:respond, analytics:read, settings:write, staff:manage`
+  (or a single `*` grant, if your RBAC models the owner that way).
+- `GET /admin/auth/session` must return them in `permissions` (top level or on `role.permissions`).
+- If the owner still sees the access screen, its last line says "Permissions received from the store: …". If that says "none", the owner role's permission rows are missing in the database, or the session doesn't include them.
+- The backend must enforce the same permissions on every admin endpoint. The UI only hides sections.
+
 ## 1. Admin sign-in (`POST /admin/auth/login`, `GET /admin/auth/session`, `POST /admin/auth/logout`)
 Request (unchanged, verified in the browser): JSON `{ "email": "<trimmed, lower-case>", "password": "..." }`, `credentials: include`.
 

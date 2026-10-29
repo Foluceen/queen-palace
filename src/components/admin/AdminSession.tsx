@@ -110,12 +110,18 @@ export function Can({ permission, children, fallback = null }: { permission: Per
 
 /** Full-page gate for sections a role can't open. */
 export function RequirePermission({ permission, children }: { permission: Permission; children: ReactNode }) {
-  const { can } = useAdmin();
+  const { can, session } = useAdmin();
   if (!can(permission)) {
+    const received = session.receivedPermissions ?? session.permissions;
     return (
       <div className="admin-denied">
         <h1 className="h2">You don't have access to this section</h1>
         <p className="muted">Ask the store owner to add the “{permission}” permission to your role.</p>
+        {/* Permission names are not secret; showing them makes a misconfigured role obvious. */}
+        <p className="small muted">
+          Signed in as {session.staff.email || session.staff.name}, role “{session.role.name}”. Permissions received from the store:{" "}
+          {received.length ? received.join(", ") : "none"}.
+        </p>
       </div>
     );
   }

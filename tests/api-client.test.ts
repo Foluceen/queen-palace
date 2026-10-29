@@ -266,3 +266,29 @@ describe("admin response checks", () => {
     assert.match(validateResponse("adminListProducts", []) ?? "", /products/);
   });
 });
+
+describe("admin permissions from the backend", () => {
+  it("reads permissions from the role even when the top-level list is empty", async () => {
+    const { normalizeAdminSession } = await import("../src/lib/api/normalize");
+    const s = normalizeAdminSession({ user: { id: 1, email: "o@x.co" }, permissions: [], role: { id: "owner", name: "Owner", permissions: ["dashboard:read", "products:write"] } }) as { permissions: string[] };
+    assert.deepEqual(s.permissions, ["dashboard:read", "products:write"]);
+  });
+
+  it("canonicalises spelling and explicit wildcards without widening other grants", async () => {
+    const { canonicalPermissions } = await import("../src/lib/api/normalize");
+    const { PERMISSIONS } = await import("../src/lib/types");
+    assert.deepEqual(canonicalPermissions(["DASHBOARD_READ", "orders.read", "read:analytics"]), ["dashboard:read", "orders:read", "analytics:read"]);
+    assert.deepEqual(canonicalPermissions(["*"]), [...PERMISSIONS]);
+    assert.deepEqual(canonicalPermissions(["products:*"]), ["products:read", "products:write"]);
+    assert.deepEqual(canonicalPermissions(["made:up", "dashboard"]), []);
+  });
+
+  it("keeps an explicitly empty owner list empty (the backend decides), and limited roles limited", async () => {
+    const { normalizeAdminSession } = await import("../src/lib/api/normalize");
+    const owner = normalizeAdminSession({ user: { id: 1, email: "o@x.co", role: "owner" }, permissions: [] }) as { permissions: string[]; receivedPermissions: string[] };
+    assert.deepEqual(owner.permissions, []);
+    assert.deepEqual(owner.receivedPermissions, []);
+    const fulfil = normalizeAdminSession({ staff: { id: "s", name: "F", email: "f@x.co", roleId: "r" }, role: { id: "r", name: "Fulfilment", permissions: ["orders:read", "orders:write"] }, permissions: ["orders:read", "orders:write"] }) as { permissions: string[] };
+    assert.deepEqual(fulfil.permissions, ["orders:read", "orders:write"]);
+  });
+});
