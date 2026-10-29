@@ -201,6 +201,8 @@ html {
 body {
   margin: 0;
   min-height: 100svh;
+  /* Decorative glows and marquees may extend past the edge; clip keeps sticky headers working. */
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);

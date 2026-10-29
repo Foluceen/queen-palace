@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { normalizeEmail } from "@/lib/email";
 import { Suspense, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -36,7 +37,7 @@ function LoginForm() {
           setBusy(true);
           setError(null);
           try {
-            await api().call("adminLogin", { body: { email, password } });
+            await api().call("adminLogin", { body: { email: normalizeEmail(email), password } });
             router.replace(safeNext(next, "/admin", "/admin"));
           } catch (err) {
             setError(errorMessage(err));

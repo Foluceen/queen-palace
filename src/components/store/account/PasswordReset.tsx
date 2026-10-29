@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { normalizeEmail } from "@/lib/email";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { TextField } from "@/components/ui/Field";
@@ -32,7 +33,7 @@ export function ForgotPasswordForm() {
         setState("sending");
         setError(null);
         try {
-          await api().call("customerRequestPasswordReset", { body: { email } });
+          await api().call("customerRequestPasswordReset", { body: { email: normalizeEmail(email) } });
           setState("sent");
         } catch (err) {
           setError(errorMessage(err));

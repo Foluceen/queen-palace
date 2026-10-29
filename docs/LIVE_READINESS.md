@@ -17,6 +17,20 @@ The frontend is configured for live mode (`.env.production`) and contains no rou
 
 DNS and HTTPS are fine now: `api.queenpalacebeauty.store` resolves to `162.35.31.120`, and the certificate (Let's Encrypt, issued 28 Oct 2026, valid until 26 Jan 2027) matches the hostname.
 
+## Launch status, 29 Oct 2026
+
+Production: `https://queenluxuryhair.store` (Vercel project `queen-palace`). The browser calls `https://api.queenluxuryhair.store/v1`.
+
+Working in a real browser on the deployed site: home, collections, search, cart, checkout, account (sign in and register forms), contact, track order, wishlist and admin sign-in pages all render in live mode with an empty catalogue. GET requests to settings, navigation, homepage, collections and products return 200. The CORS preflight allows the production origin with credentials. Sign-in requests reach `POST /v1/admin/auth/login` and `POST /v1/customers/auth/login` with `{ "email", "password" }` and get a parsed `401 invalid_credentials`.
+
+The frontend adapts the production `/store/settings` format (`email`, `hours`, `socials`, no tagline/branding/theme) in `src/lib/api/normalize.ts`.
+
+**Backend items for Hermes**
+1. **CORS methods.** The preflight returns `Access-Control-Allow-Methods: GET,HEAD,POST`. Browsers will block every `PATCH`, `PUT` and `DELETE` call: cart quantity changes and removals, discounts removal, addresses, wishlist, and every admin edit (30 endpoints). Allow `GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS`.
+2. **Owner sign-in.** The request contract is correct (a body without `email` fails validation; `{email, password}` passes and returns `invalid_credentials`). The frontend now sends the email trimmed and lower-cased. If sign-in still fails, check how the seeded email is stored (case, whitespace) and the password hash and algorithm.
+3. **`getCart` and `listProductReviews` return 500** for unknown ids; they should return 404.
+4. **Domain:** apex `queenluxuryhair.store` redirects to `www` in Vercel. Canonical links point to the apex. To make the apex primary, change the redirect in Vercel → Domains.
+
 ## Domain change: Queen Luxury Hair, 29 Oct 2026
 
 The business is now **Queen Luxury Hair** at **`queenluxuryhair.store`**. The frontend uses `https://queenluxuryhair.store` as its canonical URL (`NEXT_PUBLIC_SITE_URL`), for metadata, canonical links, Open Graph, JSON-LD and `robots.txt`.

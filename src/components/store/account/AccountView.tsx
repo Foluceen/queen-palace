@@ -11,6 +11,7 @@ import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 import { formatDate, fulfillmentStatusLabel, paymentStatusLabel } from "@/lib/format";
 import { PHONE_HINT } from "@/lib/phone";
+import { normalizeEmail } from "@/lib/email";
 import { safeNext } from "@/lib/redirect";
 import type { Address, Customer, OrderSummary, SavedAddress } from "@/lib/types";
 import { AddressFields, emptyAddress } from "./AddressForm";
@@ -315,7 +316,7 @@ function SignIn({ onSignedIn }: { onSignedIn(): void }) {
         setBusy(true);
         setError(null);
         try {
-          await api().call("customerLogin", { body: { email, password } });
+          await api().call("customerLogin", { body: { email: normalizeEmail(email), password } });
           setHint(true);
           onSignedIn();
         } catch (err) {
@@ -359,7 +360,7 @@ function Register({ onSignedIn }: { onSignedIn(): void }) {
         setError(null);
         setFields({});
         try {
-          await api().call("customerRegister", { body: { ...f, phone: f.phone.trim() || undefined } });
+          await api().call("customerRegister", { body: { ...f, email: normalizeEmail(f.email), phone: f.phone.trim() || undefined } });
           setHint(true);
           onSignedIn();
         } catch (err) {
