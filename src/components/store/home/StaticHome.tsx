@@ -29,12 +29,16 @@ function townOf(address: string): string | null {
 }
 
 /**
- * Editorial hero photo: a model wearing one of the store's units, on a black background,
- * facing left with empty space on the left for the headline. Leave null until the real photo
- * is in public/media/hero/; until then the arched lookbook stage is shown instead.
- * `mobile` is an optional portrait crop of the same photo.
+ * Editorial hero: the model is a background-removed cutout (transparent WebP) so she sits
+ * directly on the black page with our own pink and gold light behind her. Set to null to fall
+ * back to the arched lookbook stage.
  */
-export const HERO_PHOTO: { src: string; mobile?: string; alt: string; focus?: string } | null = null;
+export const HERO_PHOTO: { src: string; width: number; height: number; alt: string } | null = {
+  src: "/media/hero/model-body-wave.webp",
+  width: 1320,
+  height: 941,
+  alt: "Model wearing a long, glossy black body wave lace wig with a soft side part",
+};
 
 export function LuxHero({ settings }: { settings: StoreSettings }) {
   if (HERO_PHOTO) return <LuxHeroEditorial settings={settings} photo={HERO_PHOTO} />;
@@ -92,40 +96,51 @@ export function LuxHero({ settings }: { settings: StoreSettings }) {
 
 function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo: NonNullable<typeof HERO_PHOTO> }) {
   const town = townOf(settings.address);
-  const words = ["Hair", "that", "wears", "like"];
-  const chips = [
-    { title: "Wigs & frontals", body: "Bundles and closures too" },
-    { title: "Help choosing", body: "Length, lace and density explained" },
-    { title: town ? `Pickup in ${town}` : "Delivery or pickup", body: "Or delivery at checkout" },
-  ];
+  const trust = [
+    { icon: "crown", title: "Wigs & frontals", body: "Closures and bundles too" },
+    { icon: "spark", title: "Help choosing", body: "Lace, length and density" },
+    { icon: "pin", title: town ? `Pickup in ${town}` : "Delivery or pickup", body: "Or delivery at checkout" },
+  ] as const;
   return (
     <section className="hero lux-ed" aria-labelledby="lux-hero-title">
       <HeroMotion className="lux-ed__inner">
-        <div className="lux-ed__media" data-depth="-3">
-          <Image src={photo.src} alt={photo.alt} fill priority sizes="(min-width: 900px) 62vw, 100vw" className={`lux-ed__img ${photo.mobile ? "lux-ed__img--wide" : ""}`} style={{ objectPosition: photo.focus ?? "70% 30%" }} />
-          {photo.mobile ? <Image src={photo.mobile} alt="" fill priority sizes="100vw" className="lux-ed__img lux-ed__img--tall" /> : null}
-          <span className="lux-ed__fade" aria-hidden />
-          <span className="lux-ed__glow" aria-hidden />
+        {/* Background: light stage behind the model */}
+        <div className="lux-ed__bg" aria-hidden data-depth="-2">
+          <span className="lux-ed__glow lux-ed__glow--pink" />
+          <span className="lux-ed__glow lux-ed__glow--gold" />
+          <svg className="lux-ed__arc" viewBox="0 0 400 400">
+            <circle cx="200" cy="200" r="196" />
+            <circle cx="200" cy="200" r="160" className="lux-ed__arc-inner" />
+          </svg>
         </div>
 
-        <span className="lux-spark lux-ed__spark lux-ed__spark--1" aria-hidden />
-        <span className="lux-spark lux-ed__spark lux-ed__spark--2" aria-hidden />
+        {/* Middle ground: the model */}
+        <div className="lux-ed__model" data-depth="4">
+          <Image src={photo.src} alt={photo.alt} width={photo.width} height={photo.height} priority sizes="(min-width: 900px) 80vw, 180vw" className="lux-ed__img" />
+        </div>
 
+        {/* Foreground: copy */}
         <div className="container lux-ed__copy">
+          <span className="lux-spark lux-ed__spark lux-ed__spark--1" aria-hidden />
           <p className="lux-eyebrow" data-hero-fade>
             <span className="lux-eyebrow__rule" aria-hidden />
             {settings.name}
             {town ? ` · ${town}` : ""}
           </p>
-          <h1 id="lux-hero-title" className="lux-hero__title">
-            {words.map((w) => (
-              <Fragment key={w}>
-                <span className="hero__word">
-                  <span data-hero-word>{w}</span>
-                </span>{" "}
-              </Fragment>
-            ))}
-            <span className="lux-hero__last">
+          <h1 id="lux-hero-title" className="lux-hero__title lux-ed__title">
+            <span className="lux-ed__line">
+              {["Hair", "that", "wears"].map((w) => (
+                <Fragment key={w}>
+                  <span className="hero__word">
+                    <span data-hero-word>{w}</span>
+                  </span>{" "}
+                </Fragment>
+              ))}
+            </span>{" "}
+            <span className="lux-ed__line">
+              <span className="hero__word">
+                <span data-hero-word>like</span>
+              </span>{" "}
               <span className="hero__word">
                 <span data-hero-word>a</span>
               </span>{" "}
@@ -136,7 +151,7 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
               </span>
             </span>
           </h1>
-          <p className="lux-hero__body" data-hero-fade>
+          <p className="lux-hero__body lux-ed__body" data-hero-fade>
             Wigs, frontals, closures and bundles, chosen to look like you on your best day.
           </p>
           <div className="lux-hero__ctas" data-hero-fade>
@@ -147,33 +162,51 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
               Find your look
             </Link>
           </div>
-          <ul className="lux-ed__chips" data-hero-fade>
-            {chips.map((c) => (
-              <li key={c.title}>
-                <span className="lux-ed__chip-dot" aria-hidden />
+          <ul className="lux-ed__trust" data-hero-fade aria-label="Why shop with us">
+            {trust.map((t) => (
+              <li key={t.title}>
+                <TrustIcon name={t.icon} />
                 <span>
-                  <strong>{c.title}</strong>
-                  <span>{c.body}</span>
+                  <strong>{t.title}</strong>
+                  <span>{t.body}</span>
                 </span>
               </li>
             ))}
           </ul>
         </div>
 
-        <svg className="lux-ed__badge hstage__badge" viewBox="0 0 120 120" aria-hidden data-depth="5">
-          <defs>
-            <path id="lux-ed-ring" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0" />
-          </defs>
-          <circle cx="60" cy="60" r="57" className="hstage__badge-bg" />
-          <text className="hstage__badge-text">
-            <textPath href="#lux-ed-ring" textLength="272" lengthAdjust="spacing">
-              QUEEN LUXURY HAIR · WIGS · FRONTALS ·
-            </textPath>
-          </text>
-          <path className="hstage__badge-crown" d="M44 68 L48 52 L55 60 L60 48 L65 60 L72 52 L76 68 Z" />
-        </svg>
+        <span className="lux-spark lux-ed__spark lux-ed__spark--2" aria-hidden />
+        <span className="lux-spark lux-ed__spark lux-ed__spark--3" aria-hidden />
+
+        <Link href="#looks" className="lux-ed__badge" data-depth="7" data-hero-pop aria-label="Shop by look">
+          <svg viewBox="0 0 120 120" aria-hidden>
+            <defs>
+              <path id="lux-ed-ring" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0" />
+            </defs>
+            <circle cx="60" cy="60" r="57" className="hstage__badge-bg" />
+            <text className="hstage__badge-text">
+              <textPath href="#lux-ed-ring" textLength="272" lengthAdjust="spacing">
+                SHOP BY LOOK · QUEEN LUXURY HAIR ·
+              </textPath>
+            </text>
+            <path className="hstage__badge-crown" d="M44 68 L48 52 L55 60 L60 48 L65 60 L72 52 L76 68 Z" />
+          </svg>
+        </Link>
       </HeroMotion>
     </section>
+  );
+}
+
+function TrustIcon({ name }: { name: "crown" | "spark" | "pin" }) {
+  const d = {
+    crown: "M4 17h16l1-10-5 4-4-6-4 6-5-4 1 10Z",
+    spark: "M12 3l1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8L12 3Z",
+    pin: "M12 21s-6-5.4-6-10.5a6 6 0 1 1 12 0C18 15.6 12 21 12 21Zm0-8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+  }[name];
+  return (
+    <svg className="lux-ed__ticon" viewBox="0 0 24 24" aria-hidden>
+      <path d={d} />
+    </svg>
   );
 }
 
