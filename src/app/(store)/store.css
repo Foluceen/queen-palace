@@ -4474,3 +4474,7 @@ body:has(dialog[open]) .wa-float {
     display: none;
   }
 }
+/* Script labels: keep words in multi-word collection names apart ("Futura Wigs"). */
+.circle__label {
+  word-spacing: 0.18em;
+}

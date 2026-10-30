@@ -9,7 +9,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { LookSpotlight } from "@/components/store/home/LookSpotlight";
 import { HeroStage } from "@/components/store/home/HeroStage";
 import { mapsHref } from "@/lib/contact";
-import type { ProductCard as Card, StoreSettings } from "@/lib/types";
+import type { ProductCard as Card, Collection, CollectionWithProducts, StoreSettings } from "@/lib/types";
 
 /**
  * Brand sections that never call the API: they render the same whether the catalogue is
@@ -217,30 +217,92 @@ export function LuxMarquee({ town }: { town: string | null }) {
   return <Marquee items={items} />;
 }
 
-export function LuxLooks() {
+/** "WIG TOOLS" -> "Wig Tools": the script font is made for mixed case. */
+function displayName(title: string): string {
+  const t = title.trim();
+  return t === t.toUpperCase() ? t.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase()) : t;
+}
+
+interface LookTile {
+  key: string;
+  href: string;
+  src: string;
+  alt: string;
+  label: string;
+}
+
+/** Real collections first (published, with a photo); lookbook placeholders fill the rest of the 4. */
+export function collectionTiles(collections: Collection[], count = 4): LookTile[] {
+  const real: LookTile[] = collections
+    .filter((c) => c.image && c.status !== "draft" && c.status !== "archived")
+    .slice(0, count)
+    .map((c) => ({ key: c.id, href: `/collections/${c.handle}`, src: c.image!.url, alt: c.image!.alt || `${displayName(c.title)} collection`, label: displayName(c.title) }));
+  const fill: LookTile[] = LOOKS.slice(0, Math.max(0, count - real.length)).map((l) => ({ key: l.key, href: `/search?q=${encodeURIComponent(l.q)}`, src: l.src, alt: l.alt, label: l.label }));
+  return [...real, ...fill];
+}
+
+export function LuxLooks({ collections = [] }: { collections?: Collection[] }) {
+  const tiles = collectionTiles(collections);
   return (
     <section id="looks" className="section lux-looks" aria-labelledby="looks-title">
       <div className="container">
         <header className="section-head section-head--center">
-          <p className="lux-kicker">The lookbook</p>
+          <p className="lux-kicker">The collections</p>
           <h2 id="looks-title" className="section-title">
-            Shop by look
+            Shop by collection
           </h2>
         </header>
         <Reveal as="ul" className="circles circles--four" variant="fall">
-          {LOOKS.map((look) => (
-            <li key={look.key}>
-              <Link href={`/search?q=${encodeURIComponent(look.q)}`} className="circle">
+          {tiles.map((t) => (
+            <li key={t.key}>
+              <Link href={t.href} className="circle">
                 <span className="circle__glow" aria-hidden />
                 <span className="circle__frame">
-                  <Image src={look.src} alt={look.alt} fill sizes="(min-width: 1100px) 22vw, (min-width: 700px) 30vw, 44vw" className="circle__img" />
+                  <Image quality={90} src={t.src} alt={t.alt} fill sizes="(min-width: 1100px) 22vw, (min-width: 700px) 30vw, 44vw" className="circle__img" />
                   <span className="circle__shade" aria-hidden />
-                  <span className="circle__label script">{look.label}</span>
+                  <span className="circle__label script">{t.label}</span>
                 </span>
               </Link>
             </li>
           ))}
         </Reveal>
+        <p className="circles__all">
+          <Link href="/collections" className="btn btn--ghost lux-btn-ghost">
+            View all collections
+          </Link>
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/** A row of products from one collection, shown after "New in". */
+export function LuxCollectionRail({ data }: { data: CollectionWithProducts }) {
+  const { collection: c, listing } = data;
+  if (!listing.items.length) return null;
+  const name = displayName(c.title);
+  const id = `col-${c.handle}`;
+  return (
+    <section className="section section--tight rail" aria-labelledby={`${id}-title`}>
+      <div className="container">
+        <header className="section-head section-head--center">
+          <p className="lux-kicker">The collection</p>
+          <h2 id={`${id}-title`} className="section-title">
+            {name}
+          </h2>
+          {c.summary ? <p className="muted">{c.summary}</p> : null}
+        </header>
+        <Carousel label={name}>
+          {listing.items.map((p) => (
+            <ProductCard key={p.id} product={p} sizes="(min-width: 1100px) 22vw, (min-width: 640px) 40vw, 72vw" />
+          ))}
+        </Carousel>
+        <p className="rail__all">
+          <Link href={`/collections/${c.handle}`} className="btn btn--ghost btn--sm">
+            Shop all {name}
+            {listing.total > listing.items.length ? ` (${listing.total})` : ""}
+          </Link>
+        </p>
       </div>
     </section>
   );

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { CareTips, CollectionTiles, CtaBand, Editorial, Faq, Newsletter, ProductRail, Promises, Promo, ReviewsStrip, ShadeGuide, Testimonials } from "@/components/store/home/Sections";
-import { LuxArrivals, LuxHero, LuxLooks, LuxMarquee, LuxStandard, LuxVisit } from "@/components/store/home/StaticHome";
+import { LuxArrivals, LuxCollectionRail, LuxHero, LuxLooks, LuxMarquee, LuxStandard, LuxVisit } from "@/components/store/home/StaticHome";
 import { getSettings, storefront } from "@/lib/data/storefront";
 import { unstable_rethrow } from "next/navigation";
-import type { Homepage, ProductCard } from "@/lib/types";
+import type { Collection, CollectionWithProducts, Homepage, ProductCard } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -31,22 +31,54 @@ async function newArrivals(): Promise<ProductCard[] | null> {
   }
 }
 
+/** Published collections in the order set in admin. Failure just means placeholders show. */
+async function collectionsOrEmpty(): Promise<Collection[]> {
+  try {
+    const list = await storefront().collections();
+    return list.filter((c) => c.status !== "draft" && c.status !== "archived").sort((a, b) => a.position - b.position);
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("[home] collections unavailable:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+/** Products for the first two collections, shown as rows after "New in". */
+async function collectionRails(collections: Collection[]): Promise<CollectionWithProducts[]> {
+  const picks = collections.filter((c) => c.productCount > 0).slice(0, 2);
+  const results = await Promise.all(
+    picks.map(async (c) => {
+      try {
+        return await storefront().collection(c.handle, { page: 1, pageSize: 8 });
+      } catch (err) {
+        unstable_rethrow(err);
+        console.error(`[home] collection ${c.handle} unavailable:`, err instanceof Error ? err.message : err);
+        return null;
+      }
+    }),
+  );
+  return results.filter((r): r is CollectionWithProducts => !!r && r.listing.items.length > 0);
+}
+
 /**
  * The brand sections (hero, lookbook, standard, visit) are static and always render, so the
  * site works with an empty catalogue. Sections arranged in admin → Homepage are added below
  * the lookbook once they exist; until then, new arrivals or an honest "being added" panel.
  */
 export default async function HomePage() {
-  const [home, settings, arrivals] = await Promise.all([homepageOrEmpty(), getSettings(), newArrivals()]);
+  const [home, settings, arrivals, collections] = await Promise.all([homepageOrEmpty(), getSettings(), newArrivals(), collectionsOrEmpty()]);
+  const rails = await collectionRails(collections);
   const town = /\b(Ilesha|Ilesa)\b/i.exec(settings.address)?.[0] ?? null;
   const sections = home.sections.filter((s) => s.type !== "hero" && s.type !== "marquee");
   return (
     <>
       <LuxHero settings={settings} />
       <LuxMarquee town={town} />
-      <LuxLooks />
+      <LuxLooks collections={collections} />
       {/* null = the product list couldn't be loaded (logged above): show nothing rather than "being added". */}
       {sections.length || arrivals === null ? null : <LuxArrivals products={arrivals} settings={settings} />}
+      {rails.map((r) => (
+        <LuxCollectionRail key={r.collection.id} data={r} />
+      ))}
       {sections.map((s) => {
         switch (s.type) {
           case "collections":
