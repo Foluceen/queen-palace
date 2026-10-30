@@ -107,7 +107,7 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     deviceSizes: [360, 414, 640, 768, 1024, 1280, 1600, 1920],
     imageSizes: [64, 96, 128, 200, 320, 480],
-    qualities: [62, 65, 75],
+    qualities: [62, 65, 75, 95],
     minimumCacheTTL: 60 * 60 * 24 * 7,
     remotePatterns: mediaHosts.map((hostname) => ({ protocol: "https", hostname })),
   },

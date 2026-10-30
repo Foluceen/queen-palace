@@ -92,7 +92,7 @@ function Gallery({ media, video, activeId, title }: { media: Media[]; video: Pro
         {slides.map((sl, i) => (
           <div key={sl.kind === "image" ? sl.media.id : "video"} className={`gallery__slide ${i === index ? "is-active" : ""}`} data-slide={i} aria-hidden={i !== index} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`}>
             {sl.kind === "image" ? (
-              <Image src={sl.media.url} alt={sl.media.alt} fill priority={i === index} quality={i === index ? 65 : 75} sizes="(min-width: 960px) 52vw, 100vw" className="gallery__img" />
+              <Image src={sl.media.url} alt={sl.media.alt} fill priority={i === index} quality={95} sizes="(min-width: 960px) 52vw, 100vw" className="gallery__img" />
             ) : (
               <VideoSlide video={sl.video} active={i === index} title={title} />
             )}
