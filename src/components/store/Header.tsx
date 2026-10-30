@@ -52,11 +52,13 @@ export function Header({ settings, navigation }: { settings: StoreSettings; navi
                           <Link href={c.href}>{c.label}</Link>
                         </li>
                       ))}
-                      <li>
-                        <Link href={item.href} className="site-nav__all">
-                          View all
-                        </Link>
-                      </li>
+                      {item.children.some((c) => c.href === item.href) ? null : (
+                        <li>
+                          <Link href={item.href} className="site-nav__all">
+                            View all
+                          </Link>
+                        </li>
+                      )}
                     </ul>
                   </div>
                 ) : null}

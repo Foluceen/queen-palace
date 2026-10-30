@@ -8,6 +8,7 @@ import { Marquee } from "@/components/motion/Marquee";
 import { Reveal } from "@/components/motion/Reveal";
 import { LookSpotlight } from "@/components/store/home/LookSpotlight";
 import { HeroStage } from "@/components/store/home/HeroStage";
+import { displayName } from "@/lib/collections";
 import { mapsHref } from "@/lib/contact";
 import type { ProductCard as Card, Collection, CollectionWithProducts, StoreSettings } from "@/lib/types";
 
@@ -215,12 +216,6 @@ function TrustIcon({ name }: { name: "crown" | "spark" | "pin" }) {
 export function LuxMarquee({ town }: { town: string | null }) {
   const items = ["Wigs", "Lace frontals", "Closures", "Bundles", "Hair care", ...(town ? [`Visit us in ${town}`] : [])];
   return <Marquee items={items} />;
-}
-
-/** "WIG TOOLS" -> "Wig Tools": the script font is made for mixed case. */
-function displayName(title: string): string {
-  const t = title.trim();
-  return t === t.toUpperCase() ? t.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase()) : t;
 }
 
 interface LookTile {

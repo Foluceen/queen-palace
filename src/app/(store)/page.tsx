@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CareTips, CollectionTiles, CtaBand, Editorial, Faq, Newsletter, ProductRail, Promises, Promo, ReviewsStrip, ShadeGuide, Testimonials } from "@/components/store/home/Sections";
 import { LuxArrivals, LuxCollectionRail, LuxHero, LuxLooks, LuxMarquee, LuxStandard, LuxVisit } from "@/components/store/home/StaticHome";
+import { orderCollections } from "@/lib/collections";
 import { getSettings, storefront } from "@/lib/data/storefront";
 import { unstable_rethrow } from "next/navigation";
 import type { Collection, CollectionWithProducts, Homepage, ProductCard } from "@/lib/types";
@@ -34,8 +35,7 @@ async function newArrivals(): Promise<ProductCard[] | null> {
 /** Published collections in the order set in admin. Failure just means placeholders show. */
 async function collectionsOrEmpty(): Promise<Collection[]> {
   try {
-    const list = await storefront().collections();
-    return list.filter((c) => c.status !== "draft" && c.status !== "archived").sort((a, b) => a.position - b.position);
+    return orderCollections(await storefront().collections());
   } catch (err) {
     unstable_rethrow(err);
     console.error("[home] collections unavailable:", err instanceof Error ? err.message : err);
@@ -75,8 +75,12 @@ export default async function HomePage() {
       <LuxMarquee town={town} />
       <LuxLooks collections={collections} />
       {/* null = the product list couldn't be loaded (logged above): show nothing rather than "being added". */}
+      {/* The lead collection (Futura Wigs) comes before "New in"; the next one after it. */}
+      {rails.slice(0, 1).map((r) => (
+        <LuxCollectionRail key={r.collection.id} data={r} />
+      ))}
       {sections.length || arrivals === null ? null : <LuxArrivals products={arrivals} settings={settings} />}
-      {rails.map((r) => (
+      {rails.slice(1).map((r) => (
         <LuxCollectionRail key={r.collection.id} data={r} />
       ))}
       {sections.map((s) => {

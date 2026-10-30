@@ -6,54 +6,28 @@ import { FloatingWhatsApp } from "@/components/store/FloatingWhatsApp";
 import { Footer } from "@/components/store/Footer";
 import { Header } from "@/components/store/Header";
 import { WishlistProvider } from "@/components/store/WishlistProvider";
-import { getNavigation, getSettings } from "@/lib/data/storefront";
-import type { Navigation } from "@/lib/types";
+import { unstable_rethrow } from "next/navigation";
+import { orderCollections } from "@/lib/collections";
+import { storeNavigation } from "@/lib/navigation";
+import { getNavigation, getSettings, storefront } from "@/lib/data/storefront";
+import type { Collection } from "@/lib/types";
 import "./store.css";
 
-/**
- * Until menus are arranged in admin, the header and footer link to pages that always exist.
- * As soon as the API returns a menu, it is used instead.
- */
-function withFallbackNavigation(nav: Navigation): Navigation {
-  return {
-    main: nav.main.length
-      ? nav.main
-      : [
-          { id: "nav-shop", label: "Shop", href: "/collections" },
-          { id: "nav-looks", label: "Lookbook", href: "/#looks" },
-          { id: "nav-track", label: "Track order", href: "/track" },
-          { id: "nav-contact", label: "Contact", href: "/contact" },
-        ],
-    footer: nav.footer.length
-      ? nav.footer
-      : [
-          {
-            id: "foot-shop",
-            title: "Shop",
-            items: [
-              { id: "f-all", label: "All collections", href: "/collections" },
-              { id: "f-search", label: "Search", href: "/search" },
-              { id: "f-wish", label: "Wishlist", href: "/wishlist" },
-            ],
-          },
-          {
-            id: "foot-help",
-            title: "Help",
-            items: [
-              { id: "f-track", label: "Track an order", href: "/track" },
-              { id: "f-account", label: "My account", href: "/account" },
-              { id: "f-contact", label: "Contact us", href: "/contact" },
-            ],
-          },
-        ],
-  };
+/** Menus never take the layout down: without collections the menu just has fewer links. */
+async function navCollections(): Promise<Collection[]> {
+  try {
+    return orderCollections(await storefront().collections());
+  } catch (err) {
+    unstable_rethrow(err);
+    return [];
+  }
 }
 
 export const revalidate = 60;
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [settings, rawNavigation] = await Promise.all([getSettings(), getNavigation()]);
-  const navigation = withFallbackNavigation(rawNavigation);
+  const [settings, rawNavigation, collections] = await Promise.all([getSettings(), getNavigation(), navCollections()]);
+  const navigation = storeNavigation(rawNavigation, collections);
   return (
     <CartProvider>
       <WishlistProvider>

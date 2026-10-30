@@ -27,7 +27,7 @@ html.is-locked {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: var(--glass);
+  background: color-mix(in srgb, var(--bg) 97%, transparent);
   backdrop-filter: saturate(1.2) blur(14px);
   -webkit-backdrop-filter: saturate(1.2) blur(14px);
   border-bottom: 1px solid var(--line);
@@ -2308,43 +2308,100 @@ body:has(dialog[open]) .wa-float {
   --btn-bg: var(--success);
   --btn-fg: #fff;
 }
+/* Sticky buy bar: phones and desktop. Appears once the main buttons scroll away, hides at the footer. */
 .buybar {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 36;
+  width: min(760px, calc(100% - 20px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 18px 50px -16px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 53 185 / 0.08);
+  translate: -50% 0;
+  transform: translateY(160%);
+  opacity: 0;
+  transition: transform 0.45s var(--ease-out), opacity 0.3s ease;
+  pointer-events: none;
+}
+.buybar.is-visible {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+body:has(dialog[open]) .buybar {
   display: none;
 }
-@media (max-width: 959px) {
+/* Room under the footer so the floating bar never hides the last links or the copyright line. */
+body:has(.buybar.is-visible) footer {
+  padding-bottom: 104px;
+}
+.buybar__img {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--image-bg);
+}
+.buybar__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.buybar__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.buybar__title {
+  overflow: hidden;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.buybar__price {
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+.buybar__actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.buybar__actions .btn {
+  min-height: 46px;
+  padding-inline: 18px;
+  white-space: nowrap;
+}
+.buybar__add.is-added {
+  --btn-bg: var(--success);
+  --btn-fg: #fff;
+}
+@media (max-width: 559px) {
   .buybar {
-    position: fixed;
-    left: 10px;
-    right: 10px;
-    bottom: max(10px, env(safe-area-inset-bottom));
-    z-index: 36;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 10px 10px 18px;
-    border: 1px solid var(--line-strong);
-    border-radius: 22px;
-    background: var(--glass);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: var(--shadow);
-    transform: translateY(140%);
-    transition: transform 0.45s var(--ease-out);
+    gap: 10px;
+    border-radius: 18px;
   }
-  .buybar.is-visible {
-    transform: none;
+  .buybar__img {
+    flex-basis: 42px;
+    width: 42px;
+    height: 52px;
   }
-  .buybar__info {
-    display: grid;
-    min-width: 0;
+  .buybar__now {
+    display: none;
   }
-  .buybar__title {
-    overflow: hidden;
-    font-weight: 750;
-    font-size: 0.9375rem;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+  .buybar__actions .btn {
+    padding-inline: 14px;
   }
 }
 

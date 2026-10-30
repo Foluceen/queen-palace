@@ -9,7 +9,7 @@ import { QuantityStepper } from "@/components/store/cart/CartLines";
 import { WishlistButton } from "@/components/store/WishlistProvider";
 import { Icon } from "@/components/ui/Icon";
 import { Price } from "@/components/ui/Price";
-import { availabilityLabel } from "@/lib/format";
+import { availabilityLabel, variantLabel } from "@/lib/format";
 import { animate, interrupt } from "@/lib/motion/anime";
 import type { Media, Product, ProductVideo, Variant } from "@/lib/types";
 import { LengthRuler } from "./LengthRuler";
@@ -134,7 +134,7 @@ function Gallery({ media, video, activeId, title }: { media: Media[]; video: Pro
 
 /* ------------------------------------------------------------- add to cart */
 
-function AddToCart({ variant, title }: { variant: Variant | undefined; title: string }) {
+function AddToCart({ variant, title, image }: { variant: Variant | undefined; title: string; image: Media | null }) {
   const { addItem, pending, openDrawer, error, clearError } = useCart();
   const router = useRouter();
   const [buying, setBuying] = useState(false);
@@ -150,13 +150,29 @@ function AddToCart({ variant, title }: { variant: Variant | undefined; title: st
     setAdded(false);
   }, [variant?.id]);
 
-  // Show the sticky mobile bar once the main button scrolls out of view.
+  // The sticky bar appears once the main buttons have scrolled up out of view. While it shows,
+  // the footer gets extra bottom space (see .buybar CSS) so the bar never covers its links.
   useEffect(() => {
     const el = boxRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setBarVisible(!!e && !e.isIntersecting && e.boundingClientRect.top < 0));
-    io.observe(el);
-    return () => io.disconnect();
+    // Position check on scroll (rAF-throttled): unlike an observer, a fast fling or jump past
+    // the buttons can never be missed.
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      setBarVisible(el.getBoundingClientRect().bottom < 0);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    check();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   if (!variant) {
@@ -212,16 +228,30 @@ function AddToCart({ variant, title }: { variant: Variant | undefined; title: st
           {error}
         </p>
       ) : null}
-      <div className={`buybar ${barVisible ? "is-visible" : ""}`} aria-hidden={!barVisible}>
+      <div className={`buybar ${barVisible ? "is-visible" : ""}`} aria-hidden={!barVisible} inert={!barVisible}>
+        {image ? (
+          <span className="buybar__img">
+            <Image quality={90} src={image.url} alt="" width={48} height={60} sizes="48px" />
+          </span>
+        ) : null}
         <div className="buybar__info">
           <span className="buybar__title">{title}</span>
-          <span className="small muted">
-            {variant.title}, <Price amount={variant.price} />
+          <span className="buybar__price">
+            {variantLabel({ variantTitle: variant.title, productTitle: title }) ? `${variant.title} · ` : ""}
+            <Price amount={variant.price} />
           </span>
         </div>
-        <button type="button" className="btn btn--sm" disabled={soldOut || busy} onClick={add} tabIndex={barVisible ? 0 : -1}>
-          {label}
-        </button>
+        <div className="buybar__actions">
+          {!soldOut ? (
+            <button type="button" className="btn btn--ghost btn--sm buybar__now" disabled={busy} onClick={buyNow}>
+              Buy now
+            </button>
+          ) : null}
+          <button type="button" className={`btn btn--sm buybar__add ${added ? "is-added" : ""}`} disabled={soldOut || busy} onClick={add}>
+            {busy && !buying ? <span className="spinner" aria-hidden /> : added ? <Icon name="check" size={16} /> : <Icon name="bag" size={16} />}
+            {label}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -335,7 +365,7 @@ export function ProductExperience({ product, initialVariantId, collection, whats
           )}
         </div>
 
-        <AddToCart variant={variant} title={product.title} />
+        <AddToCart variant={variant} title={product.title} image={product.media.find((m) => m.id === variant?.mediaId) ?? product.media[0] ?? null} />
 
         <div className="pdp__aside">
           <WishlistButton productId={product.id} title={product.title} className="wish-btn--inline" />

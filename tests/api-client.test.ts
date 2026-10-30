@@ -438,3 +438,20 @@ describe("upload time limit", () => {
     assert.equal(uploadTimeoutMs(50_000_000), 300_000, "never more than five minutes");
   });
 });
+
+describe("store menu and collection order", () => {
+  const col = (handle: string, title: string, position = 0, productCount = 5) => ({ id: handle, handle, title, summary: "", description: "", image: null, banner: null, status: "published" as const, position, productCount, seo: {} });
+  it("puts Futura Wigs first and builds the menu from collections", async () => {
+    const { orderCollections, displayName } = await import("../src/lib/collections");
+    const { storeNavigation } = await import("../src/lib/navigation");
+    const ordered = orderCollections([col("wig-tools", "WIG TOOLS"), col("futura-wigs", "FUTURA WIGS"), { ...col("old", "Old"), status: "archived" as const }] as never);
+    assert.deepEqual(ordered.map((c) => c.handle), ["futura-wigs", "wig-tools"]);
+    assert.equal(displayName("WIG TOOLS"), "Wig Tools");
+    assert.equal(displayName("Bone straight"), "Bone straight");
+    const nav = storeNavigation({ main: [], footer: [] }, ordered);
+    assert.deepEqual(nav.main.map((i) => i.label), ["Shop", "Futura Wigs", "Wig Tools", "New in", "Track order", "Contact"]);
+    assert.ok(nav.main[0]!.children!.some((c) => c.href === "/collections/futura-wigs"));
+    const custom = { main: [{ id: "x", label: "Custom", href: "/x" }], footer: [] };
+    assert.deepEqual(storeNavigation(custom, ordered).main, custom.main, "a menu saved in admin always wins");
+  });
+});
