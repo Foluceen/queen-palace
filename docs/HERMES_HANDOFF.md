@@ -97,6 +97,29 @@ Reviewed against `https://api.queenluxuryhair.store/v1` and the `server.ts` in t
 
 Frontend fixes from the same audit are deployed (see the git log for 30 Oct): security headers and CSP, link sanitising, theme-script hardening, demo credentials removed from live bundles, layout and accessibility fixes.
 
+## URGENT: stock added on the Stock page doesn't reach the shop (30 Oct 2026, 08:35 UTC)
+
+What the owner saw: she added 100 to Futura Wigs on the Stock page, and the shop still shows "Sold out".
+
+Live evidence, from `GET /v1/products` just now: Futura Wigs has its variant `dfdec5ea…` with `inventory.available: 0`, `availability: "out_of_stock"` and `updatedAt 08:35:20Z`.
+
+Root cause (in `server.ts`, as shipped in the handoff package):
+- `POST /v1/admin/inventory/adjustments` runs `UPDATE products SET stock = stock + $1` only.
+- `product()` builds `variants` from `product_variants` whenever rows exist. Futura has a default row (created by `syncDefaultVariant`), so the storefront, checkout and admin product view read `product_variants.stock`, which is still 0.
+- `GET /v1/admin/inventory` reads `products.stock`, so the Stock page shows 100 and the shop shows 0.
+
+Fix, either option:
+1. In the adjustment transaction, also `UPDATE product_variants SET stock = stock + $1 WHERE product_id = $2 AND position = 0` (same non-negative guard). Ideally list and adjust per variant (`variantId` is already sent).
+2. Or make `product_variants.stock` the only source of truth and have `/admin/inventory` read it.
+
+Then re-sync existing data once, for example set each default variant's stock to `products.stock` where they differ. Please confirm the number with the owner first; she intended 100 for Futura Wigs.
+
+Also watch for this: `PATCH /v1/admin/products/:id` calls `syncDefaultVariant(id, d)` with a *partial* body, so `price_kobo = d.price` becomes NULL and `sku` becomes NULL when those fields aren't sent. The frontend uses PUT with the full body, but the PATCH route will corrupt the price for any other caller.
+
+Frontend workaround, deployed:
+- The product form's "How many do you have?" is editable again. Saving sends `stock` in the full PUT, which `syncDefaultVariant` writes to both tables. Stock is only sent when the owner changed the number.
+- The Stock page reads each product back and warns when the shop's number differs, telling her to set it on the product.
+
 ## Payments: Paystack only (30 Oct 2026)
 
 The owner has decided the shop takes payment through **Paystack only**. The frontend now:

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { RequirePermission, useAdmin } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
 import { useToast } from "@/components/admin/Toast";
@@ -29,10 +29,36 @@ function stockWords(r: InventoryRow): { text: string; tone: "ok" | "low" | "out"
  * One product per card. The owner just types how many she has now (or taps − / +) and presses
  * Save; the difference is sent to the store as a stock change with a sensible reason.
  */
+/**
+ * What the shop itself shows for this product. The live backend currently keeps two stock
+ * numbers (the product's and its size row's) and the Stock page only changes the first, so we
+ * read the product back to catch the case where customers still see a different number.
+ */
+function useShopCount(row: InventoryRow, nonce: number): number | null {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    api()
+      .call("adminGetProduct", { params: { id: row.productId } })
+      .then((p) => {
+        if (!live) return;
+        const v = p.variants.find((x) => x.id === row.variantId) ?? (p.variants.length === 1 ? p.variants[0] : undefined);
+        setCount(v && v.inventory.tracked ? v.inventory.available : null);
+      })
+      .catch(() => live && setCount(null));
+    return () => {
+      live = false;
+    };
+  }, [row.productId, row.variantId, nonce]);
+  return count;
+}
+
 function StockCard({ row, canEdit, onSaved }: { row: InventoryRow; canEdit: boolean; onSaved(r: InventoryRow): void }) {
   const toast = useToast();
   const [count, setCount] = useState<string>(String(Math.max(0, row.available)));
   const [busy, setBusy] = useState(false);
+  const shopCount = useShopCount(row, row.available);
+  const mismatch = row.tracked && shopCount !== null && shopCount !== row.available;
   const target = Math.max(0, Math.trunc(Number(count)));
   const valid = count.trim() !== "" && Number.isFinite(Number(count)) && Number(count) >= 0;
   const delta = valid ? target - row.available : 0;
@@ -66,6 +92,15 @@ function StockCard({ row, canEdit, onSaved }: { row: InventoryRow; canEdit: bool
         {size ? <span className="astock__size">{size}</span> : null}
         <span className={`astock__badge is-${words.tone}`}>{words.text}</span>
       </div>
+
+      {mismatch ? (
+        <p className="notice notice--warning small astock__warn" role="status">
+          <span>
+            Your shop is still showing <strong>{shopCount <= 0 ? "Sold out" : `${shopCount} in stock`}</strong>, not {row.available}. This is a problem on the store&apos;s server that we&apos;ve
+            reported. For now, <Link href={`/admin/products/${row.productId}`}>open the product</Link>, type {row.available} in “How many do you have?” and press Save.
+          </span>
+        </p>
+      ) : null}
 
       {canEdit && row.tracked ? (
         <form

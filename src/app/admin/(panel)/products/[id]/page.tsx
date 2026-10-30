@@ -34,6 +34,8 @@ interface VariantDraft {
   lowStockThreshold: number;
   mediaId: string | null;
   existingStock: boolean;
+  /** Stock as loaded, so a save only sends a new count when the owner actually changed it. */
+  initialAvailable?: number;
 }
 interface Draft {
   title: string;
@@ -65,7 +67,7 @@ function cartesian(options: { name: string; values: string[] }[]): Record<string
 }
 
 function variantDraft(v: Variant): VariantDraft {
-  return { id: v.id, key: keyOf(v.options), options: v.options, sku: v.sku, price: v.price, compareAtPrice: v.compareAtPrice, available: v.inventory.available, tracked: v.inventory.tracked, policy: v.inventory.policy, lowStockThreshold: v.inventory.lowStockThreshold, mediaId: v.mediaId, existingStock: true };
+  return { id: v.id, key: keyOf(v.options), options: v.options, sku: v.sku, price: v.price, compareAtPrice: v.compareAtPrice, available: v.inventory.available, tracked: v.inventory.tracked, policy: v.inventory.policy, lowStockThreshold: v.inventory.lowStockThreshold, mediaId: v.mediaId, existingStock: true, initialAvailable: v.inventory.available };
 }
 
 function fromProduct(p: Product): Draft {
@@ -258,7 +260,9 @@ export default function ProductEditorPage() {
             price: variants[0].price ?? 0,
             compareAtPrice: variants[0].compareAtPrice,
             sku: variants[0].sku || undefined,
-            ...(isNew ? { stock: Math.max(0, Math.trunc(variants[0].available || 0)) } : {}),
+            // Sent on create, and on edit only when the owner changed the number (so a save never
+            // overwrites stock that changed through orders in the meantime).
+            ...(isNew || variants[0].available !== variants[0].initialAvailable ? { stock: Math.max(0, Math.trunc(variants[0].available || 0)) } : {}),
           }
         : {}),
     };
@@ -350,15 +354,12 @@ export default function ProductEditorPage() {
                 <label className="field__label" htmlFor="stock">
                   How many do you have?
                 </label>
-                {first.existingStock ? (
-                  <p className="astock-now">
-                    <strong>{first.available}</strong> in stock ·{" "}
-                    <Link href={`/admin/inventory?q=${encodeURIComponent(first.sku || draft.title)}`}>Change stock</Link>
-                  </p>
-                ) : (
-                  <input id="stock" className="input" type="number" inputMode="numeric" min={0} value={first.available} onChange={(e) => setVariant(0, { available: Math.max(0, Number(e.target.value) || 0) })} />
-                )}
-                <p className="field__hint">When this reaches 0 the shop shows “Sold out”.</p>
+                <input id="stock" className="input" type="number" inputMode="numeric" min={0} value={first.available} onChange={(e) => setVariant(0, { available: Math.max(0, Number(e.target.value) || 0) })} />
+                <p className="field__hint">
+                  {first.existingStock && first.available !== first.initialAvailable
+                    ? `Was ${first.initialAvailable}. Press Save to change it to ${first.available}.`
+                    : "This is the number customers see. At 0 the shop shows “Sold out”."}
+                </p>
               </div>
             </div>
           ) : null}

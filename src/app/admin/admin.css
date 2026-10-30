@@ -2364,3 +2364,7 @@ a.atable__primary:hover,
     grid-column: 2;
   }
 }
+.astock__warn {
+  grid-column: 1 / -1;
+  margin: 0;
+}
