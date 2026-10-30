@@ -13,7 +13,7 @@ import { EmptyState, ErrorState } from "@/components/ui/States";
 import { api } from "@/lib/api/browser";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
-import { formatEta } from "@/lib/format";
+import { formatEta, variantLabel } from "@/lib/format";
 import { safePaymentRedirect, shouldRotateIdempotencyKey } from "@/lib/checkout";
 import { PHONE_HINT } from "@/lib/phone";
 import { NIGERIAN_STATES, type Address, type PaymentMethod, type PublicPaymentOptions, type SavedAddress, type ShippingQuote } from "@/lib/types";
@@ -309,7 +309,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
               </span>
               <span className="mini-lines__text">
                 <span>{l.productTitle}</span>
-                <span className="small muted">{l.variantTitle}</span>
+                {variantLabel(l) ? <span className="small muted">{variantLabel(l)}</span> : null}
               </span>
               <Price amount={l.lineTotal} />
             </li>

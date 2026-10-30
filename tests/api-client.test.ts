@@ -418,3 +418,13 @@ describe("Paystack public key check", () => {
     assert.match(paystackKeyProblem("", "live", true)!, /Paste/);
   });
 });
+
+describe("line item size names", () => {
+  it("hides 'Default' and a size name that just repeats the product name", async () => {
+    const { variantLabel } = await import("../src/lib/format");
+    assert.equal(variantLabel({ productTitle: "Futura Wigs", variantTitle: "Futura Wigs" }), "");
+    assert.equal(variantLabel({ productTitle: "Futura Wigs", variantTitle: "Default" }), "");
+    assert.equal(variantLabel({ title: "Futura Wigs", variantTitle: "" }), "");
+    assert.equal(variantLabel({ productTitle: "Futura Body Wave", variantTitle: "18\" / 1B" }), "18\" / 1B");
+  });
+});

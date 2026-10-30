@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Price } from "@/components/ui/Price";
-import { availabilityLabel } from "@/lib/format";
+import { availabilityLabel, variantLabel } from "@/lib/format";
 import type { CartLine } from "@/lib/types";
 import { useCart } from "./CartProvider";
 
@@ -40,7 +40,7 @@ function Line({ line, compact, onNavigate }: { line: CartLine; compact?: boolean
           </Link>
           <Price amount={line.lineTotal} />
         </div>
-        <p className="cart-line__variant muted small">{line.variantTitle}</p>
+        {variantLabel(line) ? <p className="cart-line__variant muted small">{variantLabel(line)}</p> : null}
         {line.availability === "low_stock" ? <p className="small cart-line__stock">{availabilityLabel.low_stock}</p> : null}
         <div className="cart-line__actions">
           <QuantityStepper value={line.quantity} max={line.maxQuantity} disabled={busy} onChange={(q) => void updateQuantity(line.id, q)} label={`Quantity for ${line.productTitle}`} />

@@ -75,3 +75,13 @@ export const paymentMethodLabel: Record<PaymentMethod, string> = {
 export function pluralize(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/**
+ * The size/colour name to show under a line item, or "" when there isn't a real one
+ * ("Default", or the backend repeating the product name).
+ */
+export function variantLabel(line: { variantTitle?: string | null; productTitle?: string; title?: string }): string {
+  const v = (line.variantTitle ?? "").trim();
+  const name = (line.productTitle ?? line.title ?? "").trim();
+  return !v || /^default( title)?$/i.test(v) || v.toLowerCase() === name.toLowerCase() ? "" : v;
+}

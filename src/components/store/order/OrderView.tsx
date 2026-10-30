@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Price } from "@/components/ui/Price";
-import { formatDate, formatDateTime, formatEta, fulfillmentStatusLabel, formatNaira, paymentMethodLabel, paymentStatusLabel } from "@/lib/format";
+import { formatDate, formatDateTime, formatEta, fulfillmentStatusLabel, formatNaira, paymentMethodLabel, paymentStatusLabel, variantLabel } from "@/lib/format";
 import type { FulfillmentStatus, Order } from "@/lib/types";
 
 const progress: FulfillmentStatus[] = ["unfulfilled", "processing", "shipped", "out_for_delivery", "delivered"];
@@ -94,7 +94,7 @@ export function OrderView({ order }: { order: Order }) {
                 </span>
                 <span className="mini-lines__text">
                   <span>{l.title}</span>
-                  <span className="small muted">{l.variantTitle}</span>
+                  {variantLabel(l) ? <span className="small muted">{variantLabel(l)}</span> : null}
                 </span>
                 <Price amount={l.lineTotal} />
               </li>

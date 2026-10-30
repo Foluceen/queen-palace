@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "@/lib/api/browser";
 import { ApiError, errorMessage } from "@/lib/api/client";
-import type { Cart } from "@/lib/types";
+import type { Cart, Media } from "@/lib/types";
 
 const STORAGE_KEY = "qp.cartId";
 
@@ -57,11 +57,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const cartIdRef = useRef<string | null>(null);
+  // Product photos by handle, for carts whose lines arrive without an image.
+  const photos = useRef(new Map<string, Promise<Media | null>>());
 
   const accept = useCallback((next: Cart) => {
     cartIdRef.current = next.id;
     writeId(next.id);
     setCart(next);
+    // The live backend currently sends cart lines with `image: null`. Fill each one from the
+    // product's main photo (public product data, display only) without blocking the cart.
+    const missing = next.lines.filter((l) => !l.image && l.handle);
+    if (!missing.length) return;
+    void Promise.all(
+      missing.map(async (l) => {
+        let job = photos.current.get(l.handle);
+        if (!job) {
+          job = api()
+            .call("getProduct", { params: { handle: l.handle } })
+            .then((d) => d.product.media[0] ?? null)
+            .catch(() => null);
+          photos.current.set(l.handle, job);
+        }
+        return [l.id, await job] as const;
+      }),
+    ).then((found) => {
+      const byLine = new Map(found.filter(([, m]) => m));
+      if (!byLine.size) return;
+      setCart((cur) => (cur && cur.id === next.id ? { ...cur, lines: cur.lines.map((l) => (!l.image && byLine.get(l.id) ? { ...l, image: byLine.get(l.id)! } : l)) } : cur));
+    });
   }, []);
 
   const refresh = useCallback(async () => {
