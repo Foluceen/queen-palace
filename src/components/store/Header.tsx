@@ -10,8 +10,8 @@ export function Wordmark({ settings }: { settings: StoreSettings }) {
   const dark = settings.logoDark;
   return (
     <>
-      <Image src={settings.logo.url} alt={settings.name} width={settings.logo.width} height={settings.logo.height} className={`wordmark__img ${dark ? "only-light" : ""}`} priority />
-      {dark ? <Image src={dark.url} alt={settings.name} width={dark.width} height={dark.height} className="wordmark__img only-dark" priority /> : null}
+      <Image quality={90} src={settings.logo.url} alt={settings.name} width={settings.logo.width} height={settings.logo.height} className={`wordmark__img ${dark ? "only-light" : ""}`} priority />
+      {dark ? <Image quality={90} src={dark.url} alt={settings.name} width={dark.width} height={dark.height} className="wordmark__img only-dark" priority /> : null}
     </>
   );
 }

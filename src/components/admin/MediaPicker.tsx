@@ -15,13 +15,14 @@ export const MAX_SOURCE_BYTES = 20_000_000;
 /** The backend's own per-image limit. */
 export const MAX_IMAGE_BYTES = 3_000_000;
 /**
- * Upload budget for the encoded image. The upload is base64 JSON (about 4/3 of the bytes), and the
- * API's nginx proxy rejects request bodies over 1 MB with a 413 that browsers report as a network
- * error. 700 KB keeps the whole request under that with room to spare.
+ * Upload budget for the encoded image. Kept just under the backend's 3 MB per-image limit; the
+ * base64 JSON request (about 4/3 of that, ~3.9 MB) fits the API proxy's 8 MB body limit. Photos
+ * already under the budget and the size limit are uploaded exactly as they are (no re-encoding),
+ * so HD originals keep full quality.
  */
-export const UPLOAD_BUDGET_BYTES = 700_000;
+export const UPLOAD_BUDGET_BYTES = 2_900_000;
 /** Longest side after resizing; plenty for product photos (the storefront serves resized copies). */
-export const MAX_DIMENSION = 2000;
+export const MAX_DIMENSION = 2560;
 
 export interface PreparedImage {
   dataUrl: string;
@@ -92,7 +93,7 @@ export async function readImageFile(file: File): Promise<PreparedImage> {
       ctx.clearRect(0, 0, w, h);
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img.source, 0, 0, w, h);
-      for (const quality of [0.86, 0.78, 0.7]) {
+      for (const quality of [0.93, 0.88, 0.82]) {
         let blob = await encode(canvas, "image/webp", quality);
         if (!blob || blob.type !== "image/webp") {
           // No WebP encoder (older Safari): JPEG on a white background (JPEG has no transparency).

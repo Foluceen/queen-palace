@@ -67,7 +67,7 @@ export function RecentlyViewed({ current }: { current: RecentItem }) {
         {items.map((p) => (
           <li key={p.id}>
             <Link href={`/products/${p.handle}`} className="recent__item">
-              <span className="recent__img">{p.image ? <Image src={p.image.url} alt="" fill sizes="120px" /> : null}</span>
+              <span className="recent__img">{p.image ? <Image quality={90} src={p.image.url} alt="" fill sizes="120px" /> : null}</span>
               <span className="recent__title">{p.title}</span>
               <span className="small muted">
                 From <Price amount={p.priceMin} />

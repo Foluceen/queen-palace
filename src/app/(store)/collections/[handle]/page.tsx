@@ -42,7 +42,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
       <section className={`chead ${hero ? "chead--banner" : ""}`}>
         {hero ? (
           <div className="chead__banner">
-            <Image src={hero.url} alt={hero.alt} fill priority sizes="100vw" className="chead__img" />
+            <Image quality={90} src={hero.url} alt={hero.alt} fill priority sizes="100vw" className="chead__img" />
             <span className="chead__shade" aria-hidden />
           </div>
         ) : null}

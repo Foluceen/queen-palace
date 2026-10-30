@@ -14,11 +14,11 @@ export function ProductCard({ product, priority = false, sizes = "(min-width: 11
       <Link href={`/products/${product.handle}`} className="pcard__link">
         <div className="pcard__media">
           {product.image ? (
-            <Image src={product.image.url} alt={product.image.alt} fill sizes={sizes} priority={priority} className="pcard__img" />
+            <Image quality={90} src={product.image.url} alt={product.image.alt} fill sizes={sizes} priority={priority} className="pcard__img" />
           ) : (
             <div className="pcard__placeholder" aria-hidden />
           )}
-          {product.hoverImage ? <Image src={product.hoverImage.url} alt="" fill sizes={sizes} className="pcard__img pcard__img--hover" aria-hidden /> : null}
+          {product.hoverImage ? <Image quality={90} src={product.hoverImage.url} alt="" fill sizes={sizes} className="pcard__img pcard__img--hover" aria-hidden /> : null}
           {product.badges.length ? (
             <div className="pcard__badges">
               {product.badges.map((b) => (

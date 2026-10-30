@@ -60,11 +60,11 @@ export function Hero({ section }: { section: HeroSection }) {
             {insets.map((it, i) =>
               it.href ? (
                 <Link key={it.key} href={it.href} className={`hero__inset hero__inset--${i}`} data-hero-pop aria-label={it.label}>
-                  <Image src={it.url} alt="" fill sizes="(min-width: 960px) 180px, 120px" />
+                  <Image quality={90} src={it.url} alt="" fill sizes="(min-width: 960px) 180px, 120px" />
                 </Link>
               ) : (
                 <span key={it.key} className={`hero__inset hero__inset--${i}`} data-hero-pop>
-                  <Image src={it.url} alt={it.alt} fill sizes="(min-width: 960px) 180px, 120px" />
+                  <Image quality={90} src={it.url} alt={it.alt} fill sizes="(min-width: 960px) 180px, 120px" />
                 </span>
               ),
             )}
@@ -136,7 +136,7 @@ export function CollectionTiles({ section, collections }: { section: Collections
               <Link href={`/collections/${c.handle}`} className="circle">
                 <span className="circle__glow" aria-hidden />
                 <span className="circle__frame">
-                  {c.image ? <Image src={c.image.url} alt="" fill sizes="(min-width: 1100px) 220px, 42vw" className="circle__img" /> : null}
+                  {c.image ? <Image quality={90} src={c.image.url} alt="" fill sizes="(min-width: 1100px) 220px, 42vw" className="circle__img" /> : null}
                   <span className="circle__shade" aria-hidden />
                   <span className="circle__label script">{c.title}</span>
                 </span>
@@ -193,7 +193,7 @@ export function Editorial({ section }: { section: EditorialSection }) {
           {section.image ? (
             <Reveal className="editorial__media" variant="fall">
               <div className="editorial__frame">
-                <Image src={section.image.url} alt={section.image.alt} fill sizes="(min-width: 900px) 50vw, 100vw" className="editorial__img" />
+                <Image quality={90} src={section.image.url} alt={section.image.alt} fill sizes="(min-width: 900px) 50vw, 100vw" className="editorial__img" />
               </div>
             </Reveal>
           ) : null}
@@ -368,7 +368,7 @@ export function Promo({ section }: { section: PromoSection }) {
           </div>
           {section.image ? (
             <div className="promo__media">
-              <Image src={section.image.url} alt={section.image.alt} fill sizes="(min-width: 900px) 40vw, 100vw" className="promo__img" />
+              <Image quality={90} src={section.image.url} alt={section.image.alt} fill sizes="(min-width: 900px) 40vw, 100vw" className="promo__img" />
             </div>
           ) : null}
         </div>

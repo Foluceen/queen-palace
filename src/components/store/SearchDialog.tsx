@@ -110,7 +110,7 @@ export function SearchDialog({ onClose }: { onClose(): void }) {
                 {result.products.items.slice(0, 5).map((p) => (
                   <li key={p.id}>
                     <Link href={`/products/${p.handle}`} onClick={close} className="search__hit">
-                      {p.image ? <Image src={p.image.url} alt="" width={56} height={70} sizes="56px" /> : null}
+                      {p.image ? <Image quality={90} src={p.image.url} alt="" width={56} height={70} sizes="56px" /> : null}
                       <span>
                         <span className="search__hit-title">{p.title}</span>
                         <span className="small muted">{p.subtitle}</span>

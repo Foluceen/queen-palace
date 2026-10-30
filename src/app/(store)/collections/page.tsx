@@ -30,7 +30,7 @@ export default async function CollectionsPage() {
               <Link href={`/collections/${c.handle}`} className="clist__link">
                 <Reveal className="clist__media" variant="fall">
                   <div className="clist__frame">
-                    {c.image ? <Image src={c.image.url} alt={c.image.alt} fill sizes="(min-width: 900px) 30vw, 100vw" priority={i < 2} className="clist__img" /> : null}
+                    {c.image ? <Image quality={90} src={c.image.url} alt={c.image.alt} fill sizes="(min-width: 900px) 30vw, 100vw" priority={i < 2} className="clist__img" /> : null}
                   </div>
                 </Reveal>
                 <div className="clist__text">

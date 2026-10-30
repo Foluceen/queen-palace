@@ -31,7 +31,7 @@ function Line({ line, compact, onNavigate }: { line: CartLine; compact?: boolean
   return (
     <li className={`cart-line ${busy ? "is-busy" : ""}`} data-cart-line>
       <Link href={`/products/${line.handle}`} className="cart-line__media" onClick={onNavigate} tabIndex={-1} aria-hidden>
-        {line.image ? <Image src={line.image.url} alt="" width={compact ? 88 : 120} height={compact ? 110 : 150} sizes={compact ? "88px" : "120px"} /> : null}
+        {line.image ? <Image quality={90} src={line.image.url} alt="" width={compact ? 88 : 120} height={compact ? 110 : 150} sizes={compact ? "88px" : "120px"} /> : null}
       </Link>
       <div className="cart-line__body">
         <div className="cart-line__head">

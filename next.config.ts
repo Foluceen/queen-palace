@@ -104,10 +104,11 @@ const nextConfig: NextConfig = {
   // Put metadata in <head> for crawlers and link-preview bots (WhatsApp sharing matters here).
   htmlLimitedBots: /Googlebot|Bingbot|DuckDuckBot|YandexBot|Baiduspider|Chrome-Lighthouse|facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|LinkedInBot|Slackbot|Discordbot|Pinterest|Applebot/i,
   images: {
-    formats: ["image/avif", "image/webp"],
+    // WebP only: AVIF at these settings smears fine hair texture (measured on live product photos).
+    formats: ["image/webp"],
     deviceSizes: [360, 414, 640, 768, 1024, 1280, 1600, 1920],
     imageSizes: [64, 96, 128, 200, 320, 480],
-    qualities: [62, 65, 75, 95],
+    qualities: [62, 65, 75, 90, 95],
     minimumCacheTTL: 60 * 60 * 24 * 7,
     remotePatterns: mediaHosts.map((hostname) => ({ protocol: "https", hostname })),
   },

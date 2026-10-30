@@ -89,7 +89,7 @@ export function OrderView({ order }: { order: Order }) {
             {order.lines.map((l) => (
               <li key={l.id}>
                 <span className="mini-lines__media">
-                  {l.image ? <Image src={l.image.url} alt="" width={56} height={70} sizes="56px" /> : null}
+                  {l.image ? <Image quality={90} src={l.image.url} alt="" width={56} height={70} sizes="56px" /> : null}
                   <span className="mini-lines__qty">{l.quantity}</span>
                 </span>
                 <span className="mini-lines__text">

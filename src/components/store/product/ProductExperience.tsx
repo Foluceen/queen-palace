@@ -117,10 +117,10 @@ function Gallery({ media, video, activeId, title }: { media: Media[]; video: Pro
           {slides.map((sl, i) => (
             <button key={sl.kind === "image" ? sl.media.id : "video"} type="button" role="tab" aria-selected={i === index} className={`gallery__thumb ${i === index ? "is-active" : ""}`} onClick={() => setIndex(i)} aria-label={sl.kind === "image" ? `Show image ${i + 1}` : "Show video"}>
               {sl.kind === "image" ? (
-                <Image src={sl.media.url} alt="" width={72} height={90} sizes="72px" />
+                <Image quality={90} src={sl.media.url} alt="" width={72} height={90} sizes="72px" />
               ) : (
                 <span className="gallery__thumb-video">
-                  {sl.video.poster ? <Image src={sl.video.poster.url} alt="" width={72} height={90} sizes="72px" /> : null}
+                  {sl.video.poster ? <Image quality={90} src={sl.video.poster.url} alt="" width={72} height={90} sizes="72px" /> : null}
                   <Icon name="play" size={18} />
                 </span>
               )}
