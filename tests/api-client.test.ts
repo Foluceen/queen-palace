@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { ApiError, buildPath, buildQuery, createApiClient } from "../src/lib/api/client";
 import { emitAuthEvent, onAuthEvent } from "../src/lib/api/auth-events";
-import { safePaymentRedirect, shouldRotateIdempotencyKey } from "../src/lib/checkout";
+import { paystackOnly, safePaymentRedirect, shouldRotateIdempotencyKey } from "../src/lib/checkout";
 import { safeNext } from "../src/lib/redirect";
 
 type Call = { url: string; init: RequestInit };
@@ -151,6 +151,25 @@ describe("checkout safety", () => {
     assert.equal(safePaymentRedirect("http://checkout.paystack.com/abc"), null);
     assert.equal(safePaymentRedirect("javascript:alert(1)"), null);
     assert.equal(safePaymentRedirect(null), null);
+    assert.equal(safePaymentRedirect("https://evil.example/paystack.com"), null, "only Paystack's own host");
+    assert.equal(safePaymentRedirect("https://checkout.paystack.com.evil.example/x"), null);
+    assert.equal(safePaymentRedirect("https://user:pw@checkout.paystack.com/x"), null);
+    assert.equal(safePaymentRedirect("https://checkout.flutterwave.com/x"), null, "Paystack is the only provider");
+  });
+
+  it("offers Paystack as the only way to pay at checkout", () => {
+    const all = {
+      methods: [
+        { method: "bank_transfer" as const, label: "Bank transfer", description: "" },
+        { method: "paystack" as const, label: "Paystack", description: "" },
+        { method: "pay_on_delivery" as const, label: "Pay on delivery", description: "" },
+      ],
+    };
+    const r = paystackOnly(all);
+    assert.equal(r.methods.length, 1);
+    assert.equal(r.methods[0]!.method, "paystack");
+    assert.deepEqual(paystackOnly({ methods: [{ method: "flutterwave", label: "F", description: "" }] }).methods, []);
+    assert.deepEqual(paystackOnly({ methods: [] }).methods, []);
   });
 
   it("keeps the idempotency key for retryable failures and replaces it after a definite rejection", () => {
@@ -382,5 +401,20 @@ describe("admin adapters for the production API", () => {
     const d = normalizeResponse("adminDashboard", { lowStock: [{ variant_id: "v", product_id: "p", product_title: "Wig", variant_title: "Default", sku: "S", available: "2" }] }) as { lowStock: Array<{ productTitle: string; available: number }> };
     assert.equal(d.lowStock[0]!.productTitle, "Wig");
     assert.equal(d.lowStock[0]!.available, 2);
+  });
+});
+
+describe("Paystack public key check", () => {
+  it("accepts the right public key for the chosen mode and refuses secret keys", async () => {
+    const { paystackKeyProblem } = await import("../src/lib/paystack");
+    assert.equal(paystackKeyProblem("pk_live_abc123", "live", true), null);
+    assert.equal(paystackKeyProblem("pk_test_abc123", "test", true), null);
+    assert.equal(paystackKeyProblem("", "test", false), null, "nothing to check while switched off");
+    assert.match(paystackKeyProblem("sk_live_abc123", "live", true)!, /SECRET key/);
+    assert.match(paystackKeyProblem("sk_test_abc", "test", false)!, /SECRET key/, "secret keys are refused even when switched off");
+    assert.match(paystackKeyProblem("pk_test_abc", "live", true)!, /test key/);
+    assert.match(paystackKeyProblem("pk_live_abc", "test", true)!, /live key/);
+    assert.match(paystackKeyProblem("hello", "live", true)!, /doesn't look like/);
+    assert.match(paystackKeyProblem("", "live", true)!, /Paste/);
   });
 });

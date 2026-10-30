@@ -39,8 +39,8 @@ export default function MediaPage() {
   return (
     <RequirePermission permission="products:read">
       <PageHeader
-        title="Media library"
-        description="Product, collection and homepage images. Alt text is read aloud to customers using screen readers."
+        title="Photos"
+        description="Every photo you have uploaded. You can also add photos straight from a product or collection."
         actions={
           canWrite ? (
             <>

@@ -7,6 +7,7 @@ const paths = {
   heart: "M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0",
   minus: "M6 12h12",
+  lock: "M6 11h12v9H6v-9Zm3 0V8a3 3 0 0 1 6 0v3",
   plus: "M12 6v12M6 12h12",
   check: "m5 12 4 4 10-10",
   chevronLeft: "m15 6-6 6 6 6",

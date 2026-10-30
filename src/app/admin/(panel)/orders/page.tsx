@@ -7,9 +7,19 @@ import { RequirePermission } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
 import { OrderStatusBadges } from "@/components/admin/OrderBadges";
 import { Empty, LoadError, LoadingRows, PageHeader } from "@/components/admin/ui";
+import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
-import { formatDateTime, formatNaira, fulfillmentStatusLabel, paymentMethodLabel, paymentStatusLabel } from "@/lib/format";
+import { formatDateTime, formatNaira } from "@/lib/format";
 import type { FulfillmentStatus, PaymentStatus } from "@/lib/types";
+
+/** The few views the owner actually needs, as simple buttons instead of status dropdowns. */
+const VIEWS: { key: string; label: string; paymentStatus?: PaymentStatus; fulfillmentStatus?: FulfillmentStatus }[] = [
+  { key: "all", label: "All orders" },
+  { key: "send", label: "To send", paymentStatus: "paid", fulfillmentStatus: "unfulfilled" },
+  { key: "unpaid", label: "Not paid yet", paymentStatus: "pending" },
+  { key: "sent", label: "Sent out", fulfillmentStatus: "shipped" },
+  { key: "delivered", label: "Delivered", fulfillmentStatus: "delivered" },
+];
 
 function Orders() {
   const sp = useSearchParams();
@@ -20,103 +30,84 @@ function Orders() {
   const page = Number(sp.get("page") ?? 1);
   const [q, setQ] = useState(query);
   const { data, error, loading, reload } = useResource(() => api().call("adminListOrders", { query: { q: query || undefined, paymentStatus, fulfillmentStatus, page, pageSize: 20 } }), [query, paymentStatus, fulfillmentStatus, page]);
+  const current = VIEWS.find((v) => v.paymentStatus === paymentStatus && v.fulfillmentStatus === fulfillmentStatus);
 
-  const setParam = (k: string, v: string | undefined) => {
+  const go = (params: Record<string, string | undefined>) => {
     const next = new URLSearchParams(sp);
-    if (v) next.set(k, v);
-    else next.delete(k);
-    if (k !== "page") next.delete("page");
+    for (const [k, v] of Object.entries(params)) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
+    if (!("page" in params)) next.delete("page");
     router.replace(`/admin/orders?${next.toString()}`);
   };
 
   return (
     <>
-      <PageHeader title="Orders" description="Payment status comes from the payment provider. Confirm bank transfers here once they land." />
+      <PageHeader title="Orders" description="Tap an order to see what to pack and where to send it." />
       <form
-        className="afilters"
+        className="afilters afilters--simple"
         onSubmit={(e) => {
           e.preventDefault();
-          setParam("q", q || undefined);
+          go({ q: q || undefined });
         }}
       >
-        <input className="input" type="search" placeholder="Order number, name or email" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search orders" />
-        <select className="select" value={paymentStatus ?? ""} onChange={(e) => setParam("paymentStatus", e.target.value || undefined)} aria-label="Payment status">
-          <option value="">Any payment status</option>
-          {(Object.keys(paymentStatusLabel) as PaymentStatus[]).map((s) => (
-            <option key={s} value={s}>
-              {paymentStatusLabel[s]}
-            </option>
-          ))}
-        </select>
-        <select className="select" value={fulfillmentStatus ?? ""} onChange={(e) => setParam("fulfillmentStatus", e.target.value || undefined)} aria-label="Fulfilment status">
-          <option value="">Any fulfilment status</option>
-          {(Object.keys(fulfillmentStatusLabel) as FulfillmentStatus[]).map((s) => (
-            <option key={s} value={s}>
-              {fulfillmentStatusLabel[s]}
-            </option>
-          ))}
-        </select>
+        <input className="input" type="search" placeholder="Order number or email" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find an order" />
         <button type="submit" className="btn btn--ghost">
-          Search
+          Find
         </button>
       </form>
+      <div className="achips" role="group" aria-label="Show">
+        {VIEWS.map((v) => (
+          <button key={v.key} type="button" className={`achip ${current?.key === v.key ? "is-on" : ""}`} aria-pressed={current?.key === v.key} onClick={() => go({ paymentStatus: v.paymentStatus, fulfillmentStatus: v.fulfillmentStatus })}>
+            {v.label}
+          </button>
+        ))}
+      </div>
       {error ? <LoadError message={error} onRetry={reload} /> : null}
       {loading && !data ? <LoadingRows /> : null}
       {data ? (
         data.items.length ? (
           <>
-            <div className={`atable-wrap ${loading ? "is-pending" : ""}`}>
-              <table className="atable">
-                <thead>
-                  <tr>
-                    <th scope="col">Order</th>
-                    <th scope="col">Customer</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Payment</th>
-                    <th scope="col" className="num">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((o) => (
-                    <tr key={o.id}>
-                      <td>
-                        <Link href={`/admin/orders/${o.id}`} className="atable__primary">
-                          {o.number}
-                        </Link>
-                        <span className="small muted block">{formatDateTime(o.createdAt)}</span>
-                      </td>
-                      <td className="small">
-                        {o.email}
-                        <span className="muted block">{o.itemCount} items</span>
-                      </td>
-                      <td>
-                        <OrderStatusBadges order={o} />
-                      </td>
-                      <td className="small">{paymentMethodLabel[o.paymentMethod]}</td>
-                      <td className="num">{formatNaira(o.totals.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className={`aplist aolist ${loading ? "is-pending" : ""}`}>
+              {data.items.map((o) => (
+                <li key={o.id}>
+                  <Link href={`/admin/orders/${o.id}`} className="aolist__row">
+                    <span className="aolist__main">
+                      <span className="aolist__number">{o.number}</span>
+                      <span className="small muted">
+                        {formatDateTime(o.createdAt)} · {o.itemCount} {o.itemCount === 1 ? "item" : "items"}
+                      </span>
+                      <span className="small aolist__email">{o.email}</span>
+                    </span>
+                    <span className="aolist__side">
+                      <span className="aolist__total">{formatNaira(o.totals.total)}</span>
+                      <OrderStatusBadges order={o} />
+                    </span>
+                    <Icon name="chevronRight" size={18} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
             {data.totalPages > 1 ? (
               <div className="apager">
-                <button type="button" className="btn btn--ghost btn--sm" disabled={data.page <= 1} onClick={() => setParam("page", String(data.page - 1))}>
+                <button type="button" className="btn btn--ghost btn--sm" disabled={data.page <= 1} onClick={() => go({ page: String(data.page - 1) })}>
                   Previous
                 </button>
                 <span className="small muted">
                   Page {data.page} of {data.totalPages}
                 </span>
-                <button type="button" className="btn btn--ghost btn--sm" disabled={data.page >= data.totalPages} onClick={() => setParam("page", String(data.page + 1))}>
+                <button type="button" className="btn btn--ghost btn--sm" disabled={data.page >= data.totalPages} onClick={() => go({ page: String(data.page + 1) })}>
                   Next
                 </button>
               </div>
             ) : null}
           </>
         ) : (
-          <Empty title="No orders match" body={query || paymentStatus || fulfillmentStatus ? "Clear a filter to see more." : "New orders appear here as customers check out."} />
+          <Empty
+            title={query || paymentStatus || fulfillmentStatus ? "No orders here" : "No orders yet"}
+            body={query || paymentStatus || fulfillmentStatus ? "Tap “All orders” to see everything." : "New orders appear here as soon as a customer pays."}
+          />
         )
       ) : null}
     </>

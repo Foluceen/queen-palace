@@ -50,8 +50,8 @@ export default function DiscountsPage() {
   return (
     <RequirePermission permission="discounts:write">
       <PageHeader
-        title="Discounts"
-        description="Codes customers enter at checkout. The backend checks eligibility and calculates every discount."
+        title="Discount codes"
+        description="Codes customers type at checkout to pay less. The shop works out the discount for them."
         actions={
           <button type="button" className="btn" onClick={() => setDraft(blank())}>
             Create discount
@@ -157,8 +157,8 @@ export default function DiscountsPage() {
         {draft ? (
           <div className="astack">
             <TextField label="Code" value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} error={errors.code} hint="What customers type, e.g. GLOW15" />
-            <TextField label="Internal name" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
-            <SelectField label="Type" value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as DiscountKind, value: e.target.value === "percentage" ? 10 : 0 })}>
+            <TextField label="Name for you (customers don't see it)" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+            <SelectField label="What kind of discount?" value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as DiscountKind, value: e.target.value === "percentage" ? 10 : 0 })}>
               <option value="percentage">Percentage off</option>
               <option value="fixed_amount">Fixed amount off</option>
               <option value="free_shipping">Free delivery</option>

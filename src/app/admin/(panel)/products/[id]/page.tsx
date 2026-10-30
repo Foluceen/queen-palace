@@ -517,7 +517,7 @@ export default function ProductEditorPage() {
                 <Switch checked={draft.featured} onChange={(v) => update({ featured: v })} label="Feature on the homepage" />
                 <TextField label="Web address" value={draft.handle} onChange={(e) => update({ handle: e.target.value })} error={errors.handle} hint={`queenluxuryhair.store/products/${handleFor(draft.handle, draft.title) || "made-from-the-name"}. Made from the name if left empty.`} />
                 <TextField label="Search words (optional)" value={draft.tags} onChange={(e) => update({ tags: e.target.value })} hint="Separate with commas, e.g. frontal, straight, 20 inch" />
-                <TextField label="SKU / stock code (optional)" value={first?.sku ?? ""} onChange={(e) => setVariant(0, { sku: e.target.value })} hint="Made automatically if left empty." />
+                <TextField label="Stock code (optional)" value={first?.sku ?? ""} onChange={(e) => setVariant(0, { sku: e.target.value })} hint="Made automatically if left empty." />
                 <TextField label="Title on Google (optional)" value={draft.seoTitle} onChange={(e) => update({ seoTitle: e.target.value })} />
                 <TextAreaField label="Description on Google (optional)" value={draft.seoDescription} onChange={(e) => update({ seoDescription: e.target.value })} rows={2} />
                 <SelectField label="Status" value={draft.status} onChange={(e) => update({ status: e.target.value as PublishStatus })} hint="Archived products are hidden and kept for your records.">

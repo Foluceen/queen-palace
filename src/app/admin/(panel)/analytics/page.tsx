@@ -7,14 +7,7 @@ import { Empty, LoadError, LoadingRows, PageHeader, Panel } from "@/components/a
 import { api } from "@/lib/api/browser";
 import { isMockMode } from "@/lib/api/config";
 import { formatDate, formatNaira } from "@/lib/format";
-import type { AnalyticsReport, PaymentMethod } from "@/lib/types";
-
-const methodLabel: Record<PaymentMethod, string> = {
-  paystack: "Card (Paystack)",
-  flutterwave: "Card (Flutterwave)",
-  bank_transfer: "Bank transfer",
-  pay_on_delivery: "Pay on delivery",
-};
+import type { AnalyticsReport } from "@/lib/types";
 
 /** One series (paid revenue per day): a single hue, magnitude only. Each bar has a hover title; a table view sits below. */
 function DailyRevenue({ series }: { series: AnalyticsReport["series"] }) {
@@ -33,7 +26,7 @@ function DailyRevenue({ series }: { series: AnalyticsReport["series"] }) {
           <span className="muted">Hover a day for details</span>
         )}
       </p>
-      <svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Paid revenue per day" onMouseLeave={() => setHover(null)}>
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Money in, day by day" onMouseLeave={() => setHover(null)}>
         <line x1="0" x2="100" y1="39.9" y2="39.9" className="rchart__base" />
         {series.map((s, i) => {
           const bh = (s.revenue / max) * 37;
@@ -88,8 +81,8 @@ function AnalyticsInner() {
   return (
     <>
       <PageHeader
-        title="Analytics"
-        description="Revenue counts paid orders only. Pending, failed and refunded payments are excluded."
+        title="Sales report"
+        description="Only paid orders are counted. Unpaid, failed and refunded orders are left out."
         actions={
           <select className="select select--sm" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Period">
             <option value={7}>Last 7 days</option>
@@ -104,34 +97,34 @@ function AnalyticsInner() {
       {loading && !data ? <LoadingRows rows={6} /> : null}
       {data ? (
         data.allOrders === 0 ? (
-          <Empty title="No orders in this period" body="Analytics fill in as customers place orders." />
+          <Empty title="No orders in this period" body="This report fills in as customers pay for orders." />
         ) : (
           <div className="adash">
             <div className="astats">
               <div className="astat">
-                <p className="astat__label">Paid revenue</p>
+                <p className="astat__label">Money in</p>
                 <p className="astat__value">{formatNaira(data.revenue)}</p>
               </div>
               <div className="astat">
-                <p className="astat__label">Paid orders</p>
+                <p className="astat__label">Orders paid</p>
                 <p className="astat__value">{data.paidOrders}</p>
-                <p className="small muted">of {data.allOrders} placed</p>
+                <p className="small muted">out of {data.allOrders} orders</p>
               </div>
               <div className="astat">
-                <p className="astat__label">Average paid order</p>
+                <p className="astat__label">Average order</p>
                 <p className="astat__value">{formatNaira(data.averageOrderValue)}</p>
               </div>
               <div className="astat">
-                <p className="astat__label">Units sold</p>
+                <p className="astat__label">Items sold</p>
                 <p className="astat__value">{data.unitsSold}</p>
                 <p className="small muted">
-                  {data.customers.new} new, {data.customers.returning} returning customers
+                  {data.customers.new} new customers, {data.customers.returning} came back
                 </p>
               </div>
             </div>
 
             <Panel
-              title="Paid revenue per day"
+              title="Money in, day by day"
               actions={
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setTable((t) => !t)} aria-pressed={table}>
                   {table ? "Show chart" : "Show table"}
@@ -148,7 +141,7 @@ function AnalyticsInner() {
                           Orders
                         </th>
                         <th scope="col" className="num">
-                          Paid revenue
+                          Money in
                         </th>
                       </tr>
                     </thead>
@@ -169,17 +162,14 @@ function AnalyticsInner() {
             </Panel>
 
             <div className="agrid-2">
-              <Panel title="Top products">
+              <Panel title="Best sellers">
                 <BarList rows={data.topProducts.map((p) => ({ label: p.title, value: p.revenue, display: formatNaira(p.revenue), sub: `· ${p.unitsSold} sold` }))} />
               </Panel>
               <Panel title="By collection">
-                <BarList rows={data.byCollection.map((c) => ({ label: c.title, value: c.revenue, display: formatNaira(c.revenue), sub: `· ${c.units} units` }))} />
+                <BarList rows={data.byCollection.map((c) => ({ label: c.title, value: c.revenue, display: formatNaira(c.revenue), sub: `· ${c.units} sold` }))} />
               </Panel>
-              <Panel title="By state">
+              <Panel title="Where customers live">
                 <BarList rows={data.byState.slice(0, 8).map((s) => ({ label: s.state, value: s.revenue, display: formatNaira(s.revenue), sub: `· ${s.orders} orders` }))} />
-              </Panel>
-              <Panel title="By payment method">
-                <BarList rows={data.byPaymentMethod.map((m) => ({ label: methodLabel[m.method], value: m.revenue, display: formatNaira(m.revenue), sub: `· ${m.orders} orders` }))} />
               </Panel>
             </div>
 
@@ -191,7 +181,7 @@ function AnalyticsInner() {
                       <tr>
                         <th scope="col">Code</th>
                         <th scope="col" className="num">
-                          Uses
+                          Times used
                         </th>
                         <th scope="col" className="num">
                           Given away

@@ -159,7 +159,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
         return;
       }
       if (redirect) {
-        // Hosted payment page (Paystack/Flutterwave). It returns to the order page.
+        // Paystack's hosted payment page. Paystack returns the shopper to the order page.
         window.location.assign(redirect);
         return;
       }
@@ -288,8 +288,11 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
               ))}
             </div>
           ) : (
-            <p className="notice notice--warning">Online payment isn't set up yet. Contact us to complete your order.</p>
+            <p className="notice notice--warning">
+              Online payment isn&apos;t switched on yet. <Link href="/contact">Message us</Link> and we&apos;ll help you complete your order.
+            </p>
           )}
+          {payment.methods.length ? <p className="small muted">Your card details go straight to Paystack. We never see or store them.</p> : null}
           {isMockMode ? <p className="notice notice--info small">Demo mode: placing an order records it with payment pending. No payment provider is connected, so you won't be charged.</p> : null}
           <TextAreaField label="Note for our team (optional)" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
         </section>
@@ -347,7 +350,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
         ) : null}
         <button type="submit" className="btn btn--block" disabled={placing || !quote || !method}>
           {placing ? <span className="spinner" aria-hidden /> : null}
-          {placing ? "Placing order" : method === "paystack" || method === "flutterwave" ? "Place order and pay" : "Place order"}
+          {placing ? "Placing order" : method === "paystack" ? "Place order and pay with Paystack" : "Place order"}
         </button>
         <p className="small muted">The total above is confirmed by our system when you place the order.</p>
       </aside>

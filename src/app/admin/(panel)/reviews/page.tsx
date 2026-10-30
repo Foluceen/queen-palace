@@ -125,7 +125,7 @@ function ReviewsTab() {
 export default function ReviewsPage() {
   return (
     <RequirePermission permission="reviews:moderate">
-      <PageHeader title="Reviews" description="Customer reviews wait here for approval before they appear on the store. Ratings are calculated only from approved reviews." />
+      <PageHeader title="Reviews" description="New reviews wait here. Approve to show one in your shop, or Reject to hide it. Star ratings only count approved reviews." />
       <ReviewsTab />
     </RequirePermission>
   );

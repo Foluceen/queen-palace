@@ -60,7 +60,9 @@ const check = (cond, msg) => {
     await p.waitForSelector(".choice input[name=rate]", { timeout: 8000 });
     const rateTitles = await p.locator("label.choice .choice__title").allTextContents();
     check(rateTitles.includes("Pick up in store") && rateTitles.includes("Ilesha delivery"), `Ilesha options: ${rateTitles.join(", ")}`);
-    await p.locator("label.choice", { hasText: "Pay on delivery" }).click();
+    const payTitles = await p.locator("label.choice input[name=payment]").count();
+    check(payTitles === 1 && (await p.locator("label.choice", { hasText: "Pay with card, bank transfer or USSD" }).count()) === 1, "Paystack is the only way to pay");
+    await p.locator("label.choice", { hasText: "Pay with card" }).click();
     await p.getByRole("button", { name: /Place order/ }).click();
     await p.waitForSelector("text=Enter a Nigerian mobile number", { timeout: 8000 });
     check(true, "invalid phone rejected by backend with a clear message");

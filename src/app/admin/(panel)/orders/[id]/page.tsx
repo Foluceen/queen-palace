@@ -79,7 +79,7 @@ export default function OrderDetailPage() {
 
       <div className="aeditor">
         <div className="aeditor__main">
-          <Panel title={`Items (${order.itemCount})`}>
+          <Panel title={`What they bought (${order.itemCount})`}>
             <ul className="aorder-lines">
               {order.lines.map((l) => (
                 <li key={l.id}>
@@ -88,9 +88,7 @@ export default function OrderDetailPage() {
                     <Link href={`/admin/products/${l.productId}`} className="atable__primary">
                       {l.title}
                     </Link>
-                    <p className="small muted">
-                      {l.variantTitle}, SKU {l.sku}
-                    </p>
+                    {l.variantTitle && !/^default( title)?$/i.test(l.variantTitle) ? <p className="small muted">{l.variantTitle}</p> : null}
                   </div>
                   <span className="small">
                     {l.quantity} × {formatNaira(l.unitPrice)}
@@ -122,8 +120,8 @@ export default function OrderDetailPage() {
           </Panel>
 
           {canWrite ? (
-            <Panel title="Fulfilment">
-              {order.paymentStatus === "awaiting_transfer" ? <p className="notice notice--warning small">Confirm the bank transfer before shipping.</p> : null}
+            <Panel title="Send this order">
+              {order.paymentStatus === "awaiting_transfer" ? <p className="notice notice--warning small">This order isn't paid yet. Don't send it until it shows Paid.</p> : null}
               <form
                 className="form-grid"
                 onSubmit={async (e) => {
@@ -131,29 +129,29 @@ export default function OrderDetailPage() {
                   await run("fulfil", () => api().call("adminUpdateFulfillment", { params: { id }, body: { fulfillmentStatus: fs, carrier, trackingNumber: tracking, notifyCustomer: notify } }), `Marked ${fulfillmentStatusLabel[fs].toLowerCase()}`);
                 }}
               >
-                <SelectField label="Status" value={fs} onChange={(e) => setFs(e.target.value as FulfillmentStatus)}>
+                <SelectField label="Where is it now?" value={fs} onChange={(e) => setFs(e.target.value as FulfillmentStatus)}>
                   {(["processing", "shipped", "out_for_delivery", "delivered", "returned"] as FulfillmentStatus[]).map((s) => (
                     <option key={s} value={s}>
                       {fulfillmentStatusLabel[s]}
                     </option>
                   ))}
                 </SelectField>
-                <TextField label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Courier or rider name" />
-                <TextField label="Tracking number" value={tracking} onChange={(e) => setTracking(e.target.value)} />
+                <TextField label="Who is delivering it? (optional)" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Rider or courier name" />
+                <TextField label="Tracking number (optional)" value={tracking} onChange={(e) => setTracking(e.target.value)} />
                 <label className="checkbox" style={{ alignSelf: "end" }}>
-                  <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Email the customer
+                  <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Send the customer an email about it
                 </label>
                 <div className="span-2">
                   <button type="submit" className="btn" disabled={busy === "fulfil"}>
                     {busy === "fulfil" ? <span className="spinner" aria-hidden /> : null}
-                    Update fulfilment
+                    Save
                   </button>
                 </div>
               </form>
             </Panel>
           ) : null}
 
-          <Panel title="Timeline">
+          <Panel title="History">
             <form
               className="anote"
               onSubmit={async (e) => {
@@ -161,7 +159,7 @@ export default function OrderDetailPage() {
                 if (await run("note", () => api().call("adminAddOrderNote", { params: { id }, body: { message: note } }), "Note added")) setNote("");
               }}
             >
-              <TextAreaField label="Add a note for your team" value={note} onChange={(e) => setNote(e.target.value)} rows={2} hint="Only staff can see notes." />
+              <TextAreaField label="Write a private note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} hint="Only you and your staff can see this. The customer can't." />
               <button type="submit" className="btn btn--ghost btn--sm" disabled={!note.trim() || busy === "note"}>
                 Add note
               </button>
@@ -196,9 +194,9 @@ export default function OrderDetailPage() {
               </p>
             ) : null}
             {!order.contact.email && !order.contact.phone ? <p className="small muted">Contact details were not recorded for this order.</p> : null}
-            {order.contact.marketingOptIn ? <p className="small muted">Subscribed to updates</p> : null}
+            {order.contact.marketingOptIn ? <p className="small muted">Wants emails about new stock</p> : null}
           </Panel>
-          <Panel title="Delivery address">
+          <Panel title="Send it to">
             {!a.line1 && !a.city ? (
               <p className="small muted">No delivery address was recorded for this order.</p>
             ) : (
@@ -220,7 +218,7 @@ export default function OrderDetailPage() {
                 {order.shippingRate.label}, {formatEta(order.shippingRate.etaDays).toLowerCase()}
               </p>
             ) : null}
-            {order.note ? <p className="notice small">Customer note: {order.note}</p> : null}
+            {order.note ? <p className="notice small">Message from the customer: {order.note}</p> : null}
           </Panel>
           <Panel title="Payment">
             <p>{paymentMethodLabel[order.paymentMethod]}</p>
@@ -239,20 +237,21 @@ export default function OrderDetailPage() {
                 </button>
               </form>
             ) : null}
-            {order.paymentStatus === "pending" && order.paymentMethod !== "pay_on_delivery" ? <p className="small muted">Waiting for the payment provider to confirm. This updates automatically when the provider notifies the store.</p> : null}
+            {order.paymentStatus === "pending" && order.paymentMethod !== "pay_on_delivery" ? <p className="small muted">Not paid yet. When the customer pays on Paystack, this changes to Paid by itself.</p> : null}
+            {order.paymentStatus === "paid" ? <p className="small muted">Paid. You can see the money in your Paystack account.</p> : null}
             {can("orders:refund") && ["paid", "partially_refunded"].includes(order.paymentStatus) ? (
               <ConfirmButton
-                label="Refund"
-                title={`Refund order ${order.number}`}
-                body="The refund goes back to the customer's original payment method."
-                confirmLabel="Issue refund"
+                label="Give money back"
+                title={`Give money back for ${order.number}`}
+                body="The money goes back to the card or account the customer paid with."
+                confirmLabel="Give money back"
                 danger
                 onConfirm={async () => {
-                  await run("refund", () => api().call("adminRefundOrder", { params: { id }, body: { amount: refundAmount ?? 0, reason: "Requested by staff" } }), "Refund issued");
+                  await run("refund", () => api().call("adminRefundOrder", { params: { id }, body: { amount: refundAmount ?? 0, reason: "Requested by staff" } }), "Money sent back");
                 }}
               >
                 <label className="field">
-                  <span className="field__label">Amount</span>
+                  <span className="field__label">How much?</span>
                   <MoneyInput value={refundAmount} onChange={setRefundAmount} ariaLabel="Refund amount" />
                 </label>
               </ConfirmButton>
@@ -263,14 +262,14 @@ export default function OrderDetailPage() {
               <ConfirmButton
                 label="Cancel order"
                 title={`Cancel order ${order.number}?`}
-                body="The customer won't be charged for an unpaid order. Paid orders also need a refund."
+                body="If the customer already paid, you also need to give the money back."
                 confirmLabel="Cancel order"
                 danger
                 onConfirm={async () => {
                   await run("cancel", () => api().call("adminCancelOrder", { params: { id }, body: { reason: cancelReason, restock } }), "Order cancelled");
                 }}
               >
-                <TextField label="Reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Customer asked to cancel" />
+                <TextField label="Why? (optional)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Customer asked to cancel" />
                 <label className="checkbox">
                   <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} /> Put items back in stock
                 </label>

@@ -75,7 +75,7 @@ function ProductTypesInner() {
     <>
       <PageHeader
         title="Product types"
-        description="Each type decides which fields a product has. Wigs get lace and density, hair care gets size and how to use, and so on. Add a type to sell something new without code changes."
+        description="The kinds of things you sell, like Wigs or Hair care. Each kind decides which extra boxes you fill in when adding a product."
         actions={
           canWrite ? (
             <button type="button" className="btn" onClick={() => edit()}>
@@ -160,7 +160,7 @@ function ProductTypesInner() {
           <div className="astack">
             <TextField label="Name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} error={errors.name} placeholder="e.g. Closure" required />
             <TextAreaField label="Description" rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-            <TextField label="Suggested variant options" value={optionsText} onChange={(e) => setOptionsText(e.target.value)} hint="Comma separated, e.g. Length, Density. Pre-filled when creating a product of this type." />
+            <TextField label="Usual choices for this kind" value={optionsText} onChange={(e) => setOptionsText(e.target.value)} hint="Comma separated, e.g. Length, Density. Pre-filled when creating a product of this type." />
             <fieldset className="afieldset">
               <legend className="field__label">Product fields</legend>
               {errors.attributes ? <p className="field__error">{errors.attributes}</p> : null}
@@ -189,7 +189,7 @@ function ProductTypesInner() {
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => setDraft({ ...draft, attributes: [...draft.attributes, { key: "", label: "", kind: "text", group: "details" }] })}>
                 Add field
               </button>
-              <p className="small muted">Removing a field hides it on the store. Values already saved on products are kept by the backend.</p>
+              <p className="small muted">Removing a field hides it on the store. Anything already filled in on your products is kept.</p>
             </fieldset>
           </div>
         ) : null}

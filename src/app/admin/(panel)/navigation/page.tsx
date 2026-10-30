@@ -94,8 +94,8 @@ function NavigationPageInner() {
   return (
     <>
       <PageHeader
-        title="Navigation"
-        description="The header menu, its dropdowns, and the footer link groups."
+        title="Menus"
+        description="The links at the top and the bottom of your shop."
         actions={
           <button type="button" className="btn" onClick={save} disabled={saving || !dirty}>
             {saving ? <span className="spinner" aria-hidden /> : null}

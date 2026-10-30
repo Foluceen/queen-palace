@@ -117,7 +117,7 @@ function CustomersInner() {
 
   return (
     <>
-      <PageHeader title="Customers" description="Everyone who has ordered or created an account. Guest customers are grouped by email." />
+      <PageHeader title="Customers" description="People who have ordered from you or made an account." />
       {isMockMode ? <p className="notice notice--warning small">Sample customers (demo data). No real customer information is shown.</p> : null}
       <div className="afilters">
         <input type="search" className="input" placeholder="Search by name, email or phone" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search customers" />

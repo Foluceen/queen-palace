@@ -47,8 +47,8 @@ export default function StaffPage() {
   return (
     <RequirePermission permission="staff:manage">
       <PageHeader
-        title="Staff and roles"
-        description="Roles decide what each person sees here. The backend checks the same permissions on every request."
+        title="Staff"
+        description="People who can sign in here, and what each one is allowed to do."
         actions={
           <button type="button" className="btn" onClick={() => setInvite({ name: "", email: "", roleId: roles.data?.find((r) => !r.system)?.id ?? "" })}>
             Invite staff

@@ -109,7 +109,7 @@ function Inbox() {
 export default function InquiriesPage() {
   return (
     <RequirePermission permission="inquiries:respond">
-      <PageHeader title="Messages" description="Questions sent through the contact form. Replies are emailed to the customer by the backend." />
+      <PageHeader title="Messages" description="Questions customers sent from your contact page. Your reply is emailed to them." />
       <Inbox />
     </RequirePermission>
   );

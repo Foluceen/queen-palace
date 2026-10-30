@@ -252,7 +252,7 @@ function SectionFields({ s, onChange, collections }: { s: HomepageSection; onCha
           <div className="form-grid">
             <TextField label="Button label" value={s.cta.label} onChange={(e) => onChange({ ...s, cta: { ...s.cta, label: e.target.value } })} />
             <TextField label="Button link" value={s.cta.href} onChange={(e) => onChange({ ...s, cta: { ...s.cta, href: e.target.value } })} />
-            <TextField label="Discount code (optional)" value={s.code ?? ""} onChange={(e) => onChange({ ...s, code: e.target.value.toUpperCase() || null })} hint="Create the code in Discounts. Checkout validates it." />
+            <TextField label="Discount code (optional)" value={s.code ?? ""} onChange={(e) => onChange({ ...s, code: e.target.value.toUpperCase() || null })} hint="Make the code first in Discount codes." />
             <TextField label="Hide after (optional)" type="datetime-local" value={s.endsAt ? s.endsAt.slice(0, 16) : ""} onChange={(e) => onChange({ ...s, endsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} />
             <SelectField label="Colour" value={s.tone} onChange={(e) => onChange({ ...s, tone: e.target.value as typeof s.tone })}>
               <option value="burgundy">Burgundy</option>

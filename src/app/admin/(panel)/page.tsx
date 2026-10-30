@@ -37,7 +37,7 @@ export default function HomePage() {
 
   const actions: Action[] = [
     { href: "/admin/products/new", icon: "plus", title: "Add a product", hint: "Photos, name, price and stock", permission: "products:write", primary: true },
-    { href: "/admin/orders?fulfillmentStatus=unfulfilled", icon: "truck", title: "Orders to send", hint: "Paid orders waiting to be packed", permission: "orders:read", count: data?.awaitingFulfillment },
+    { href: "/admin/orders?paymentStatus=paid&fulfillmentStatus=unfulfilled", icon: "truck", title: "Orders to send", hint: "Paid orders waiting to be packed", permission: "orders:read", count: data?.awaitingFulfillment },
     { href: "/admin/inquiries", icon: "chat", title: "Messages", hint: "Questions from customers", permission: "inquiries:respond", count: data?.newInquiries },
     { href: "/admin/reviews", icon: "star", title: "Reviews to approve", hint: "Show them in the shop or not", permission: "reviews:moderate", count: data?.pendingReviews },
     { href: "/admin/products", icon: "box", title: "My products", hint: "Change prices, photos or stock", permission: "products:read" },
@@ -93,7 +93,7 @@ export default function HomePage() {
                 <span className="ahome__stat-label">Paid orders</span>
                 <span className="ahome__stat-value">{data.orders}</span>
               </div>
-              <Link href="/admin/orders?paymentStatus=awaiting_transfer" className="ahome__stat ahome__stat--link">
+              <Link href="/admin/orders?paymentStatus=pending" className="ahome__stat ahome__stat--link">
                 <span className="ahome__stat-label">Waiting for payment</span>
                 <span className="ahome__stat-value">{data.awaitingPayment}</span>
               </Link>

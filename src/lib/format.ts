@@ -46,11 +46,11 @@ export const availabilityLabel: Record<Availability, string> = {
 };
 
 export const paymentStatusLabel: Record<PaymentStatus, string> = {
-  pending: "Payment pending",
-  awaiting_transfer: "Awaiting transfer",
-  authorized: "Authorised",
+  pending: "Waiting for payment",
+  awaiting_transfer: "Waiting for transfer",
+  authorized: "Payment approved",
   paid: "Paid",
-  failed: "Payment failed",
+  failed: "Payment didn't go through",
   cancelled: "Cancelled",
   refunded: "Refunded",
   partially_refunded: "Partly refunded",
@@ -59,7 +59,7 @@ export const paymentStatusLabel: Record<PaymentStatus, string> = {
 export const fulfillmentStatusLabel: Record<FulfillmentStatus, string> = {
   unfulfilled: "Not yet packed",
   processing: "Being packed",
-  shipped: "Shipped",
+  shipped: "Sent out",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   returned: "Returned",

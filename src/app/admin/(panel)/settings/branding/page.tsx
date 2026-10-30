@@ -92,8 +92,8 @@ function BrandingPageInner() {
   return (
     <>
       <PageHeader
-        title="Branding and store details"
-        description="Name, logo, colours, theme, contact details and the notes shown on product pages."
+        title="Shop details & colours"
+        description="Your shop name, logo, colours and how customers can reach you."
         actions={
           <button type="button" className="btn" onClick={save} disabled={saving || !dirty}>
             {saving ? <span className="spinner" aria-hidden /> : null}
@@ -168,7 +168,7 @@ function BrandingPageInner() {
               <ImageField label="Uploaded logo for dark mode (optional)" value={s.logoDark} onChange={(logoDark) => set({ logoDark })} />
               <p className="small muted">Without uploads, the built-in crown logo is used. It adapts to light and dark mode automatically.</p>
               <label className="field">
-                <span className="field__label">Free delivery threshold</span>
+                <span className="field__label">Free delivery when the order is over</span>
                 <MoneyInput value={s.freeShippingThreshold} onChange={(v) => set({ freeShippingThreshold: v })} placeholder="None" />
               </label>
             </div>

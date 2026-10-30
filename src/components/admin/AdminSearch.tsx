@@ -84,7 +84,7 @@ export function AdminSearch() {
         ref={inputRef}
         type="search"
         className="input asearch__input"
-        placeholder="Search orders, products, customers"
+        placeholder="Search"
         aria-label="Search the admin"
         role="combobox"
         aria-expanded={open}

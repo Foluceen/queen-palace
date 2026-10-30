@@ -97,6 +97,56 @@ Reviewed against `https://api.queenluxuryhair.store/v1` and the `server.ts` in t
 
 Frontend fixes from the same audit are deployed (see the git log for 30 Oct): security headers and CSP, link sanitising, theme-script hardening, demo credentials removed from live bundles, layout and accessibility fixes.
 
+## Payments: Paystack only (30 Oct 2026)
+
+The owner has decided the shop takes payment through **Paystack only**. The frontend now:
+
+- offers only `paymentMethod: "paystack"` at checkout (anything else in `GET /store/payment-options` is ignored);
+- only follows a payment `redirectUrl` that is `https://` on `paystack.com` or a subdomain (e.g. `checkout.paystack.com`); any other URL is refused and the shopper lands on their order page instead;
+- in Admin → Delivery & payment, shows Paystack only, and on save sends `flutterwave.enabled`, `bankTransfer.enabled` and `payOnDelivery.enabled` as `false`;
+- only ever handles the **public** key (`pk_test_…` / `pk_live_…`). It refuses anything starting with `sk_` and checks that the key matches the chosen mode.
+
+Live state today: `GET /store/payment-options` returns `{"methods":[]}`, so checkout says online payment isn't switched on yet.
+
+### What the backend needs to build (from the Paystack docs)
+
+1. **Secret key in the server environment only.** For example `PAYSTACK_SECRET_KEY` (live `sk_live_…`, test `sk_test_…`). It must never be returned by any API or put in a `NEXT_PUBLIC_` variable. Every Paystack API call sends `Authorization: Bearer <secret key>`.
+2. **`PUT /admin/settings/payments`** (still missing) must accept `{ paystack: { enabled, mode, publicKey }, … }` and persist it. `GET /store/payment-options` must then return `{ methods: [{ method: "paystack", label, description }] }` when Paystack is enabled and a secret key for that mode is configured.
+3. **On `POST /checkout` with `paymentMethod: "paystack"`:**
+   - create the order with `paymentStatus: "pending"`, priced by the server;
+   - call `POST https://api.paystack.co/transaction/initialize` with:
+     - `email`: the customer's email;
+     - `amount`: the order total in **kobo**, an integer;
+     - `currency: "NGN"`;
+     - `reference`: unique per attempt, e.g. order number plus a suffix; store it on the order;
+     - `callback_url`: `https://www.queenluxuryhair.store/order/<number>?token=<accessToken>`;
+     - `metadata`: `{ orderId, orderNumber }`;
+     - optionally `channels: ["card","bank","ussd","bank_transfer"]`.
+   - return `payment: { provider: "paystack", status: "pending", reference, redirectUrl: data.authorization_url }`. The frontend redirects the shopper there.
+4. **Never trust the browser return.** Paystack appends `?reference=…` when it sends the shopper back to `callback_url`, and that does **not** prove payment. Mark an order paid only after either:
+   - `GET https://api.paystack.co/transaction/verify/:reference` confirms `data.status === "success"`, `data.amount` equals the order total in kobo, `data.currency === "NGN"`, and the reference belongs to this order; or
+   - a verified webhook (next item).
+5. **Webhook:** `POST /v1/payments/paystack/webhook`, or whichever path you choose.
+   - Verify the `x-paystack-signature` header. It is an HMAC-SHA512 of the **raw request body**, keyed with the secret key. Compare in constant time. Optionally also allow-list Paystack's IPs: `52.31.139.75`, `52.49.173.169`, `52.214.14.220`.
+   - Handle `charge.success`: re-verify the amount, currency and reference, then mark the order `paid`. This must be **idempotent**: the same event can arrive several times, so never double-fulfil.
+   - Return `200` quickly and do slow work after. Paystack retries failed deliveries: in live mode every 3 minutes for the first 4 tries, then hourly for 72 hours.
+   - The owner (or you) enters this URL in Paystack Dashboard → Settings → API Keys & Webhooks.
+6. **Order page refresh:** after the redirect back, `GET /store/orders/:number?token=…` should show the real status. It's fine to call verify there if the webhook hasn't landed yet.
+7. **Refunds** (later): `POST https://api.paystack.co/refund` with `{ transaction: reference, amount }`. This backs `POST /admin/orders/:id/refund`.
+8. Make sure the server's CSP or allow-lists don't block `checkout.paystack.com`. The frontend uses a full-page redirect, not the inline popup, so no Paystack script is loaded on our site.
+
+### What the owner has to provide
+
+- A Paystack business account that has been activated for live payments. Paystack asks for business details and the settlement bank account.
+- **Public key** (`pk_live_…`, and `pk_test_…` for testing): she pastes it in Admin → Delivery & payment.
+- **Secret key** (`sk_live_…` / `sk_test_…`): given privately to Hermes for the server environment, never pasted into the site or chat.
+- She confirms the webhook URL is saved in the Paystack dashboard.
+
+Sources:
+- [Paystack: Accept payments](https://docs-v2.paystack.com/docs/payments/accept-payments/)
+- [Paystack: Verify payments](https://docs-v2.paystack.com/docs/payments/verify-payments/)
+- [Paystack: Webhooks](https://docs-v2.paystack.com/docs/payments/webhooks/)
+
 ## Admin gaps seen while simplifying the admin (30 Oct 2026)
 The frontend now adapts these production formats: reviews `{items}` → list, `{review}` and `{order}` unwrapped, order `items` → `lines`, dashboard low-stock snake_case. Still missing on the backend:
 
