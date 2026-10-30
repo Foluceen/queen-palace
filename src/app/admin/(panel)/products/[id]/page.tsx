@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { RequirePermission, useAdmin } from "@/components/admin/AdminSession";
 import { useResource, useUnsavedWarning } from "@/components/admin/hooks";
 import { MediaPicker, MediaThumb } from "@/components/admin/MediaPicker";
+import { PhotoUploader } from "@/components/admin/PhotoUploader";
 import { useToast } from "@/components/admin/Toast";
 import { ConfirmButton, LoadError, LoadingRows, MoneyInput, PageHeader, Panel, Switch } from "@/components/admin/ui";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
@@ -126,7 +127,6 @@ export default function ProductEditorPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   useUnsavedWarning(dirty);
 
   useEffect(() => {
@@ -201,13 +201,33 @@ export default function ProductEditorPage() {
     }
   };
 
+  /** SKU stays out of the owner's way: one is made from the web address when left empty. */
+  const autoSku = (v: VariantDraft, i: number, handle: string) => {
+    if (v.sku.trim()) return v.sku.trim();
+    const base = `QLH-${handle.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 24)}`.replace(/-+$/, "");
+    const suffix = Object.values(v.options).map((x) => x.toUpperCase().replace(/[^A-Z0-9]+/g, "")).filter(Boolean).join("-");
+    return suffix ? `${base}-${suffix}` : i === 0 ? base : `${base}-${i + 1}`;
+  };
+
   const save = async () => {
-    setSaving(true);
     setErrors({});
     setFormError(null);
+    // Friendly checks before anything is sent (the store checks again).
+    const problems: Record<string, string> = {};
+    if (!draft.title.trim()) problems.title = "Give the product a name.";
+    if (!draft.variants.length || !draft.variants[0]!.price) problems.price = "Add a price.";
+    if (Object.keys(problems).length) {
+      setErrors(problems);
+      setFormError(problems.title ?? problems.price ?? null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setSaving(true);
+    const handle = handleFor(draft.handle, draft.title);
+    const variants = draft.variants.map((v, i) => ({ ...v, sku: autoSku(v, i, handle) }));
     const body: ProductInput = {
-      title: draft.title,
-      handle: handleFor(draft.handle, draft.title),
+      title: draft.title.trim(),
+      handle,
       subtitle: draft.subtitle,
       description: draft.description,
       status: draft.status,
@@ -215,7 +235,7 @@ export default function ProductEditorPage() {
       collectionIds: draft.collectionIds,
       mediaIds: draft.media.map((m) => m.id),
       options: draft.options.map((o) => ({ name: o.name.trim(), values: parseValues(o.values) })).filter((o) => o.name && o.values.length),
-      variants: draft.variants.map((v, i) => ({
+      variants: variants.map((v, i) => ({
         id: v.id,
         sku: v.sku,
         title: Object.values(v.options).join(" / ") || "Default",
@@ -233,61 +253,58 @@ export default function ProductEditorPage() {
       tags: parseValues(draft.tags),
       seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined },
       // The production backend stores one price and stock per product: mirror the first option.
-      ...(draft.variants[0]
+      ...(variants[0]
         ? {
-            price: draft.variants[0].price ?? 0,
-            compareAtPrice: draft.variants[0].compareAtPrice,
-            sku: draft.variants[0].sku || undefined,
-            ...(isNew ? { stock: Math.max(0, Math.trunc(draft.variants[0].available || 0)) } : {}),
+            price: variants[0].price ?? 0,
+            compareAtPrice: variants[0].compareAtPrice,
+            sku: variants[0].sku || undefined,
+            ...(isNew ? { stock: Math.max(0, Math.trunc(variants[0].available || 0)) } : {}),
           }
         : {}),
     };
     try {
       const saved = isNew ? await api().call("adminCreateProduct", { body }) : await api().call("adminUpdateProduct", { params: { id }, body });
+      // Photos uploaded before the product had a name get a proper description now (best effort).
+      const name = draft.title.trim();
+      void Promise.allSettled(
+        draft.media
+          .filter((m) => !m.alt || m.alt === "Queen Luxury Hair product photo")
+          .map((m) => api().call("adminUpdateMedia", { params: { id: m.id }, body: { alt: name, tags: m.tags ?? [] } })),
+      );
       setDirty(false);
-      toast(isNew ? "Product created" : "Product saved");
+      toast(isNew ? (draft.status === "published" ? "Product added and showing in the shop" : "Product saved. It's hidden until you switch on “Show in shop”.") : "Changes saved");
       if (isNew) router.replace(`/admin/products/${saved.id}`);
       else product.setData(saved);
     } catch (err) {
       if (err instanceof ApiError && err.fields) setErrors(err.fields);
       setFormError(errorMessage(err));
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSaving(false);
     }
   };
 
   const ro = !canWrite;
+  const first = draft.variants[0];
+  const hasOptions = optionNames.length > 0;
+  const shown = draft.status === "published";
 
   return (
     <RequirePermission permission="products:read">
       <PageHeader
         back={
           <Link href="/admin/products" className="aback small">
-            <Icon name="chevronLeft" size={16} /> Products
+            <Icon name="chevronLeft" size={16} /> All products
           </Link>
         }
-        title={isNew ? "Add product" : draft.title || "Untitled product"}
-        description={ro ? "You can view this product. Your role can't edit it." : dirty ? "You have unsaved changes." : undefined}
+        title={isNew ? "Add a product" : draft.title || "Untitled product"}
+        description={ro ? "You can look at this product, but your account can't change it." : dirty ? "You have changes that aren't saved yet." : undefined}
         actions={
-          <>
-            {!isNew && product.data?.status === "published" ? (
-              <Link href={`/products/${product.data.handle}`} className="btn btn--ghost btn--sm" target="_blank">
-                View in store
-              </Link>
-            ) : null}
-            {!isNew && canWrite ? (
-              <button type="button" className="btn btn--ghost btn--sm" onClick={duplicate} disabled={duplicating || dirty} title={dirty ? "Save your changes first" : undefined}>
-                {duplicating ? <span className="spinner" aria-hidden /> : <Icon name="copy" size={16} />}
-                Duplicate
-              </button>
-            ) : null}
-            {canWrite ? (
-              <button type="button" className="btn" onClick={save} disabled={saving}>
-                {saving ? <span className="spinner" aria-hidden /> : null}
-                {isNew ? "Create product" : "Save changes"}
-              </button>
-            ) : null}
-          </>
+          !isNew && product.data?.status === "published" ? (
+            <Link href={`/products/${product.data.handle}`} className="btn btn--ghost btn--sm" target="_blank">
+              See it in the shop
+            </Link>
+          ) : null
         }
       />
       {formError ? (
@@ -296,256 +313,261 @@ export default function ProductEditorPage() {
         </p>
       ) : null}
 
-      <fieldset className="aeditor" disabled={ro}>
-        <div className="aeditor__main">
-          <Panel title="Details">
-            <div className="astack">
-              <TextField label="Name" value={draft.title} onChange={(e) => update({ title: e.target.value })} error={errors.title} required />
-              <TextField label="Short description" value={draft.subtitle} onChange={(e) => update({ subtitle: e.target.value })} hint="Shown under the name, e.g. 13x4 lace front, natural black" />
-              <TextAreaField label="Description" value={draft.description} onChange={(e) => update({ description: e.target.value })} rows={5} />
-            </div>
-          </Panel>
+      <fieldset className="asimple" disabled={ro}>
+        <Panel title="1. Photos">
+          <PhotoUploader value={draft.media} onChange={(media) => update({ media })} describeAs={draft.title} disabled={ro} />
+          {!draft.media.length ? <p className="small muted">Tip: 3 or more clear photos (front, side and hairline) help customers decide.</p> : null}
+        </Panel>
 
-          <Panel
-            title="Images"
-            actions={
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPickerOpen(true)}>
-                Add images
-              </button>
-            }
-          >
-            {draft.media.length ? (
-              <ul className="amedia-order">
-                {draft.media.map((m, i) => (
-                  <li key={m.id}>
-                    <MediaThumb media={m} size={96} />
-                    <span className="small">{i === 0 ? "Main image" : `Image ${i + 1}`}</span>
-                    <div className="cluster" style={{ ["--cluster" as string]: "4px" }}>
-                      <button type="button" className="icon-btn" disabled={i === 0} aria-label="Move earlier" onClick={() => update({ media: draft.media.map((x, j) => (j === i - 1 ? m : j === i ? draft.media[i - 1]! : x)) })}>
-                        <Icon name="chevronLeft" size={16} />
-                      </button>
-                      <button type="button" className="icon-btn" disabled={i === draft.media.length - 1} aria-label="Move later" onClick={() => update({ media: draft.media.map((x, j) => (j === i + 1 ? m : j === i ? draft.media[i + 1]! : x)) })}>
-                        <Icon name="chevronRight" size={16} />
-                      </button>
-                      <button type="button" className="icon-btn" aria-label="Remove image" onClick={() => update({ media: draft.media.filter((x) => x.id !== m.id) })}>
-                        <Icon name="trash" size={16} />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted small">No images yet. Products with three or more images sell better.</p>
-            )}
-            <MediaPicker open={pickerOpen} multiple selectedIds={draft.media.map((m) => m.id)} onClose={() => setPickerOpen(false)} onSelect={(m) => update({ media: [...draft.media, ...m] })} />
-          </Panel>
+        <Panel title="2. About this product">
+          <div className="astack">
+            <TextField label="Product name" value={draft.title} onChange={(e) => update({ title: e.target.value })} error={errors.title} required placeholder="e.g. Bone Straight 20 inch Frontal Wig" />
+            <TextField label="One line about it (optional)" value={draft.subtitle} onChange={(e) => update({ subtitle: e.target.value })} placeholder="e.g. 13x4 HD lace, natural black" />
+            <TextAreaField label="Description" value={draft.description} onChange={(e) => update({ description: e.target.value })} rows={5} hint="Length, lace, density, how to care for it: anything a customer would ask you." />
+          </div>
+        </Panel>
 
-          <Panel title="Options" actions={<span className="small muted">Comma-separate values, e.g. 16&quot;, 18&quot;, 20&quot;</span>}>
-            <div className="astack">
-              {draft.options.map((o, i) => (
-                <div key={i} className="aoption-row">
-                  <TextField label="Option" value={o.name} onChange={(e) => update({ options: draft.options.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} placeholder="Length" />
-                  <TextField label="Values" value={o.values} onChange={(e) => update({ options: draft.options.map((x, j) => (j === i ? { ...x, values: e.target.value } : x)) })} placeholder='16", 18", 20"' />
-                  <button type="button" className="icon-btn" aria-label={`Remove option ${o.name}`} onClick={() => update({ options: draft.options.filter((_, j) => j !== i) })}>
-                    <Icon name="trash" size={16} />
-                  </button>
-                </div>
-              ))}
-              {draft.options.length < 3 ? (
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => update({ options: [...draft.options, { name: "", values: "" }] })}>
-                  Add option
-                </button>
-              ) : null}
-              <p className="small muted">Options are up to you: Length, Size, Colour, Pack, anything. An option called Length uses the measuring-tape selector; Colour shows shade swatches for codes like 1B, 27 and 613.</p>
-            </div>
-          </Panel>
-
-          <Panel title={`Variants (${draft.variants.length})`}>
-            {errors.variants ? <p className="field__error">{errors.variants}</p> : null}
-            {!isMockMode && draft.variants.length > 1 ? (
-              <p className="notice notice--warning small" role="status">
-                The store currently saves one price, SKU and stock per product: the first row below. The other options aren&apos;t stored yet, so list them as separate products for now.
-              </p>
-            ) : null}
-            <div className="atable-wrap">
-              <table className="atable atable--edit">
-                <thead>
-                  <tr>
-                    <th scope="col">Variant</th>
-                    <th scope="col">SKU</th>
-                    <th scope="col">Price</th>
-                    <th scope="col">Compare at</th>
-                    <th scope="col">Stock</th>
-                    <th scope="col">Track</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {draft.variants.map((v, i) => (
-                    <tr key={v.key}>
-                      <th scope="row">{optionNames.length ? optionNames.map((n) => v.options[n]).join(" / ") : "Default"}</th>
-                      <td>
-                        <input className="input input--sm" value={v.sku} onChange={(e) => setVariant(i, { sku: e.target.value })} aria-label="SKU" aria-invalid={!!errors[`variants.${i}.sku`] || undefined} />
-                      </td>
-                      <td>
-                        <MoneyInput value={v.price} onChange={(k) => setVariant(i, { price: k })} ariaLabel="Price" invalid={!!errors[`variants.${i}.price`]} />
-                      </td>
-                      <td>
-                        <MoneyInput value={v.compareAtPrice} onChange={(k) => setVariant(i, { compareAtPrice: k })} ariaLabel="Compare-at price" placeholder="" />
-                      </td>
-                      <td>
-                        {v.existingStock ? (
-                          <Link href={`/admin/inventory?q=${encodeURIComponent(v.sku)}`} className="small">
-                            {v.available} in stock
-                          </Link>
-                        ) : (
-                          <input className="input input--sm" type="number" min={0} value={v.available} onChange={(e) => setVariant(i, { available: Math.max(0, Number(e.target.value) || 0) })} aria-label="Starting stock" />
-                        )}
-                      </td>
-                      <td>
-                        <input type="checkbox" checked={v.tracked} onChange={(e) => setVariant(i, { tracked: e.target.checked })} aria-label="Track stock" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {Object.keys(errors).some((k) => k.startsWith("variants.")) ? <p className="field__error">Every variant needs a SKU and a price above ₦0.</p> : null}
-            <p className="small muted">Prices are what customers pay, in naira. Existing stock is changed from Inventory so every change is recorded.</p>
-          </Panel>
-
-          <Panel title={selectedType ? `${selectedType.name} details` : "Product details"}>
-            {selectedType ? (
-              selectedType.attributes.length ? (
-                <div className="astack">
-                  {selectedType.attributes.map((a) =>
-                    a.kind === "text" ? (
-                      <TextField key={a.key} label={a.label} value={draft.attributes[a.key] ?? ""} placeholder={a.placeholder} onChange={(e) => update({ attributes: { ...draft.attributes, [a.key]: e.target.value } })} />
-                    ) : (
-                      <TextAreaField
-                        key={a.key}
-                        label={a.label}
-                        rows={a.kind === "list" ? 4 : 3}
-                        value={draft.attributes[a.key] ?? ""}
-                        placeholder={a.placeholder}
-                        hint={a.kind === "list" ? "One per line. Shown as bullet points." : undefined}
-                        onChange={(e) => update({ attributes: { ...draft.attributes, [a.key]: e.target.value } })}
-                      />
-                    ),
-                  )}
-                  <p className="small muted">
-                    Empty fields are hidden in the store. Change which fields this type has in <Link href="/admin/product-types">Product types</Link>.
+        <Panel title="3. Price and stock">
+          {hasOptions ? (
+            <p className="small muted">This product has sizes or colours, so prices and stock are set for each one under “More options” below.</p>
+          ) : first ? (
+            <div className="aprice-grid">
+              <div className="field">
+                <label className="field__label" htmlFor="price">
+                  Price (₦)
+                </label>
+                <MoneyInput id="price" value={first.price} onChange={(k) => setVariant(0, { price: k })} invalid={!!errors.price} ariaLabel="Price in naira" />
+                {errors.price ? <p className="field__error">{errors.price}</p> : null}
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="old-price">
+                  Old price (optional)
+                </label>
+                <MoneyInput id="old-price" value={first.compareAtPrice} onChange={(k) => setVariant(0, { compareAtPrice: k })} placeholder="" ariaLabel="Old price in naira" />
+                <p className="field__hint">If higher than the price, the shop shows a “Sale” label.</p>
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="stock">
+                  How many do you have?
+                </label>
+                {first.existingStock ? (
+                  <p className="astock-now">
+                    <strong>{first.available}</strong> in stock ·{" "}
+                    <Link href={`/admin/inventory?q=${encodeURIComponent(first.sku || draft.title)}`}>Change stock</Link>
                   </p>
-                </div>
-              ) : (
-                <p className="small muted">This type has no extra fields.</p>
-              )
-            ) : (
-              <p className="small muted">Choose a product type in the sidebar to fill in its details, such as lace and density for wigs or size and how to use for hair care.</p>
-            )}
-          </Panel>
-
-          <Panel title="Video (optional)">
-            <div className="astack">
-              <TextField label="Video URL" type="url" value={draft.videoUrl} onChange={(e) => update({ videoUrl: e.target.value })} error={errors.video} placeholder="https://…/product.mp4" hint="A hosted MP4 or WebM file. It only loads when a shopper presses play." />
-              {draft.videoUrl ? (
-                <div className="cluster">
-                  {draft.videoPoster ? <MediaThumb media={draft.videoPoster} size={64} /> : null}
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPosterOpen(true)}>
-                    {draft.videoPoster ? "Change cover image" : "Choose cover image"}
-                  </button>
-                  {draft.videoPoster ? (
-                    <button type="button" className="link-btn small" onClick={() => update({ videoPoster: null })}>
-                      Remove cover
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-              <MediaPicker open={posterOpen} onClose={() => setPosterOpen(false)} onSelect={(m) => update({ videoPoster: m[0] ?? null })} />
+                ) : (
+                  <input id="stock" className="input" type="number" inputMode="numeric" min={0} value={first.available} onChange={(e) => setVariant(0, { available: Math.max(0, Number(e.target.value) || 0) })} />
+                )}
+                <p className="field__hint">When this reaches 0 the shop shows “Sold out”.</p>
+              </div>
             </div>
-          </Panel>
-        </div>
+          ) : null}
+        </Panel>
 
-        <aside className="aeditor__side">
-          <Panel title="Status">
-            <div className="astack">
-              <SelectField label="Visibility" value={draft.status} onChange={(e) => update({ status: e.target.value as PublishStatus })} hint={draft.status === "published" ? "Visible in the store." : draft.status === "draft" ? "Hidden until you publish it." : "Hidden and kept for records."}>
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="archived">Archived</option>
-              </SelectField>
-              <Switch checked={draft.featured} onChange={(v) => update({ featured: v })} label="Feature on the homepage" />
-              <SelectField label="Product type" value={draft.productTypeId ?? ""} onChange={(e) => chooseType(e.target.value)} error={errors.productTypeId} hint="Decides which detail fields this product has.">
-                <option value="">No type</option>
-                {(types.data ?? []).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </SelectField>
-              {types.error ? (
-                <div className="notice notice--warning small" role="status">
-                  <span>Product types couldn&apos;t be loaded ({types.error}). You can still save this product without a type.</span>
-                  <button type="button" className="btn btn--sm btn--ghost" onClick={() => void types.reload()}>
-                    Try again
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </Panel>
-          <Panel title="Collections">
-            {collections.data ? (
-              <>
-              {!draft.collectionIds.length ? <p className="small muted">In no collection yet. Shoppers can still find it through search.</p> : null}
-              <ul className="achecks">
+        <Panel title="4. Show in shop">
+          <div className="ashow">
+            <Switch checked={shown} onChange={(v) => update({ status: v ? "published" : "draft" })} label={shown ? "Customers can see and buy this product" : "Hidden from customers"} />
+            <p className="small muted">{shown ? "It appears in the shop as soon as you save." : "Switch this on when the product is ready to sell."}</p>
+          </div>
+        </Panel>
+
+        <Panel title="5. Collections">
+          {collections.data ? (
+            collections.data.length ? (
+              <ul className="achecks achecks--big">
                 {collections.data.map((c: Collection) => (
                   <li key={c.id}>
                     <label className="checkbox">
                       <input type="checkbox" checked={draft.collectionIds.includes(c.id)} onChange={(e) => update({ collectionIds: e.target.checked ? [...draft.collectionIds, c.id] : draft.collectionIds.filter((x) => x !== c.id) })} />
                       {c.title}
-                      {c.status !== "published" ? <span className="small muted"> ({c.status})</span> : null}
+                      {c.status !== "published" ? <span className="small muted"> (hidden)</span> : null}
                     </label>
                   </li>
                 ))}
               </ul>
-              </>
-            ) : collections.error ? (
-              <LoadError message={`Collections couldn't be loaded: ${collections.error}`} onRetry={() => void collections.reload()} />
             ) : (
-              <LoadingRows rows={3} />
-            )}
-          </Panel>
-          <Panel title="Search and URL">
-            <div className="astack">
-              <TextField label="URL handle" value={draft.handle} onChange={(e) => update({ handle: e.target.value })} error={errors.handle} hint={`/products/${draft.handle || "made-from-name"}`} />
-              <TextField label="Tags" value={draft.tags} onChange={(e) => update({ tags: e.target.value })} hint="Comma-separated. Used in search." />
-              <TextField label="Search title" value={draft.seoTitle} onChange={(e) => update({ seoTitle: e.target.value })} />
-              <TextAreaField label="Search description" value={draft.seoDescription} onChange={(e) => update({ seoDescription: e.target.value })} rows={3} />
-            </div>
-          </Panel>
-          {!isNew && canWrite ? (
-            <Panel title="Delete">
-              <p className="small muted">Archiving keeps order history tidy. Delete only if this was added by mistake.</p>
-              <ConfirmButton
-                label="Delete product"
-                title={`Delete ${draft.title}?`}
-                body="This removes the product and its variants. Past orders keep their line details."
-                confirmLabel="Delete product"
-                danger
-                className="btn btn--ghost btn--sm"
-                onConfirm={async () => {
-                  try {
-                    await api().call("adminDeleteProduct", { params: { id } });
-                    setDirty(false);
-                    toast("Product deleted");
-                    router.replace("/admin/products");
-                  } catch (err) {
-                    toast(errorMessage(err), "danger");
-                  }
-                }}
-              />
+              <p className="small muted">
+                No collections yet. <Link href="/admin/collections">Create one</Link> (for example “Frontal wigs”) to group products in the shop.
+              </p>
+            )
+          ) : collections.error ? (
+            <LoadError message={`Collections couldn't be loaded: ${collections.error}`} onRetry={() => void collections.reload()} />
+          ) : (
+            <LoadingRows rows={3} />
+          )}
+        </Panel>
+
+        <details className="amore">
+          <summary>
+            <span>More options</span>
+            <span className="small muted">Sizes and colours, product type, video, web address, homepage feature</span>
+          </summary>
+          <div className="amore__body">
+            <Panel title="Sizes, lengths or colours" actions={<span className="small muted">Separate values with commas, e.g. 16&quot;, 18&quot;, 20&quot;</span>}>
+              <div className="astack">
+                {draft.options.map((o, i) => (
+                  <div key={i} className="aoption-row">
+                    <TextField label="Name" value={o.name} onChange={(e) => update({ options: draft.options.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} placeholder="Length" />
+                    <TextField label="Choices" value={o.values} onChange={(e) => update({ options: draft.options.map((x, j) => (j === i ? { ...x, values: e.target.value } : x)) })} placeholder='16", 18", 20"' />
+                    <button type="button" className="icon-btn" aria-label={`Remove ${o.name || "option"}`} onClick={() => update({ options: draft.options.filter((_, j) => j !== i) })}>
+                      <Icon name="trash" size={16} />
+                    </button>
+                  </div>
+                ))}
+                {draft.options.length < 3 ? (
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => update({ options: [...draft.options, { name: "", values: "" }] })}>
+                    <Icon name="plus" size={16} /> Add sizes or colours
+                  </button>
+                ) : null}
+                {!isMockMode && draft.variants.length > 1 ? (
+                  <p className="notice notice--warning small" role="status">
+                    The store currently saves one price and stock per product (the first row below). Until that&apos;s updated, add each size as its own product.
+                  </p>
+                ) : null}
+              </div>
+              {hasOptions ? (
+                <div className="atable-wrap">
+                  <table className="atable atable--edit">
+                    <thead>
+                      <tr>
+                        <th scope="col">Choice</th>
+                        <th scope="col">Price (₦)</th>
+                        <th scope="col">Old price</th>
+                        <th scope="col">Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {draft.variants.map((v, i) => (
+                        <tr key={v.key}>
+                          <th scope="row">{optionNames.map((n) => v.options[n]).join(" / ")}</th>
+                          <td>
+                            <MoneyInput value={v.price} onChange={(k) => setVariant(i, { price: k })} ariaLabel="Price" invalid={!!errors[`variants.${i}.price`]} />
+                          </td>
+                          <td>
+                            <MoneyInput value={v.compareAtPrice} onChange={(k) => setVariant(i, { compareAtPrice: k })} ariaLabel="Old price" placeholder="" />
+                          </td>
+                          <td>
+                            {v.existingStock ? (
+                              <span className="small">{v.available}</span>
+                            ) : (
+                              <input className="input input--sm" type="number" inputMode="numeric" min={0} value={v.available} onChange={(e) => setVariant(i, { available: Math.max(0, Number(e.target.value) || 0) })} aria-label="Stock" />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </Panel>
-          ) : null}
-        </aside>
+
+            <Panel title="Product type and details">
+              <div className="astack">
+                <SelectField label="Product type" value={draft.productTypeId ?? ""} onChange={(e) => chooseType(e.target.value)} error={errors.productTypeId} hint="Adds the right detail fields, e.g. lace and density for wigs.">
+                  <option value="">None</option>
+                  {(types.data ?? []).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </SelectField>
+                {types.error ? (
+                  <div className="notice notice--warning small" role="status">
+                    <span>Product types couldn&apos;t be loaded ({types.error}). You can still save this product without a type.</span>
+                    <button type="button" className="btn btn--sm btn--ghost" onClick={() => void types.reload()}>
+                      Try again
+                    </button>
+                  </div>
+                ) : null}
+                {selectedType?.attributes.map((a) =>
+                  a.kind === "text" ? (
+                    <TextField key={a.key} label={a.label} value={draft.attributes[a.key] ?? ""} placeholder={a.placeholder} onChange={(e) => update({ attributes: { ...draft.attributes, [a.key]: e.target.value } })} />
+                  ) : (
+                    <TextAreaField
+                      key={a.key}
+                      label={a.label}
+                      rows={a.kind === "list" ? 4 : 3}
+                      value={draft.attributes[a.key] ?? ""}
+                      placeholder={a.placeholder}
+                      hint={a.kind === "list" ? "One per line." : undefined}
+                      onChange={(e) => update({ attributes: { ...draft.attributes, [a.key]: e.target.value } })}
+                    />
+                  ),
+                )}
+              </div>
+            </Panel>
+
+            <Panel title="Video (optional)">
+              <div className="astack">
+                <TextField label="Video link" type="url" value={draft.videoUrl} onChange={(e) => update({ videoUrl: e.target.value })} error={errors.video} placeholder="https://…/video.mp4" hint="A link to an MP4 video file." />
+                {draft.videoUrl ? (
+                  <div className="cluster">
+                    {draft.videoPoster ? <MediaThumb media={draft.videoPoster} size={64} /> : null}
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPosterOpen(true)}>
+                      {draft.videoPoster ? "Change cover photo" : "Choose cover photo"}
+                    </button>
+                  </div>
+                ) : null}
+                <MediaPicker open={posterOpen} onClose={() => setPosterOpen(false)} onSelect={(m) => update({ videoPoster: m[0] ?? null })} />
+              </div>
+            </Panel>
+
+            <Panel title="Homepage, search and web address">
+              <div className="astack">
+                <Switch checked={draft.featured} onChange={(v) => update({ featured: v })} label="Feature on the homepage" />
+                <TextField label="Web address" value={draft.handle} onChange={(e) => update({ handle: e.target.value })} error={errors.handle} hint={`queenluxuryhair.store/products/${handleFor(draft.handle, draft.title) || "made-from-the-name"}. Made from the name if left empty.`} />
+                <TextField label="Search words (optional)" value={draft.tags} onChange={(e) => update({ tags: e.target.value })} hint="Separate with commas, e.g. frontal, straight, 20 inch" />
+                <TextField label="SKU / stock code (optional)" value={first?.sku ?? ""} onChange={(e) => setVariant(0, { sku: e.target.value })} hint="Made automatically if left empty." />
+                <TextField label="Title on Google (optional)" value={draft.seoTitle} onChange={(e) => update({ seoTitle: e.target.value })} />
+                <TextAreaField label="Description on Google (optional)" value={draft.seoDescription} onChange={(e) => update({ seoDescription: e.target.value })} rows={2} />
+                <SelectField label="Status" value={draft.status} onChange={(e) => update({ status: e.target.value as PublishStatus })} hint="Archived products are hidden and kept for your records.">
+                  <option value="published">Showing in shop</option>
+                  <option value="draft">Hidden</option>
+                  <option value="archived">Archived</option>
+                </SelectField>
+              </div>
+            </Panel>
+
+            {!isNew && canWrite ? (
+              <Panel title="Copy or delete">
+                <div className="cluster">
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={duplicate} disabled={duplicating || dirty} title={dirty ? "Save your changes first" : undefined}>
+                    {duplicating ? <span className="spinner" aria-hidden /> : <Icon name="copy" size={16} />}
+                    Make a copy
+                  </button>
+                  <ConfirmButton
+                    label="Delete product"
+                    title={`Delete ${draft.title}?`}
+                    body="Past orders keep their details. If you might sell it again, switch off “Show in shop” instead."
+                    confirmLabel="Delete product"
+                    danger
+                    className="btn btn--ghost btn--sm"
+                    onConfirm={async () => {
+                      try {
+                        await api().call("adminDeleteProduct", { params: { id } });
+                        setDirty(false);
+                        toast("Product deleted");
+                        router.replace("/admin/products");
+                      } catch (err) {
+                        toast(errorMessage(err), "danger");
+                      }
+                    }}
+                  />
+                </div>
+              </Panel>
+            ) : null}
+          </div>
+        </details>
+
+        {canWrite ? (
+          <div className="asavebar">
+            <span className="small muted">{dirty ? "Changes not saved yet" : isNew ? "Fill in the steps above" : "All changes saved"}</span>
+            <button type="button" className="btn btn--lg" onClick={save} disabled={saving}>
+              {saving ? <span className="spinner" aria-hidden /> : <Icon name="check" size={18} />}
+              {isNew ? "Save product" : "Save changes"}
+            </button>
+          </div>
+        ) : null}
       </fieldset>
     </RequirePermission>
   );

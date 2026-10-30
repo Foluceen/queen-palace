@@ -1,173 +1,147 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { RequirePermission } from "@/components/admin/AdminSession";
+import { RequirePermission, useAdmin } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
 import { OrderStatusBadges } from "@/components/admin/OrderBadges";
-import { Empty, LoadError, LoadingRows, PageHeader, Panel } from "@/components/admin/ui";
+import { LoadError, LoadingRows, Panel } from "@/components/admin/ui";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
 import { isMockMode } from "@/lib/api/config";
 import { formatDate, formatNaira } from "@/lib/format";
-import type { DashboardSummary } from "@/lib/types";
+import type { Permission } from "@/lib/types";
 
-function RevenueChart({ series }: { series: DashboardSummary["revenueSeries"] }) {
-  const max = Math.max(1, ...series.map((s) => s.amount));
-  const w = 100 / series.length;
-  return (
-    <figure className="rchart">
-      <svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Paid revenue per day">
-        {series.map((s, i) => {
-          const h = (s.amount / max) * 38;
-          return (
-            <rect key={s.date} x={i * w + w * 0.15} y={40 - h} width={w * 0.7} height={Math.max(h, s.amount ? 0.6 : 0.2)} className={s.amount ? "rchart__bar" : "rchart__bar is-zero"}>
-              <title>
-                {formatDate(s.date)}: {formatNaira(s.amount)}
-              </title>
-            </rect>
-          );
-        })}
-      </svg>
-      <figcaption className="rchart__axis small muted">
-        <span>{series[0] ? formatDate(series[0].date) : ""}</span>
-        <span>{series.at(-1) ? formatDate(series.at(-1)!.date) : ""}</span>
-      </figcaption>
-    </figure>
-  );
+function greeting(): string {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-export default function DashboardPage() {
-  const [days, setDays] = useState(30);
-  const { data, error, loading, reload } = useResource(() => api().call("adminDashboard", { query: { days } }), [days]);
+interface Action {
+  href: string;
+  icon: IconName;
+  title: string;
+  hint: string;
+  permission: Permission;
+  count?: number;
+  primary?: boolean;
+}
+
+/**
+ * The owner's home screen: big, plain-language actions first (they work even if the figures
+ * below can't load), then a few simple numbers. No charts to interpret.
+ */
+export default function HomePage() {
+  const { session, can } = useAdmin();
+  const { data, error, loading, reload } = useResource(() => api().call("adminDashboard", { query: { days: 30 } }), []);
+  const firstName = session.staff.name.split(" ")[0] || "there";
+
+  const actions: Action[] = [
+    { href: "/admin/products/new", icon: "plus", title: "Add a product", hint: "Photos, name, price and stock", permission: "products:write", primary: true },
+    { href: "/admin/orders?fulfillmentStatus=unfulfilled", icon: "truck", title: "Orders to send", hint: "Paid orders waiting to be packed", permission: "orders:read", count: data?.awaitingFulfillment },
+    { href: "/admin/inquiries", icon: "chat", title: "Messages", hint: "Questions from customers", permission: "inquiries:respond", count: data?.newInquiries },
+    { href: "/admin/reviews", icon: "star", title: "Reviews to approve", hint: "Show them in the shop or not", permission: "reviews:moderate", count: data?.pendingReviews },
+    { href: "/admin/products", icon: "box", title: "My products", hint: "Change prices, photos or stock", permission: "products:read" },
+    { href: "/admin/collections", icon: "grip", title: "Collections", hint: "Group products, e.g. “Frontal wigs”", permission: "products:read" },
+  ];
 
   return (
     <RequirePermission permission="dashboard:read">
-      <PageHeader
-        title="Dashboard"
-        description="Paid revenue and what needs attention today."
-        actions={
-          <select className="select select--sm" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Period">
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
-        }
-      />
-      {error ? <LoadError message={error} onRetry={reload} /> : null}
-      {loading && !data ? <LoadingRows rows={6} /> : null}
-      {data ? (
-        <div className="adash">
-          <div className="astats">
-            <div className="astat astat--lead">
-              <p className="astat__label">
-                Paid revenue {isMockMode ? <span className="badge badge--warning">Sample data</span> : null}
-              </p>
-              <p className="astat__value">{formatNaira(data.revenue)}</p>
-              <p className="small muted">{data.revenueChangePct === null ? "No sales in the previous period to compare" : `${data.revenueChangePct >= 0 ? "Up" : "Down"} ${Math.abs(data.revenueChangePct)}% on the previous ${data.periodDays} days`}</p>
-              <RevenueChart series={data.revenueSeries} />
-            </div>
-            <div className="astat">
-              <p className="astat__label">Orders</p>
-              <p className="astat__value">{data.orders}</p>
-              <p className="small muted">Average paid order {formatNaira(data.averageOrderValue)}</p>
-            </div>
-            <Link href="/admin/orders?fulfillmentStatus=unfulfilled" className="astat astat--link">
-              <p className="astat__label">Paid, waiting to ship</p>
-              <p className="astat__value">{data.awaitingFulfillment}</p>
-            </Link>
-            <Link href="/admin/orders?paymentStatus=awaiting_transfer" className="astat astat--link">
-              <p className="astat__label">Waiting for payment</p>
-              <p className="astat__value">{data.awaitingPayment}</p>
-            </Link>
-          </div>
+      <header className="ahome__hello">
+        <h1 className="ahome__title">
+          {greeting()}, {firstName}
+        </h1>
+        <p className="muted">What would you like to do today?</p>
+      </header>
 
-          <div className="agrid-2">
-            <Panel title="Recent orders" actions={<Link href="/admin/orders" className="small">All orders</Link>}>
-              {data.recentOrders.length ? (
-                <div className="atable-wrap">
-                  <table className="atable">
-                    <thead>
-                      <tr>
-                        <th scope="col">Order</th>
-                        <th scope="col">Status</th>
-                        <th scope="col" className="num">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.recentOrders.map((o) => (
-                        <tr key={o.id}>
-                          <td>
-                            <Link href={`/admin/orders/${o.id}`} className="atable__primary">
-                              {o.number}
-                            </Link>
-                            <span className="small muted"> {formatDate(o.createdAt)}</span>
-                          </td>
-                          <td>
-                            <OrderStatusBadges order={o} />
-                          </td>
-                          <td className="num">{formatNaira(o.totals.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+      <ul className="ahome__actions">
+        {actions
+          .filter((a) => can(a.permission))
+          .map((a) => (
+            <li key={a.href}>
+              <Link href={a.href} className={`ahome__action ${a.primary ? "is-primary" : ""}`}>
+                <span className="ahome__icon" aria-hidden>
+                  <Icon name={a.icon} size={22} />
+                </span>
+                <span className="ahome__text">
+                  <span className="ahome__action-title">{a.title}</span>
+                  <span className="ahome__hint">{a.hint}</span>
+                </span>
+                {typeof a.count === "number" && a.count > 0 ? <span className="ahome__count">{a.count}</span> : null}
+              </Link>
+            </li>
+          ))}
+      </ul>
+
+      {error ? <LoadError message={`Your shop figures couldn't be loaded: ${error}`} onRetry={reload} /> : null}
+      {loading && !data ? <LoadingRows rows={3} /> : null}
+
+      {data ? (
+        <>
+          <section className="ahome__numbers" aria-label="Last 30 days">
+            <h2 className="ahome__section">Last 30 days {isMockMode ? <span className="badge badge--warning">Sample data</span> : null}</h2>
+            <div className="ahome__stats">
+              <div className="ahome__stat">
+                <span className="ahome__stat-label">Money from paid orders</span>
+                <span className="ahome__stat-value">{formatNaira(data.revenue)}</span>
+                {data.revenueChangePct !== null ? (
+                  <span className={`small ${data.revenueChangePct >= 0 ? "ahome__up" : "ahome__down"}`}>
+                    {data.revenueChangePct >= 0 ? "▲" : "▼"} {Math.abs(data.revenueChangePct)}% compared with the 30 days before
+                  </span>
+                ) : null}
+              </div>
+              <div className="ahome__stat">
+                <span className="ahome__stat-label">Paid orders</span>
+                <span className="ahome__stat-value">{data.orders}</span>
+              </div>
+              <Link href="/admin/orders?paymentStatus=awaiting_transfer" className="ahome__stat ahome__stat--link">
+                <span className="ahome__stat-label">Waiting for payment</span>
+                <span className="ahome__stat-value">{data.awaitingPayment}</span>
+              </Link>
+            </div>
+          </section>
+
+          <div className="ahome__grid">
+            <Panel title="Running low" actions={<Link href="/admin/inventory" className="small">See all stock</Link>}>
+              {data.lowStock.length ? (
+                <ul className="alist">
+                  {data.lowStock.slice(0, 6).map((l) => (
+                    <li key={l.variantId || l.productId}>
+                      <Link href={`/admin/products/${l.productId}`}>{l.productTitle}</Link>
+                      <span className={`badge ${l.available <= 0 ? "badge--danger" : "badge--warning"}`}>{l.available <= 0 ? "Sold out" : `${l.available} left`}</span>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                <Empty title="No orders yet" body="Orders appear here as soon as customers check out." />
+                <p className="small muted">Nothing is running low.</p>
               )}
             </Panel>
 
-            <div className="astack">
-              <Panel title="Needs attention">
-                <ul className="atodo">
-                  <li>
-                    <Link href="/admin/inquiries">{data.newInquiries} new customer messages</Link>
-                  </li>
-                  <li>
-                    <Link href="/admin/reviews">{data.pendingReviews} reviews waiting for approval</Link>
-                  </li>
-                  <li>
-                    <Link href="/admin/inventory?low=1">{data.lowStock.length} variants low on stock</Link>
-                  </li>
+            <Panel title="Latest orders" actions={<Link href="/admin/orders" className="small">See all orders</Link>}>
+              {data.recentOrders.length ? (
+                <ul className="alist">
+                  {data.recentOrders.slice(0, 5).map((o) => (
+                    <li key={o.id}>
+                      <Link href={`/admin/orders/${o.id}`}>
+                        <strong>{o.number}</strong> <span className="small muted">{formatDate(o.createdAt)}</span>
+                      </Link>
+                      <span className="ahome__order-meta">
+                        <OrderStatusBadges order={o} />
+                        <span>{formatNaira(o.totals.total)}</span>
+                      </span>
+                    </li>
+                  ))}
                 </ul>
-              </Panel>
-              <Panel title="Low stock" actions={<Link href="/admin/inventory?low=1" className="small">Inventory</Link>}>
-                {data.lowStock.length ? (
-                  <ul className="alist">
-                    {data.lowStock.map((l) => (
-                      <li key={l.variantId}>
-                        <span>
-                          {l.productTitle} <span className="muted small">{l.variantTitle}</span>
-                        </span>
-                        <span className={`badge ${l.available === 0 ? "badge--danger" : "badge--warning"}`}>{l.available === 0 ? "Sold out" : `${l.available} left`}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <Empty title="Stock looks healthy" />
-                )}
-              </Panel>
-              <Panel title="Top products">
-                {data.topProducts.length ? (
-                  <ul className="alist">
-                    {data.topProducts.map((t) => (
-                      <li key={t.productId}>
-                        <span>
-                          {t.title} <span className="muted small">{t.unitsSold} sold</span>
-                        </span>
-                        <span>{formatNaira(t.revenue)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <Empty title="No paid sales in this period" />
-                )}
-              </Panel>
-            </div>
+              ) : (
+                <p className="small muted">No orders yet. They show up here as soon as a customer checks out.</p>
+              )}
+            </Panel>
           </div>
-        </div>
+        </>
       ) : null}
+
+      <p className="ahome__help small muted">
+        <Icon name="chat" size={14} /> Not sure where something is? Use the search box at the top, or open <strong>More</strong> in the menu.
+      </p>
     </RequirePermission>
   );
 }

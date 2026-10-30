@@ -111,7 +111,7 @@ export default function OrderDetailPage() {
                 </div>
               ))}
               <div>
-                <dt>Delivery, {order.shippingRate.label}</dt>
+                <dt>{order.shippingRate.label ? `Delivery, ${order.shippingRate.label}` : "Delivery"}</dt>
                 <dd>{formatNaira(order.totals.shippingTotal)}</dd>
               </div>
               <div className="totals__grand">
@@ -180,18 +180,28 @@ export default function OrderDetailPage() {
 
         <aside className="aeditor__side">
           <Panel title="Customer">
-            <p>
-              {a.firstName} {a.lastName}
-            </p>
-            <p className="small">
-              <a href={`mailto:${order.contact.email}`}>{order.contact.email}</a>
-            </p>
-            <p className="small">
-              <a href={`tel:${order.contact.phone}`}>{order.contact.phone}</a>
-            </p>
+            {a.firstName || a.lastName ? (
+              <p>
+                {a.firstName} {a.lastName}
+              </p>
+            ) : null}
+            {order.contact.email ? (
+              <p className="small">
+                <a href={`mailto:${order.contact.email}`}>{order.contact.email}</a>
+              </p>
+            ) : null}
+            {order.contact.phone ? (
+              <p className="small">
+                <a href={`tel:${order.contact.phone}`}>{order.contact.phone}</a>
+              </p>
+            ) : null}
+            {!order.contact.email && !order.contact.phone ? <p className="small muted">Contact details were not recorded for this order.</p> : null}
             {order.contact.marketingOptIn ? <p className="small muted">Subscribed to updates</p> : null}
           </Panel>
           <Panel title="Delivery address">
+            {!a.line1 && !a.city ? (
+              <p className="small muted">No delivery address was recorded for this order.</p>
+            ) : (
             <address className="small aaddress">
               {a.line1}
               {a.line2 ? <>, {a.line2}</> : null}
@@ -204,9 +214,12 @@ export default function OrderDetailPage() {
                 </>
               ) : null}
             </address>
-            <p className="small muted">
-              {order.shippingRate.label}, {formatEta(order.shippingRate.etaDays).toLowerCase()}
-            </p>
+            )}
+            {order.shippingRate.label ? (
+              <p className="small muted">
+                {order.shippingRate.label}, {formatEta(order.shippingRate.etaDays).toLowerCase()}
+              </p>
+            ) : null}
             {order.note ? <p className="notice small">Customer note: {order.note}</p> : null}
           </Panel>
           <Panel title="Payment">

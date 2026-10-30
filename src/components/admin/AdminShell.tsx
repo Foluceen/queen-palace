@@ -18,50 +18,30 @@ interface NavItem {
   permission: Permission;
 }
 
-const groups: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Overview",
-    items: [
-      { href: "/admin", label: "Dashboard", icon: "dashboard", permission: "dashboard:read" },
-      { href: "/admin/analytics", label: "Analytics", icon: "chart", permission: "analytics:read" },
-    ],
-  },
-  {
-    label: "Sell",
-    items: [
-      { href: "/admin/orders", label: "Orders", icon: "receipt", permission: "orders:read" },
-      { href: "/admin/customers", label: "Customers", icon: "users", permission: "customers:read" },
-      { href: "/admin/inquiries", label: "Messages", icon: "chat", permission: "inquiries:respond" },
-      { href: "/admin/discounts", label: "Discounts", icon: "tag", permission: "discounts:write" },
-      { href: "/admin/reviews", label: "Reviews", icon: "star", permission: "reviews:moderate" },
-    ],
-  },
-  {
-    label: "Catalog",
-    items: [
-      { href: "/admin/products", label: "Products", icon: "box", permission: "products:read" },
-      { href: "/admin/inventory", label: "Inventory", icon: "layers", permission: "products:read" },
-      { href: "/admin/collections", label: "Collections", icon: "grip", permission: "products:read" },
-      { href: "/admin/product-types", label: "Product types", icon: "sliders", permission: "products:read" },
-      { href: "/admin/media", label: "Media library", icon: "image", permission: "products:read" },
-    ],
-  },
-  {
-    label: "Online store",
-    items: [
-      { href: "/admin/storefront", label: "Homepage", icon: "edit", permission: "content:write" },
-      { href: "/admin/navigation", label: "Navigation", icon: "link", permission: "content:write" },
-      { href: "/admin/pages", label: "Pages", icon: "file", permission: "content:write" },
-      { href: "/admin/settings/branding", label: "Branding and store", icon: "palette", permission: "settings:write" },
-    ],
-  },
-  {
-    label: "Settings",
-    items: [
-      { href: "/admin/settings/shipping-payments", label: "Shipping and payments", icon: "truck", permission: "settings:write" },
-      { href: "/admin/staff", label: "Staff and roles", icon: "settings", permission: "staff:manage" },
-    ],
-  },
+/** The six things the owner does every day, in plain words. */
+const mainItems: NavItem[] = [
+  { href: "/admin", label: "Home", icon: "dashboard", permission: "dashboard:read" },
+  { href: "/admin/products", label: "Products", icon: "box", permission: "products:read" },
+  { href: "/admin/orders", label: "Orders", icon: "receipt", permission: "orders:read" },
+  { href: "/admin/collections", label: "Collections", icon: "grip", permission: "products:read" },
+  { href: "/admin/reviews", label: "Reviews", icon: "star", permission: "reviews:moderate" },
+  { href: "/admin/inquiries", label: "Messages", icon: "chat", permission: "inquiries:respond" },
+];
+
+/** Everything else, folded under "More" so the menu stays short. */
+const moreItems: NavItem[] = [
+  { href: "/admin/inventory", label: "Stock", icon: "layers", permission: "products:read" },
+  { href: "/admin/customers", label: "Customers", icon: "users", permission: "customers:read" },
+  { href: "/admin/discounts", label: "Discount codes", icon: "tag", permission: "discounts:write" },
+  { href: "/admin/analytics", label: "Sales report", icon: "chart", permission: "analytics:read" },
+  { href: "/admin/media", label: "Photos", icon: "image", permission: "products:read" },
+  { href: "/admin/storefront", label: "Homepage", icon: "edit", permission: "content:write" },
+  { href: "/admin/navigation", label: "Menus", icon: "link", permission: "content:write" },
+  { href: "/admin/pages", label: "Pages", icon: "file", permission: "content:write" },
+  { href: "/admin/settings/branding", label: "Shop details & colours", icon: "palette", permission: "settings:write" },
+  { href: "/admin/settings/shipping-payments", label: "Delivery & payment", icon: "truck", permission: "settings:write" },
+  { href: "/admin/staff", label: "Staff", icon: "users", permission: "staff:manage" },
+  { href: "/admin/product-types", label: "Product types", icon: "sliders", permission: "products:read" },
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {
@@ -81,25 +61,38 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
         <nav>
-          {groups.map((g) => {
-            const items = g.items.filter((i) => can(i.permission));
-            if (!items.length) return null;
-            return (
-              <div key={g.label} className="ashell__group">
-                <p className="ashell__group-label">{g.label}</p>
-                <ul>
-                  {items.map((i) => (
+          <ul className="ashell__main-nav">
+            {mainItems
+              .filter((i) => can(i.permission))
+              .map((i) => (
+                <li key={i.href}>
+                  <Link href={i.href} className={`ashell__link ${isActive(i.href) ? "is-active" : ""}`} aria-current={isActive(i.href) ? "page" : undefined}>
+                    <Icon name={i.icon} size={20} />
+                    {i.label}
+                  </Link>
+                </li>
+              ))}
+          </ul>
+          {moreItems.some((i) => can(i.permission)) ? (
+            <details className="ashell__more" open={moreItems.some((i) => isActive(i.href)) || undefined}>
+              <summary>
+                More
+                <Icon name="chevronDown" size={16} />
+              </summary>
+              <ul>
+                {moreItems
+                  .filter((i) => can(i.permission))
+                  .map((i) => (
                     <li key={i.href}>
-                      <Link href={i.href} className={`ashell__link ${isActive(i.href) ? "is-active" : ""}`} aria-current={isActive(i.href) ? "page" : undefined}>
-                        <Icon name={i.icon} size={18} />
+                      <Link href={i.href} className={`ashell__link ashell__link--sm ${isActive(i.href) ? "is-active" : ""}`} aria-current={isActive(i.href) ? "page" : undefined}>
+                        <Icon name={i.icon} size={16} />
                         {i.label}
                       </Link>
                     </li>
                   ))}
-                </ul>
-              </div>
-            );
-          })}
+              </ul>
+            </details>
+          ) : null}
         </nav>
         <div className="ashell__me">
           <div>
@@ -120,7 +113,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <div className="ashell__tools">
             <ThemeToggle />
             <Link href="/" className="btn btn--ghost btn--sm" target="_blank">
-              <span className="ashell__store-label">View store</span>
+              <span className="ashell__store-label">See my shop</span>
               <Icon name="external" size={14} />
             </Link>
           </div>

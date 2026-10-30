@@ -355,3 +355,32 @@ describe("hardening against unsafe API content", () => {
     assert.ok(out.includes('"system"'));
   });
 });
+
+describe("admin adapters for the production API", () => {
+  it("unwraps the paged reviews list and the moderated review", async () => {
+    const { normalizeResponse } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    const r = { id: "r1", productId: "p1", productTitle: "Wig", author: "A", rating: 5, title: "", body: "Lovely hair", verifiedPurchase: false, status: "pending", reply: null, rejectionReason: null, createdAt: "2026-10-30T00:00:00Z", moderatedAt: null };
+    const list = normalizeResponse("adminListReviews", { items: [r], page: 1, pageSize: 1, total: 1, totalPages: 1 });
+    assert.ok(Array.isArray(list));
+    assert.equal(validateResponse("adminListReviews", list), null);
+    assert.equal((normalizeResponse("adminModerateReview", { review: { ...r, status: "approved" } }) as { status: string }).status, "approved");
+  });
+
+  it("maps { order } with items into an order the detail page can show, without inventing details", async () => {
+    const { normalizeAdminOrder } = await import("../src/lib/api/normalize");
+    const o = normalizeAdminOrder({ order: { id: "o1", number: "QLH-1", status: "open", paymentStatus: "paid", fulfillmentStatus: "unfulfilled", paymentMethod: "pay_on_delivery", email: "c@x.co", totals: { subtotal: 100, discountTotal: 0, shippingTotal: 0, total: 100, currency: "NGN" }, items: [{ productId: "p1", title: "Wig", quantity: 2, unitPrice: 50 }], itemCount: 2, createdAt: "" } }) as { lines: Array<{ lineTotal: number; title: string }>; contact: { email: string; phone: string }; shippingAddress: { line1: string }; timeline: unknown[] };
+    assert.equal(o.lines[0]!.lineTotal, 100);
+    assert.equal(o.contact.email, "c@x.co");
+    assert.equal(o.contact.phone, "");
+    assert.equal(o.shippingAddress.line1, "");
+    assert.deepEqual(o.timeline, []);
+  });
+
+  it("renames dashboard low-stock fields", async () => {
+    const { normalizeResponse } = await import("../src/lib/api/normalize");
+    const d = normalizeResponse("adminDashboard", { lowStock: [{ variant_id: "v", product_id: "p", product_title: "Wig", variant_title: "Default", sku: "S", available: "2" }] }) as { lowStock: Array<{ productTitle: string; available: number }> };
+    assert.equal(d.lowStock[0]!.productTitle, "Wig");
+    assert.equal(d.lowStock[0]!.available, 2);
+  });
+});

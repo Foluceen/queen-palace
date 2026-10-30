@@ -253,7 +253,78 @@ function sanitizeHrefs(v: unknown, depth = 0): unknown {
   return out;
 }
 
+/* ------------------------------------------------------------ admin adapters */
+
+/** { items: [...] } (paged) → plain list, for screens whose contract is a list. */
+const itemsOf = (v: unknown) => (isObj(v) && Array.isArray(v.items) ? v.items : v);
+/** { review: {...} } → review, { order: {...} } → order, etc. */
+const unwrapKey = (key: string) => (v: unknown) => (isObj(v) && isObj(v[key]) ? v[key] : v);
+
+/**
+ * Admin order detail: the production API returns { order } with `items` instead of `lines`, and
+ * no contact, address, delivery or timeline details. Lines are mapped from items; the missing
+ * parts are left empty (the order page says they weren't recorded) and are never invented.
+ */
+export function normalizeAdminOrder(raw: unknown): unknown {
+  const o = isObj(raw) && isObj(raw.order) ? raw.order : raw;
+  if (!isObj(o) || Array.isArray(o.lines) || typeof o.number !== "string") return o;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const items = (Array.isArray(o.items) ? o.items : []).filter(isObj);
+  const totals = isObj(o.totals) ? o.totals : {};
+  return {
+    ...o,
+    accessToken: str(o.accessToken) ?? "",
+    totals: { subtotal: num(totals.subtotal), discountTotal: num(totals.discountTotal), shippingTotal: num(totals.shippingTotal), taxTotal: num(totals.taxTotal), total: num(totals.total) },
+    lines: items.map((l, i) => ({
+      id: str(l.id) ?? `${String(l.productId ?? "line")}-${i}`,
+      productId: String(l.productId ?? ""),
+      variantId: String(l.variantId ?? l.productId ?? ""),
+      title: str(l.title) ?? "",
+      variantTitle: str(l.variantTitle) ?? "",
+      sku: str(l.sku) ?? "",
+      image: isObj(l.image) ? l.image : null,
+      quantity: num(l.quantity),
+      unitPrice: num(l.unitPrice),
+      lineTotal: num(l.lineTotal) || num(l.unitPrice) * num(l.quantity),
+    })),
+    contact: isObj(o.contact) ? o.contact : { email: str(o.email) ?? "", phone: str(o.phone) ?? "", marketingOptIn: false },
+    shippingAddress: isObj(o.shippingAddress) ? o.shippingAddress : { firstName: "", lastName: "", phone: "", line1: "", city: "", state: "", country: "NG" },
+    shippingRate: isObj(o.shippingRate) ? o.shippingRate : { id: "", label: "", etaDays: [0, 0] },
+    discounts: Array.isArray(o.discounts) ? o.discounts : [],
+    trackingNumber: str(o.trackingNumber),
+    carrier: str(o.carrier),
+    note: str(o.note),
+    timeline: Array.isArray(o.timeline) ? o.timeline : [],
+    bankTransfer: isObj(o.bankTransfer) ? o.bankTransfer : null,
+  };
+}
+
+/** Dashboard low-stock rows arrive in snake_case from the production API. */
+function normalizeDashboard(v: unknown): unknown {
+  if (!isObj(v) || !Array.isArray(v.lowStock)) return v;
+  return {
+    ...v,
+    lowStock: v.lowStock.filter(isObj).map((x) => ({
+      variantId: String(x.variantId ?? x.variant_id ?? ""),
+      productId: String(x.productId ?? x.product_id ?? ""),
+      productTitle: str(x.productTitle) ?? str(x.product_title) ?? "",
+      variantTitle: str(x.variantTitle) ?? str(x.variant_title) ?? "",
+      sku: str(x.sku) ?? "",
+      available: typeof x.available === "number" ? x.available : Number(x.available ?? 0),
+    })),
+  };
+}
+
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
+  adminListReviews: itemsOf,
+  adminModerateReview: unwrapKey("review"),
+  adminGetOrder: normalizeAdminOrder,
+  adminUpdateFulfillment: normalizeAdminOrder,
+  adminMarkTransferReceived: normalizeAdminOrder,
+  adminCancelOrder: normalizeAdminOrder,
+  adminRefundOrder: normalizeAdminOrder,
+  adminAddOrderNote: normalizeAdminOrder,
+  adminDashboard: normalizeDashboard,
   getNavigation: (v) => sanitizeHrefs(v),
   listProducts: listingOf,
   getCollection: (v) => (isObj(v) && isObj(v.listing) ? { ...v, listing: listingOf(v.listing) } : v),

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { RequirePermission, useAdmin } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
-import { ImageField, MediaThumb } from "@/components/admin/MediaPicker";
+import { MediaThumb } from "@/components/admin/MediaPicker";
+import { PhotoUploader } from "@/components/admin/PhotoUploader";
 import { useToast } from "@/components/admin/Toast";
-import { ConfirmButton, Empty, LoadError, LoadingRows, PageHeader, Sheet, StatusBadge } from "@/components/admin/ui";
+import { ConfirmButton, Empty, LoadError, LoadingRows, PageHeader, Sheet, StatusBadge, Switch } from "@/components/admin/ui";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
@@ -71,8 +72,15 @@ export default function CollectionsAdminPage() {
     }
   };
 
+  /** The production API currently ignores collection photos: say so instead of losing them silently. */
+  const photoKept = (c: Collection) => !draft?.image || Boolean(c.image);
+
   const save = async () => {
     if (!draft) return;
+    if (!draft.title.trim()) {
+      setErrors({ title: "Give the collection a name." });
+      return;
+    }
     setSaving(true);
     setErrors({});
     const body = { title: draft.title, handle: handleFor(draft.handle, draft.title), summary: draft.summary, description: draft.description, status: draft.status, imageId: draft.image?.id ?? null, bannerId: draft.banner?.id ?? null, seo: { title: draft.seoTitle || undefined, description: draft.seoDescription || undefined }, position: 0 };
@@ -81,11 +89,11 @@ export default function CollectionsAdminPage() {
         const { position: _p, ...patch } = body;
         const updated = await api().call("adminUpdateCollection", { params: { id: draft.id }, body: patch });
         setData((list) => list?.map((x) => (x.id === updated.id ? updated : x)) ?? null);
-        toast("Collection saved");
+        toast(photoKept(updated) ? "Collection saved" : "Collection saved, but the store didn't keep the photo yet. This needs a store update.", photoKept(updated) ? undefined : "danger");
       } else {
         const created = await api().call("adminCreateCollection", { body });
         setData((list) => [...(list ?? []), created]);
-        toast("Collection created");
+        toast(photoKept(created) ? "Collection created" : "Collection created, but the store didn't keep the photo yet. This needs a store update.", photoKept(created) ? undefined : "danger");
       }
       setDraft(null);
     } catch (err) {
@@ -205,20 +213,41 @@ export default function CollectionsAdminPage() {
       >
         {draft ? (
           <div className="astack">
-            <TextField label="Name" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} error={errors.title} required />
-            <TextField label="URL handle" value={draft.handle} onChange={(e) => setDraft({ ...draft, handle: e.target.value })} error={errors.handle} hint={`/collections/${draft.handle || "made-from-name"}`} />
-            <TextField label="Card summary" value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} hint="One line shown on collection cards." />
-            <TextAreaField label="Description" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={4} />
-            <ImageField label="Card image (portrait)" value={draft.image} onChange={(image) => setDraft({ ...draft, image })} />
-            <ImageField label="Page banner (wide, optional)" value={draft.banner} onChange={(banner) => setDraft({ ...draft, banner })} />
-            <p className="small muted">The banner is shown at the top of the collection page. Without one, the card image is used.</p>
-            <SelectField label="Status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as PublishStatus })}>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </SelectField>
-            <TextField label="Search title" value={draft.seoTitle} onChange={(e) => setDraft({ ...draft, seoTitle: e.target.value })} />
-            <TextAreaField label="Search description" value={draft.seoDescription} onChange={(e) => setDraft({ ...draft, seoDescription: e.target.value })} rows={2} />
+            <TextField label="Collection name" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} error={errors.title} required placeholder="e.g. Frontal wigs" />
+            <div className="field">
+              <span className="field__label">Photo</span>
+              <PhotoUploader single value={draft.image ? [draft.image] : []} onChange={(m) => setDraft({ ...draft, image: m[0] ?? null })} describeAs={draft.title ? `${draft.title} collection` : ""} />
+            </div>
+            <div className="ashow">
+              <Switch
+                checked={draft.status === "published"}
+                onChange={(v) => setDraft({ ...draft, status: v ? "published" : "draft" })}
+                label={draft.status === "published" ? "Showing in the shop" : "Hidden from customers"}
+              />
+            </div>
+            <TextField label="One line about it (optional)" value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} placeholder="e.g. Ready-to-wear frontal units" />
+            <TextAreaField label="Description (optional)" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={3} />
+            <details className="amore">
+              <summary>
+                <span>More options</span>
+                <span className="small muted">Wide banner, web address, Google text</span>
+              </summary>
+              <div className="amore__body astack">
+                <div className="field">
+                  <span className="field__label">Wide banner (optional)</span>
+                  <PhotoUploader single value={draft.banner ? [draft.banner] : []} onChange={(m) => setDraft({ ...draft, banner: m[0] ?? null })} describeAs={draft.title ? `${draft.title} banner` : ""} />
+                  <p className="field__hint">Shown at the top of the collection page. Without one, the photo above is used.</p>
+                </div>
+                <TextField label="Web address" value={draft.handle} onChange={(e) => setDraft({ ...draft, handle: e.target.value })} error={errors.handle} hint={`queenluxuryhair.store/collections/${handleFor(draft.handle, draft.title) || "made-from-the-name"}`} />
+                <SelectField label="Status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as PublishStatus })}>
+                  <option value="published">Showing in shop</option>
+                  <option value="draft">Hidden</option>
+                  <option value="archived">Archived</option>
+                </SelectField>
+                <TextField label="Title on Google (optional)" value={draft.seoTitle} onChange={(e) => setDraft({ ...draft, seoTitle: e.target.value })} />
+                <TextAreaField label="Description on Google (optional)" value={draft.seoDescription} onChange={(e) => setDraft({ ...draft, seoDescription: e.target.value })} rows={2} />
+              </div>
+            </details>
           </div>
         ) : null}
       </Sheet>
