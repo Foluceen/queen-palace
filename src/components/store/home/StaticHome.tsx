@@ -28,7 +28,16 @@ function townOf(address: string): string | null {
   return m ? m[0] : null;
 }
 
+/**
+ * Editorial hero photo: a model wearing one of the store's units, on a black background,
+ * facing left with empty space on the left for the headline. Leave null until the real photo
+ * is in public/media/hero/; until then the arched lookbook stage is shown instead.
+ * `mobile` is an optional portrait crop of the same photo.
+ */
+export const HERO_PHOTO: { src: string; mobile?: string; alt: string; focus?: string } | null = null;
+
 export function LuxHero({ settings }: { settings: StoreSettings }) {
+  if (HERO_PHOTO) return <LuxHeroEditorial settings={settings} photo={HERO_PHOTO} />;
   const town = townOf(settings.address);
   const words = ["Hair", "that", "wears", "like"];
   return (
@@ -76,6 +85,93 @@ export function LuxHero({ settings }: { settings: StoreSettings }) {
         <div className="lux-hero__art" data-hero-fade>
           <HeroStage looks={LOOKS.map(({ key, src, alt, label, q, focus }) => ({ key, src, alt, label, q, focus }))} />
         </div>
+      </HeroMotion>
+    </section>
+  );
+}
+
+function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo: NonNullable<typeof HERO_PHOTO> }) {
+  const town = townOf(settings.address);
+  const words = ["Hair", "that", "wears", "like"];
+  const chips = [
+    { title: "Wigs & frontals", body: "Bundles and closures too" },
+    { title: "Help choosing", body: "Length, lace and density explained" },
+    { title: town ? `Pickup in ${town}` : "Delivery or pickup", body: "Or delivery at checkout" },
+  ];
+  return (
+    <section className="hero lux-ed" aria-labelledby="lux-hero-title">
+      <HeroMotion className="lux-ed__inner">
+        <div className="lux-ed__media" data-depth="-3">
+          <Image src={photo.src} alt={photo.alt} fill priority sizes="(min-width: 900px) 62vw, 100vw" className={`lux-ed__img ${photo.mobile ? "lux-ed__img--wide" : ""}`} style={{ objectPosition: photo.focus ?? "70% 30%" }} />
+          {photo.mobile ? <Image src={photo.mobile} alt="" fill priority sizes="100vw" className="lux-ed__img lux-ed__img--tall" /> : null}
+          <span className="lux-ed__fade" aria-hidden />
+          <span className="lux-ed__glow" aria-hidden />
+        </div>
+
+        <span className="lux-spark lux-ed__spark lux-ed__spark--1" aria-hidden />
+        <span className="lux-spark lux-ed__spark lux-ed__spark--2" aria-hidden />
+
+        <div className="container lux-ed__copy">
+          <p className="lux-eyebrow" data-hero-fade>
+            <span className="lux-eyebrow__rule" aria-hidden />
+            {settings.name}
+            {town ? ` · ${town}` : ""}
+          </p>
+          <h1 id="lux-hero-title" className="lux-hero__title">
+            {words.map((w) => (
+              <Fragment key={w}>
+                <span className="hero__word">
+                  <span data-hero-word>{w}</span>
+                </span>{" "}
+              </Fragment>
+            ))}
+            <span className="lux-hero__last">
+              <span className="hero__word">
+                <span data-hero-word>a</span>
+              </span>{" "}
+              <span className="hero__word lux-hero__crown">
+                <span data-hero-word className="script">
+                  crown.
+                </span>
+              </span>
+            </span>
+          </h1>
+          <p className="lux-hero__body" data-hero-fade>
+            Wigs, frontals, closures and bundles, chosen to look like you on your best day.
+          </p>
+          <div className="lux-hero__ctas" data-hero-fade>
+            <Link href="/collections" className="btn btn--blush btn--lg">
+              Shop the collection
+            </Link>
+            <Link href="#looks" className="btn btn--ghost btn--lg lux-btn-ghost">
+              Find your look
+            </Link>
+          </div>
+          <ul className="lux-ed__chips" data-hero-fade>
+            {chips.map((c) => (
+              <li key={c.title}>
+                <span className="lux-ed__chip-dot" aria-hidden />
+                <span>
+                  <strong>{c.title}</strong>
+                  <span>{c.body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <svg className="lux-ed__badge hstage__badge" viewBox="0 0 120 120" aria-hidden data-depth="5">
+          <defs>
+            <path id="lux-ed-ring" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0" />
+          </defs>
+          <circle cx="60" cy="60" r="57" className="hstage__badge-bg" />
+          <text className="hstage__badge-text">
+            <textPath href="#lux-ed-ring" textLength="272" lengthAdjust="spacing">
+              QUEEN LUXURY HAIR · WIGS · FRONTALS ·
+            </textPath>
+          </text>
+          <path className="hstage__badge-crown" d="M44 68 L48 52 L55 60 L60 48 L65 60 L72 52 L76 68 Z" />
+        </svg>
       </HeroMotion>
     </section>
   );
