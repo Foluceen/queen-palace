@@ -62,7 +62,7 @@ export function normalizeSettings(raw: unknown): unknown {
     productPageNotes: { shipping: str(notes.shipping) ?? "", returns: str(notes.returns) ?? "" },
     social: { instagram: str(social.instagram), tiktok: str(social.tiktok), facebook: str(social.facebook) },
     announcement: announcement
-      ? { enabled: announcement.enabled === true, message: str(announcement.message) ?? "", href: str(announcement.href) }
+      ? { enabled: announcement.enabled === true, message: str(announcement.message) ?? "", href: (safeHref(str(announcement.href)) as string | null) ?? null }
       : { enabled: false, message: "", href: null },
     freeShippingThreshold: typeof raw.freeShippingThreshold === "number" ? raw.freeShippingThreshold : null,
   };
@@ -232,15 +232,39 @@ export function toProductCard(raw: unknown): unknown {
 const listingOf = (l: unknown) => (isObj(l) && Array.isArray(l.items) ? { ...l, items: l.items.map(toProductCard) } : l);
 const cardsOf = (v: unknown) => (Array.isArray(v) ? v.map(toProductCard) : v);
 
+/**
+ * Links in API content (menus, homepage sections, the announcement) are rendered as hrefs.
+ * Only same-site paths, http(s), mailto and tel are allowed; anything else (javascript:, data:,
+ * vbscript:, protocol-relative "//host") becomes "/". Defence in depth against stored XSS.
+ */
+export function safeHref(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  const h = v.trim();
+  if (/^\/(?![\/\\])/.test(h) || h.startsWith("#") || h.startsWith("?")) return h;
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(h)) return h;
+  return "/";
+}
+function sanitizeHrefs(v: unknown, depth = 0): unknown {
+  if (depth > 6) return v;
+  if (Array.isArray(v)) return v.map((x) => sanitizeHrefs(x, depth + 1));
+  if (!isObj(v)) return v;
+  const out: Obj = {};
+  for (const [k, x] of Object.entries(v)) out[k] = /^(href|ctaHref|link|url)$/i.test(k) && typeof x === "string" && !/^(url)$/i.test(k) ? safeHref(x) : sanitizeHrefs(x, depth + 1);
+  return out;
+}
+
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
+  getNavigation: (v) => sanitizeHrefs(v),
   listProducts: listingOf,
   getCollection: (v) => (isObj(v) && isObj(v.listing) ? { ...v, listing: listingOf(v.listing) } : v),
   search: (v) => (isObj(v) && isObj(v.products) ? { ...v, products: listingOf(v.products) } : v),
   getProduct: (v) => (isObj(v) && Array.isArray(v.related) ? { ...v, related: cardsOf(v.related) } : v),
-  getHomepage: (v) =>
-    isObj(v) && Array.isArray(v.sections)
+  getHomepage: (raw) => {
+    const v = sanitizeHrefs(raw);
+    return isObj(v) && Array.isArray(v.sections)
       ? { ...v, sections: v.sections.map((sec) => (isObj(sec) && Array.isArray(sec.products) ? { ...sec, products: cardsOf(sec.products) } : sec)) }
-      : v,
+      : v;
+  },
   adminListInventory: normalizeInventoryList,
   adminAdjustInventory: normalizeInventoryRow,
   createCart: normalizeCart,

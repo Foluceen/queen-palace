@@ -120,13 +120,13 @@ export function CartDrawer() {
           ) : (
             <div className="drawer__empty">
               <p className="h2">Your bag is empty.</p>
-              <p className="muted">Start with our most loved unit, or browse every collection.</p>
+              <p className="muted">Browse the collection, or start from a look you love.</p>
               <div className="cluster">
-                <Link href="/products/bone-straight-double-drawn" className="btn">
-                  Shop double drawn
+                <Link href="/collections" className="btn" onClick={closeDrawer}>
+                  Shop the collection
                 </Link>
-                <Link href="/collections" className="btn btn--ghost">
-                  All collections
+                <Link href="/#looks" className="btn btn--ghost" onClick={closeDrawer}>
+                  Find your look
                 </Link>
               </div>
             </div>

@@ -195,6 +195,8 @@
 }
 
 html {
+  /* Mobile browsers size the page from <html>: clip stray decorative overflow so it can't pan sideways. */
+  overflow-x: clip;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   background: var(--bg);
@@ -967,4 +969,18 @@ button {
   height: 110px;
   width: auto;
   margin-bottom: 8px;
+}
+
+/* ---- Audit fixes (30 Oct 2026); kept last so they win over the base .btn rule ---- */
+/* Buttons keep their label: they never shrink below it in a row, and a long label wraps
+   onto two lines on narrow screens instead of being cut off. */
+.btn {
+  flex-shrink: 0;
+}
+@media (max-width: 599px) {
+  .btn {
+    white-space: normal;
+    text-align: center;
+    padding-block: 8px;
+  }
 }

@@ -78,6 +78,25 @@ Please reseed those, or the owner can save them in Admin → Branding.
 
 The package's frontend files were older snapshots of the current code and were not copied in. Their requirements (empty homepage valid, no `.map` on unvalidated data, failures degrade, server logs keep the endpoint) are already met. nginx `client_max_body_size 8m` is confirmed live (a 5 MB body reaches Fastify).
 
+## Security and robustness audit, 30 Oct 2026 (backend items)
+Reviewed against `https://api.queenluxuryhair.store/v1` and the `server.ts` in the latest handoff package. Good: parameterised SQL everywhere (a `' OR 1=1--` search is handled safely), argon2id passwords, HttpOnly SameSite=Lax cookies, CORS limited to the storefront origins, Helmet-style headers, a global 120/min rate limit, no stack traces in errors, page size capped at 100.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| **High** | **No role/permission enforcement.** `requireSession` only checks that a staff member is signed in; no admin route checks permissions. Any future staff account (e.g. "Fulfilment") could edit prices, delete products, or manage staff and roles, including promoting itself. Only the owner exists today, so there is no exposure yet. **Fix before creating any other staff account.** | Add `requirePermission(req, reply, "<permission>")` per route using the map in `docs/BACKEND_INTEGRATION.md`; return 403 `forbidden`. |
+| Medium | Login brute force: admin and customer login are covered only by the global 120/min/IP limit. | Per-route limit (e.g. 5/min per IP and per email) with a short lockout; same for register and password reset. |
+| Medium | Session cookie `secure` depends on `NODE_ENV==='production'`. | Set `secure: true` unconditionally in production config, and confirm `NODE_ENV` on the VPS. |
+| Low | Malformed JSON body returns 500. | Return 400 `invalid_json` (Fastify `onError`/content-type parser). |
+| Low | `GET /products?page=abc` returns 500 (NaN reaches OFFSET). | Validate `page`/`pageSize` as integers; default or 400. |
+| Low | `GET /media/not-a-uuid` returns 500. | Validate the id; 404. |
+| Low | Unknown routes return 501; preflight from a disallowed origin returns 501. | 404 for unknown routes; 204 (no CORS headers) or 403 for disallowed preflights. |
+| Low | `DELETE /admin/media/:id` checks `products.attributes` for use, not `product_media`. | Check `product_media` (and collection images) so used photos can't be deleted, leaving broken images. |
+| Low | `DELETE /admin/products/:id` archives instead of deleting. | Delete, or confirm "archive" semantics and we'll relabel the button. |
+| Info | Payment redirects: the frontend accepts any `https` `redirectUrl` from checkout. | When the provider is chosen, tell us its domains and we'll allow-list them. |
+| Info | nginx error pages (413/414/502) have no CORS headers, so browsers show them as network errors. | `add_header Access-Control-Allow-Origin $cors_origin always;` for allowed origins. |
+
+Frontend fixes from the same audit are deployed (see the git log for 30 Oct): security headers and CSP, link sanitising, theme-script hardening, demo credentials removed from live bundles, layout and accessibility fixes.
+
 ---
 
 ## Priority 1: create and manage products

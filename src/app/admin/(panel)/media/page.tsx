@@ -50,6 +50,7 @@ export default function MediaPage() {
                 accept="image/jpeg,image/png,image/webp,image/avif"
                 className="sr-only"
                 id="media-upload"
+                aria-label="Choose an image to upload (JPEG, PNG, WebP or AVIF)"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   e.target.value = "";

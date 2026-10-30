@@ -1440,3 +1440,29 @@ a.atable__primary:hover,
   fill: var(--text);
 }
 .atype__head > span { white-space: nowrap; }
+
+/* ---- Audit fixes (30 Oct 2026) -------------------------------------------------- */
+/* Positioned content inside tables (e.g. visually hidden labels) used the page as its
+   containing block and widened the mobile layout viewport (admin zoomed out to ~500px). */
+.atable-wrap {
+  position: relative;
+}
+/* Homepage editor: long section labels truncate instead of widening the panel. */
+.asections,
+.asection,
+.asection__head {
+  min-width: 0;
+}
+.asections {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* Small text links and table links are comfortable to tap on phones. */
+@media (pointer: coarse) {
+  .aback,
+  .link-btn.small,
+  a.small,
+  .atable__primary {
+    display: inline-block;
+    padding-block: 6px;
+  }
+}

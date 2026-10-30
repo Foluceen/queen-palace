@@ -60,6 +60,44 @@ if (process.env.NEXT_PUBLIC_DATA_MODE === "live" && siteUrl && process.env.NEXT_
   }
 }
 
+/**
+ * Security headers for every page. The CSP allows inline scripts because Next's App Router
+ * bootstraps with inline scripts (a nonce-based CSP would force every page to be dynamic);
+ * it still blocks third-party scripts, plugins, framing and form posts elsewhere.
+ */
+function apiOrigin(): string | null {
+  try {
+    return process.env.NEXT_PUBLIC_API_BASE_URL ? new URL(process.env.NEXT_PUBLIC_API_BASE_URL).origin : null;
+  } catch {
+    return null;
+  }
+}
+const imageSources = ["'self'", "data:", "blob:", ...mediaHosts.map((h) => `https://${h}`)];
+const connectSources = ["'self'", ...(apiOrigin() ? [apiOrigin() as string] : [])];
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src ${imageSources.join(" ")}`,
+  "font-src 'self' data:",
+  `connect-src ${connectSources.join(" ")}`,
+  "media-src 'self' https: blob:",
+  "frame-src 'none'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "upgrade-insecure-requests",
+].join("; ");
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -87,6 +125,12 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // Dev server needs eval for fast refresh; production builds (including the mock demo) get the full set.
+      ...(process.env.NODE_ENV === "production" ? [{ source: "/:path*", headers: securityHeaders }] : []),
+      {
+        source: "/admin/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }],
+      },
       {
         source: "/media/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }],

@@ -335,3 +335,23 @@ describe("product cards from the production API", () => {
     assert.ok(Array.isArray(col.listing.items[0]!.badges));
   });
 });
+
+describe("hardening against unsafe API content", () => {
+  it("only allows safe link targets from menus, homepage and the announcement", async () => {
+    const { safeHref, normalizeResponse, normalizeSettings } = await import("../src/lib/api/normalize");
+    for (const ok of ["/collections", "/collections?x=1", "#faq", "https://wa.me/234", "mailto:a@b.co", "tel:+234"]) assert.equal(safeHref(ok), ok);
+    for (const bad of ["javascript:alert(1)", " JaVaScRiPt:alert(1)", "data:text/html,x", "//evil.example", "/\\\\evil.example", "vbscript:x"]) assert.equal(safeHref(bad), "/");
+    const nav = normalizeResponse("getNavigation", { main: [{ id: "1", label: "x", href: "javascript:alert(1)", children: [{ id: "2", label: "y", href: "/ok" }] }], footer: [] }) as { main: Array<{ href: string; children: Array<{ href: string }> }> };
+    assert.equal(nav.main[0]!.href, "/");
+    assert.equal(nav.main[0]!.children[0]!.href, "/ok");
+    const s = normalizeSettings({ name: "Q", announcement: { enabled: true, message: "Hi", href: "javascript:alert(1)" } }) as { announcement: { href: string } };
+    assert.equal(s.announcement.href, "/");
+  });
+
+  it("never writes an unknown theme value into the inline theme script", async () => {
+    const { themeScript } = await import("../src/lib/theme");
+    const out = themeScript('"</script><script>alert(1)</script>' as never);
+    assert.ok(!out.includes("</script>"));
+    assert.ok(out.includes('"system"'));
+  });
+});

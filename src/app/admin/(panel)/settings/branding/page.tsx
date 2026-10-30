@@ -37,7 +37,7 @@ function Preview({ s, dark }: { s: StoreSettings; dark: boolean }) {
     <div className="abrand-preview" style={{ background: bg, color: text, ["--logo-mark" as string]: c.gold, ["--logo-text" as string]: dark ? "#F6ECE3" : "#1F1612" }}>
       <Logo variant="horizontal" className="abrand-preview__logo" title="" />
       <div className="abrand-preview__card" style={{ background: surface }}>
-        <p className="small" style={{ opacity: 0.7 }}>
+        <p className="small" style={{ opacity: 0.85 }}>
           Bone Straight
         </p>
         <p style={{ fontWeight: 700 }}>₦165,000</p>
@@ -45,7 +45,7 @@ function Preview({ s, dark }: { s: StoreSettings; dark: boolean }) {
           Add to bag
         </span>
       </div>
-      <span className="small" style={{ opacity: 0.6 }}>
+      <span className="small" style={{ opacity: 0.85 }}>
         {dark ? "Dark mode" : "Light mode"}
       </span>
     </div>

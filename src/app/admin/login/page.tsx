@@ -11,7 +11,9 @@ import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 import { safeNext } from "@/lib/redirect";
 
-const demoAccounts = [
+// Demo-only sample logins for the built-in mock backend. The condition is inlined at build
+// time, so live builds drop the list entirely (it never ships to production visitors).
+const demoAccounts = process.env.NEXT_PUBLIC_DATA_MODE === "live" ? [] : [
   { email: "owner@queenluxuryhair.test", password: "demo-owner", role: "Owner, full access" },
   { email: "manager@queenluxuryhair.test", password: "demo-manager", role: "Store manager" },
   { email: "fulfilment@queenluxuryhair.test", password: "demo-fulfilment", role: "Fulfilment" },
