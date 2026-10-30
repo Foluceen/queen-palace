@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { RequirePermission, useAdmin } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
-import { MediaThumb, readImageFile, type PreparedImage } from "@/components/admin/MediaPicker";
+import { MediaThumb, readImageFile, uploadTimeoutMs, type PreparedImage } from "@/components/admin/MediaPicker";
 import { useToast } from "@/components/admin/Toast";
 import { ConfirmButton, Empty, LoadError, LoadingRows, PageHeader, Sheet } from "@/components/admin/ui";
 import { TextField } from "@/components/ui/Field";
@@ -145,7 +145,7 @@ export default function MediaPage() {
                 try {
                   const m = await api().call("adminUploadMedia", {
                     body: { fileName: pending.image.fileName, mimeType: pending.image.mimeType, sizeBytes: pending.image.sizeBytes, width: pending.width, height: pending.height, alt: pending.alt.trim(), tags: pending.tags.split(",").map((t) => t.trim()).filter(Boolean), dataUrl: pending.preview },
-                  }, { timeoutMs: 60_000 });
+                  }, { timeoutMs: uploadTimeoutMs(pending.image.sizeBytes) });
                   setData((list) => [m, ...(list ?? [])]);
                   setPending(null);
                   toast("Image uploaded");

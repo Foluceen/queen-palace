@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
 import type { Media } from "@/lib/types";
-import { ACCEPTED_IMAGE_TYPES, MediaPicker, MediaThumb, readImageFile } from "./MediaPicker";
+import { ACCEPTED_IMAGE_TYPES, MediaPicker, MediaThumb, readImageFile, uploadTimeoutMs } from "./MediaPicker";
 
 interface Props {
   /** Photos currently attached, in display order (first = main photo). */
@@ -21,6 +21,7 @@ interface Props {
 interface Pending {
   key: string;
   name: string;
+  file: File;
   error?: string;
 }
 
@@ -37,11 +38,14 @@ export function PhotoUploader({ value, onChange, describeAs, single = false, dis
   const busy = pending.some((p) => !p.error);
 
   const alt = describeAs.trim() || "Queen Luxury Hair product photo";
+  // Latest photos, so photos that finish uploading are added to the current list (not a stale copy).
+  const latest = useRef(value);
+  latest.current = value;
 
   const upload = async (files: File[]) => {
     const list = single ? files.slice(0, 1) : files;
     if (!list.length) return;
-    const jobs = list.map((f, i) => ({ key: `${Date.now()}-${i}-${f.name}`, name: f.name }));
+    const jobs: Pending[] = list.map((f, i) => ({ key: `${Date.now()}-${i}-${f.name}`, name: f.name, file: f }));
     setPending((p) => [...p, ...jobs]);
     const added: Media[] = [];
     // One at a time keeps phone uploads reliable on slow connections.
@@ -53,7 +57,7 @@ export function PhotoUploader({ value, onChange, describeAs, single = false, dis
         const m = await api().call(
           "adminUploadMedia",
           { body: { fileName: img.fileName, mimeType: img.mimeType, sizeBytes: img.sizeBytes, width: img.width, height: img.height, alt: alt, tags: [], dataUrl: img.dataUrl } },
-          { timeoutMs: 60_000 },
+          { timeoutMs: uploadTimeoutMs(img.sizeBytes) },
         );
         added.push(m);
         setPending((p) => p.filter((x) => x.key !== job.key));
@@ -61,7 +65,7 @@ export function PhotoUploader({ value, onChange, describeAs, single = false, dis
         setPending((p) => p.map((x) => (x.key === job.key ? { ...x, error: errorMessage(err) } : x)));
       }
     }
-    if (added.length) onChange(single ? added.slice(0, 1) : [...value, ...added]);
+    if (added.length) onChange(single ? added.slice(0, 1) : [...latest.current, ...added]);
   };
 
   const move = (i: number, dir: -1 | 1) => {
@@ -185,6 +189,16 @@ export function PhotoUploader({ value, onChange, describeAs, single = false, dis
                   <span>
                     <strong>{p.name}</strong> couldn&apos;t be added: {p.error}
                   </span>
+                  <button
+                    type="button"
+                    className="link-btn small"
+                    onClick={() => {
+                      setPending((x) => x.filter((y) => y.key !== p.key));
+                      void upload([p.file]);
+                    }}
+                  >
+                    Try again
+                  </button>
                   <button type="button" className="link-btn small" onClick={() => setPending((x) => x.filter((y) => y.key !== p.key))}>
                     Dismiss
                   </button>

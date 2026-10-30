@@ -428,3 +428,13 @@ describe("line item size names", () => {
     assert.equal(variantLabel({ productTitle: "Futura Body Wave", variantTitle: "18\" / 1B" }), "18\" / 1B");
   });
 });
+
+describe("upload time limit", () => {
+  it("gives bigger photos more time on slow connections, within sensible bounds", async () => {
+    const { uploadTimeoutMs } = await import("../src/components/admin/MediaPicker");
+    assert.equal(uploadTimeoutMs(100_000), 60_000, "small photos: at least a minute");
+    assert.ok(uploadTimeoutMs(1_500_000) > 140_000, "a 1.5 MB photo gets well over two minutes");
+    assert.ok(uploadTimeoutMs(2_900_000) >= 240_000, "the largest allowed photo gets about four minutes");
+    assert.equal(uploadTimeoutMs(50_000_000), 300_000, "never more than five minutes");
+  });
+});

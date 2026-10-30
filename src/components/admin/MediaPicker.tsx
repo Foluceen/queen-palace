@@ -23,6 +23,20 @@ export const MAX_IMAGE_BYTES = 3_000_000;
 export const UPLOAD_BUDGET_BYTES = 2_900_000;
 /** Longest side after resizing; plenty for product photos (the storefront serves resized copies). */
 export const MAX_DIMENSION = 2560;
+/**
+ * JPEG/WebP/AVIF files up to this size are uploaded byte-for-byte. Anything bigger, and every PNG
+ * (PNG photos are typically 2-5 MB), is re-encoded as WebP at 0.92: visually identical for photos
+ * and usually 5-10x smaller, so uploads finish quickly on mobile data.
+ */
+export const PASSTHROUGH_MAX_BYTES = 1_200_000;
+/** Preferred size for re-encoded photos; quality only drops below 0.92 if a photo can't fit. */
+export const TARGET_BYTES = 1_500_000;
+
+/** How long to wait for an upload: generous on slow mobile data, scaled to the request size. */
+export function uploadTimeoutMs(sizeBytes: number): number {
+  const requestBytes = Math.ceil(sizeBytes * 1.37) + 2_000;
+  return Math.min(300_000, Math.max(60_000, 45_000 + Math.round(requestBytes / 20)));
+}
 
 export interface PreparedImage {
   dataUrl: string;
@@ -70,21 +84,32 @@ const encode = (canvas: HTMLCanvasElement, type: string, quality: number) =>
 
 /**
  * Prepares an image for upload: checks the type, then (only when needed) resizes to at most
- * MAX_DIMENSION and re-encodes as WebP (JPEG where WebP encoding isn't available) until it fits
- * UPLOAD_BUDGET_BYTES. Small images that already fit are sent unchanged.
+ * MAX_DIMENSION and re-encodes as WebP at 0.92 (JPEG where WebP encoding isn't available).
+ * Small JPEG/WebP files are sent unchanged; PNGs are always re-encoded.
  */
 export async function readImageFile(file: File): Promise<PreparedImage> {
+  const prepared = async (blob: Blob, width: number, height: number): Promise<PreparedImage> => ({
+    dataUrl: await toDataUrl(blob),
+    width,
+    height,
+    mimeType: blob.type,
+    sizeBytes: blob.size,
+    fileName: file.name.replace(/\.[^.]+$/, "") + "." + (blob.type === "image/webp" ? "webp" : "jpg"),
+  });
   if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) throw new Error("Use a JPEG, PNG, WebP, or AVIF image.");
   if (file.size > MAX_SOURCE_BYTES) throw new Error("That image is over 20 MB. Please choose a smaller photo.");
   const img = await decode(file);
   try {
-    if (file.size <= UPLOAD_BUDGET_BYTES && Math.max(img.width, img.height) <= MAX_DIMENSION) {
+    const passthrough = file.type !== "image/png" && file.size <= PASSTHROUGH_MAX_BYTES;
+    if (passthrough && Math.max(img.width, img.height) <= MAX_DIMENSION) {
       return { dataUrl: await toDataUrl(file), width: img.width, height: img.height, mimeType: file.type, sizeBytes: file.size, fileName: file.name };
     }
     const base = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("This browser can't prepare images for upload.");
+    let fallback: Blob | null = null;
+    let fallbackSize: [number, number] = [0, 0];
     for (const scale of [1, 0.85, 0.7, 0.55, 0.4]) {
       const w = Math.max(1, Math.round(img.width * base * scale));
       const h = Math.max(1, Math.round(img.height * base * scale));
@@ -93,7 +118,7 @@ export async function readImageFile(file: File): Promise<PreparedImage> {
       ctx.clearRect(0, 0, w, h);
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img.source, 0, 0, w, h);
-      for (const quality of [0.93, 0.88, 0.82]) {
+      for (const quality of [0.92, 0.88, 0.84]) {
         let blob = await encode(canvas, "image/webp", quality);
         if (!blob || blob.type !== "image/webp") {
           // No WebP encoder (older Safari): JPEG on a white background (JPEG has no transparency).
@@ -103,11 +128,14 @@ export async function readImageFile(file: File): Promise<PreparedImage> {
           ctx.globalCompositeOperation = "source-over";
           blob = await encode(canvas, "image/jpeg", quality);
         }
-        if (blob && blob.size <= UPLOAD_BUDGET_BYTES) {
-          const ext = blob.type === "image/webp" ? "webp" : "jpg";
-          return { dataUrl: await toDataUrl(blob), width: w, height: h, mimeType: blob.type, sizeBytes: blob.size, fileName: file.name.replace(/\.[^.]+$/, "") + "." + ext };
+        if (blob && blob.size <= TARGET_BYTES) return prepared(blob, w, h);
+        if (blob && blob.size <= UPLOAD_BUDGET_BYTES && !fallback) {
+          fallback = blob;
+          fallbackSize = [w, h];
         }
       }
+      // Full size fits the hard limit at high quality: keep HD rather than shrinking further.
+      if (fallback) return prepared(fallback, fallbackSize[0], fallbackSize[1]);
     }
     throw new Error("We couldn't make this image small enough to upload. Please try a different photo.");
   } finally {
