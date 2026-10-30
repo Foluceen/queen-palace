@@ -2368,3 +2368,56 @@ a.atable__primary:hover,
   grid-column: 1 / -1;
   margin: 0;
 }
+
+/* Photo order: drag to reorder, position labels, make main */
+.aphotos__help {
+  margin: 0;
+}
+.aphotos__card {
+  position: relative;
+  width: 100%;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.aphotos__card img {
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+.aphotos__grid.is-sorting .aphotos__card {
+  cursor: grabbing;
+}
+.aphotos__item.is-dragging .aphotos__card {
+  opacity: 0.55;
+  outline: 2px dashed var(--cta-bg);
+  outline-offset: 3px;
+  border-radius: 14px;
+}
+.aphotos__main.is-other {
+  background: rgb(0 0 0 / 0.65);
+  color: #ffffff;
+}
+.aphotos__grip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.6);
+  color: #ffffff;
+  cursor: grab;
+  touch-action: none;
+}
+.aphotos__grip:focus-visible {
+  outline: 2px solid var(--cta-bg);
+  outline-offset: 2px;
+}
+.aphotos__make-main {
+  font-weight: 700;
+}
