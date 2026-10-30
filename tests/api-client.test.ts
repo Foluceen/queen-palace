@@ -309,3 +309,29 @@ describe("production backend compatibility", () => {
     assert.equal(rows[0]!.availability, "low_stock");
   });
 });
+
+describe("product cards from the production API", () => {
+  // Shape of GET /v1/products items on 30 Oct 2026 (full products, not cards).
+  const product = { id: "p1", handle: "futura-wigs", title: "Futura Wigs", subtitle: "", description: "", status: "published", collectionIds: [], media: [{ id: "m1", url: "https://api.queenluxuryhair.store/v1/media/m1", alt: "Wig", width: 800, height: 1000, mimeType: "image/webp", tags: [], createdAt: "2026-10-30T00:00:00Z" }], options: [], variants: [{ id: "v1" }], priceRange: { min: 5000000, max: 5000000 }, compareAtPriceRange: { min: 6000000, max: 6000000 }, availability: "in_stock", productTypeId: null, attributes: {}, video: null, tags: [], rating: { average: 0, count: 0 }, featured: false, seo: {}, createdAt: "", updatedAt: "" };
+
+  it("turns listing products into cards the grid can render", async () => {
+    const { normalizeResponse } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    const raw = { items: [product], page: 1, pageSize: 8, total: 1, totalPages: 1, facets: [], priceBounds: { min: 0, max: 0 } };
+    assert.match(validateResponse("listProducts", raw) ?? "", /badges/);
+    const listing = normalizeResponse("listProducts", raw) as { items: Array<{ image: { id: string } | null; badges: string[]; hoverImage: unknown }> };
+    assert.equal(validateResponse("listProducts", listing), null);
+    assert.equal(listing.items[0]!.image?.id, "m1");
+    assert.equal(listing.items[0]!.hoverImage, null);
+    assert.deepEqual(listing.items[0]!.badges, ["Sale"]);
+  });
+
+  it("marks sold-out products and adapts search and collection listings too", async () => {
+    const { normalizeResponse } = await import("../src/lib/api/normalize");
+    const sold = { ...product, availability: "out_of_stock", compareAtPriceRange: null };
+    const search = normalizeResponse("search", { query: "w", products: { items: [sold], page: 1, pageSize: 1, total: 1, totalPages: 1, facets: [], priceBounds: { min: 0, max: 0 } }, collections: [], suggestions: [] }) as { products: { items: Array<{ badges: string[] }> } };
+    assert.deepEqual(search.products.items[0]!.badges, ["Sold out"]);
+    const col = normalizeResponse("getCollection", { collection: {}, listing: { items: [product], page: 1, pageSize: 1, total: 1, totalPages: 1, facets: [], priceBounds: { min: 0, max: 0 } } }) as { listing: { items: Array<{ badges: unknown }> } };
+    assert.ok(Array.isArray(col.listing.items[0]!.badges));
+  });
+});

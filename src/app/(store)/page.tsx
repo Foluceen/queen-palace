@@ -45,7 +45,8 @@ export default async function HomePage() {
       <LuxHero settings={settings} />
       <LuxMarquee town={town} />
       <LuxLooks />
-      {sections.length ? null : <LuxArrivals products={arrivals} settings={settings} />}
+      {/* null = the product list couldn't be loaded (logged above): show nothing rather than "being added". */}
+      {sections.length || arrivals === null ? null : <LuxArrivals products={arrivals} settings={settings} />}
       {sections.map((s) => {
         switch (s.type) {
           case "collections":

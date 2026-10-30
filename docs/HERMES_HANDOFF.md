@@ -65,6 +65,19 @@ Ideally also make nginx's own error responses carry CORS headers, so the browser
 
 Frontend fix (deployed): the media page now resizes images to at most 2000 px and re-encodes them as WebP (JPEG fallback) until the image is at most 700 KB, so the base64 JSON stays under 1 MB even with the current nginx limit. Originals up to 20 MB are accepted. What is sent (`mimeType`, `sizeBytes`, `fileName`) describes the re-encoded bytes exactly, so the backend's decoded-size check holds. The upload timeout is 60 s.
 
+## Homepage 500 after the first product was published (30 Oct 2026)
+Root cause: product listings (`/products`, `/collections/:handle`, `/search`, homepage rails, `related`) return full `Product` objects where the contract expects `ProductCard` (`image`, `hoverImage`, `badges`, `swatches`). With the first published product, the home page's "New in" card read `badges.length` and the server render crashed (digest 3584312020). It was not a stale build or the Vercel cache: it reproduces locally the moment a product exists.
+
+Frontend fix (deployed): `toProductCard` in `src/lib/api/normalize.ts` derives cards from products (first/second image, "Sold out" from availability, "Sale" from compare-at above price, first option as swatches). Listing validation now checks card fields, so a future mismatch is caught at fetch, never in render. If the list can't be loaded, the home page omits that section instead of saying "being added".
+
+Hermes: returning `ProductCard[]` for listings, as in the contract, would also be fine; the adapter passes contract cards through unchanged.
+
+**Seeded branding overrides the client palette.** `/store/settings` now returns `branding.colors` `{gold: "#c8a96b", burgundy: "#5a1020", …}` and `radius: 12`. The storefront applies these, so prices turn burgundy and buttons lose their pill shape. The client's palette, in the contract's field names, is:
+`gold: "#ffa3df"` (soft pink), `burgundy: "#ff35b9"` (hot pink), `darkBackground: "#000000"`, `darkSurface: "#0d0d0d"`, `lightBackground: "#fbf6f2"`, `lightSurface: "#f4ebe5"`, `radius: 999`, `theme.defaultMode: "dark"`.
+Please reseed those, or the owner can save them in Admin → Branding.
+
+The package's frontend files were older snapshots of the current code and were not copied in. Their requirements (empty homepage valid, no `.map` on unvalidated data, failures degrade, server logs keep the endpoint) are already met. nginx `client_max_body_size 8m` is confirmed live (a 5 MB body reaches Fastify).
+
 ---
 
 ## Priority 1: create and manage products

@@ -41,9 +41,12 @@ const each = (arr: unknown, check: (item: unknown, where: string) => string | nu
   return null;
 };
 
+const card = (p: unknown, w: string) =>
+  fields(p, { id: "string", handle: "string", title: "string", priceRange: "object", availability: "string", badges: "array", rating: "object", image: "object|null" }, w);
+
 const listing = (v: unknown, where: string) =>
   fields(v, { items: "array", page: "number", pageSize: "number", total: "number", totalPages: "number", facets: "array", priceBounds: "object" }, where) ??
-  each((v as { items: unknown }).items, (p, w) => fields(p, { id: "string", handle: "string", title: "string", priceRange: "object", availability: "string" }, w), `${where}.items`);
+  each((v as { items: unknown }).items, card, `${where}.items`);
 
 const cart: Check = (v) =>
   fields(v, { id: "string", currency: "string", lines: "array", itemCount: "number", discounts: "array", totals: "object", notices: "array" }, "cart") ??

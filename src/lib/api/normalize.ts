@@ -196,7 +196,51 @@ function inventoryRow(raw: unknown): unknown {
 export const normalizeInventoryList = (raw: unknown) => (Array.isArray(raw) ? raw.map(inventoryRow) : raw);
 export const normalizeInventoryRow = inventoryRow;
 
+/**
+ * Product lists: the production API returns full products ({ media, variants, options, … })
+ * where the contract expects product cards. Everything a card needs is derived from the
+ * product itself: first/second image, "Sold out" when nothing is available, "Sale" when a
+ * compare-at price is above the price, and the first option's values as swatches.
+ * Contract-shaped cards pass through unchanged.
+ */
+export function toProductCard(raw: unknown): unknown {
+  if (!isObj(raw) || Array.isArray(raw.badges)) return raw;
+  if (!Array.isArray(raw.media) && !Array.isArray(raw.variants)) return raw;
+  const media = (Array.isArray(raw.media) ? raw.media : []).filter(isObj);
+  const price = isObj(raw.priceRange) ? raw.priceRange : null;
+  const compare = isObj(raw.compareAtPriceRange) ? raw.compareAtPriceRange : null;
+  const options = (Array.isArray(raw.options) ? raw.options : []).filter(isObj);
+  const first = options.find((o) => typeof o.name === "string" && Array.isArray(o.values) && o.values.length);
+  const badges: string[] = [];
+  if (raw.availability === "out_of_stock") badges.push("Sold out");
+  else if (price && compare && typeof compare.max === "number" && typeof price.min === "number" && compare.max > price.min) badges.push("Sale");
+  return {
+    id: raw.id,
+    handle: raw.handle,
+    title: raw.title,
+    subtitle: str(raw.subtitle) ?? "",
+    image: media[0] ?? null,
+    hoverImage: media[1] ?? null,
+    priceRange: price ?? { min: 0, max: 0 },
+    compareAtPriceRange: compare,
+    availability: raw.availability,
+    rating: isObj(raw.rating) ? raw.rating : { average: 0, count: 0 },
+    swatches: first ? { option: String(first.name), values: (first.values as unknown[]).map(String) } : null,
+    badges,
+  };
+}
+const listingOf = (l: unknown) => (isObj(l) && Array.isArray(l.items) ? { ...l, items: l.items.map(toProductCard) } : l);
+const cardsOf = (v: unknown) => (Array.isArray(v) ? v.map(toProductCard) : v);
+
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
+  listProducts: listingOf,
+  getCollection: (v) => (isObj(v) && isObj(v.listing) ? { ...v, listing: listingOf(v.listing) } : v),
+  search: (v) => (isObj(v) && isObj(v.products) ? { ...v, products: listingOf(v.products) } : v),
+  getProduct: (v) => (isObj(v) && Array.isArray(v.related) ? { ...v, related: cardsOf(v.related) } : v),
+  getHomepage: (v) =>
+    isObj(v) && Array.isArray(v.sections)
+      ? { ...v, sections: v.sections.map((sec) => (isObj(sec) && Array.isArray(sec.products) ? { ...sec, products: cardsOf(sec.products) } : sec)) }
+      : v,
   adminListInventory: normalizeInventoryList,
   adminAdjustInventory: normalizeInventoryRow,
   createCart: normalizeCart,
