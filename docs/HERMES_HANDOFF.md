@@ -97,6 +97,18 @@ Reviewed against `https://api.queenluxuryhair.store/v1` and the `server.ts` in t
 
 Frontend fixes from the same audit are deployed (see the git log for 30 Oct): security headers and CSP, link sanitising, theme-script hardening, demo credentials removed from live bundles, layout and accessibility fixes.
 
+## Admin gaps seen while simplifying the admin (30 Oct 2026)
+The frontend now adapts these production formats: reviews `{items}` → list, `{review}` and `{order}` unwrapped, order `items` → `lines`, dashboard low-stock snake_case. Still missing on the backend:
+
+| Area | Now | Needed |
+|---|---|---|
+| Collection photos | `imageId`/`bannerId` ignored; collections come back with `image: null` | Persist them. The admin warns the owner when a photo isn't kept. |
+| Order detail | No contact phone, delivery address, delivery method or timeline in `orderView` | Include `contact`, `shippingAddress`, `shippingRate`, `timeline` (contract `Order`). The admin shows "not recorded" until then. |
+| Payment settings | `GET /admin/settings/payments` only | `PUT /admin/settings/payments` (Delivery & payment screen can't save) |
+| Staff | No `POST /admin/staff` | Invite endpoint, **after** per-permission authorization is in place |
+| Orders | No `transfer-received` or `refunds` routes | Implement when bank transfer and card payments go live |
+| Products with sizes | One price/stock per product | Persist `variants[]` if the client sells sizes as one product |
+
 ---
 
 ## Priority 1: create and manage products
