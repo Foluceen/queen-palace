@@ -7,6 +7,7 @@ import { HeroMotion } from "@/components/motion/HeroMotion";
 import { Marquee } from "@/components/motion/Marquee";
 import { Reveal } from "@/components/motion/Reveal";
 import { LookSpotlight } from "@/components/store/home/LookSpotlight";
+import { HeroStage } from "@/components/store/home/HeroStage";
 import { mapsHref } from "@/lib/contact";
 import type { ProductCard as Card, StoreSettings } from "@/lib/types";
 
@@ -16,10 +17,10 @@ import type { ProductCard as Card, StoreSettings } from "@/lib/types";
  * here states prices, stock, ratings or other business facts.
  */
 export const LOOKS = [
-  { key: "balayage", src: "/media/looks/ash-balayage-wave.jpg", label: "Balayage", q: "balayage", alt: "Ash blonde balayage wig with soft waves, styled on a mannequin by a fountain" },
-  { key: "frontal", src: "/media/looks/lace-frontal-hairline.jpg", label: "Frontal", q: "frontal", alt: "Close-up of a lace frontal hairline with a soft middle part" },
-  { key: "curly", src: "/media/looks/chocolate-kinky-curly.jpg", label: "Curly", q: "curly", alt: "Chocolate brown kinky curly lace wig with a full, voluminous shape" },
-  { key: "body-wave", src: "/media/looks/copper-body-wave.jpg", label: "Body wave", q: "body wave", alt: "Long copper body wave wig seen from the back" },
+  { key: "balayage", src: "/media/looks/ash-balayage-wave.jpg", label: "Balayage", q: "balayage", focus: "45% 35%", alt: "Ash blonde balayage wig with soft waves, styled on a mannequin by a fountain" },
+  { key: "frontal", src: "/media/looks/lace-frontal-hairline.jpg", label: "Frontal", q: "frontal", focus: "50% 30%", alt: "Close-up of a lace frontal hairline with a soft middle part" },
+  { key: "curly", src: "/media/looks/chocolate-kinky-curly.jpg", label: "Curly", q: "curly", focus: "55% 40%", alt: "Chocolate brown kinky curly lace wig with a full, voluminous shape" },
+  { key: "body-wave", src: "/media/looks/copper-body-wave.jpg", label: "Body wave", q: "body wave", focus: "50% 45%", alt: "Long copper body wave wig seen from the back" },
 ] as const;
 
 function townOf(address: string): string | null {
@@ -29,7 +30,7 @@ function townOf(address: string): string | null {
 
 export function LuxHero({ settings }: { settings: StoreSettings }) {
   const town = townOf(settings.address);
-  const words = ["Hair", "that", "wears", "like", "a"];
+  const words = ["Hair", "that", "wears", "like"];
   return (
     <section className="hero lux-hero" aria-labelledby="lux-hero-title">
       <div className="lux-hero__glow" aria-hidden />
@@ -48,9 +49,14 @@ export function LuxHero({ settings }: { settings: StoreSettings }) {
                 </span>{" "}
               </Fragment>
             ))}
-            <span className="hero__word lux-hero__crown">
-              <span data-hero-word className="script">
-                crown.
+            <span className="lux-hero__last">
+              <span className="hero__word">
+                <span data-hero-word>a</span>
+              </span>{" "}
+              <span className="hero__word lux-hero__crown">
+                <span data-hero-word className="script">
+                  crown.
+                </span>
               </span>
             </span>
           </h1>
@@ -67,20 +73,8 @@ export function LuxHero({ settings }: { settings: StoreSettings }) {
           </div>
         </div>
 
-        <div className="lux-hero__art">
-          <svg className="lux-hero__ring" data-depth="-5" viewBox="0 0 200 200" aria-hidden>
-            <circle cx="100" cy="100" r="96" />
-            <circle cx="100" cy="100" r="80" className="lux-hero__ring-inner" />
-          </svg>
-          {LOOKS.map((look, i) => (
-            <Link key={look.key} href={`/search?q=${encodeURIComponent(look.q)}`} className={`lux-frame lux-frame--${i + 1}`} data-depth={[8, -10, 12, -6][i]} data-hero-pop>
-              <Image src={look.src} alt={look.alt} fill sizes="(min-width: 1000px) 260px, 42vw" priority={i < 2} className="lux-frame__img" />
-              <span className="lux-frame__tag">{look.label}</span>
-            </Link>
-          ))}
-          <span className="lux-spark lux-spark--1" aria-hidden />
-          <span className="lux-spark lux-spark--2" aria-hidden />
-          <span className="lux-spark lux-spark--3" aria-hidden />
+        <div className="lux-hero__art" data-hero-fade>
+          <HeroStage looks={LOOKS.map(({ key, src, alt, label, q, focus }) => ({ key, src, alt, label, q, focus }))} />
         </div>
       </HeroMotion>
     </section>
