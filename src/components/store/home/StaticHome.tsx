@@ -33,11 +33,13 @@ function townOf(address: string): string | null {
  * directly on the black page with our own pink and gold light behind her. Set to null to fall
  * back to the arched lookbook stage.
  */
-export const HERO_PHOTO: { src: string; width: number; height: number; alt: string } | null = {
-  src: "/media/hero/model-body-wave.webp",
-  width: 1320,
+export const HERO_PHOTO: { src: string; width: number; height: number; alt: string; faceX: number } | null = {
+  src: "/media/hero/model-long-wave.webp",
+  width: 1672,
   height: 941,
-  alt: "Model wearing a long, glossy black body wave lace wig with a soft side part",
+  alt: "Model wearing an extra-long, glossy dark brown body wave lace wig with a middle part",
+  /** Where her face sits across the photo (0 = left edge, 1 = right edge); phones centre on it. */
+  faceX: 0.79,
 };
 
 export function LuxHero({ settings }: { settings: StoreSettings }) {
@@ -115,7 +117,7 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
         </div>
 
         {/* Middle ground: the model */}
-        <div className="lux-ed__model" data-depth="4">
+        <div className="lux-ed__model" data-depth="4" style={{ ["--face-x" as string]: `${photo.faceX * 100}%` }}>
           <Image src={photo.src} alt={photo.alt} width={photo.width} height={photo.height} priority sizes="(min-width: 900px) 80vw, 180vw" className="lux-ed__img" />
         </div>
 

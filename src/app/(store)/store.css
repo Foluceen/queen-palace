@@ -4250,7 +4250,7 @@ body:has(dialog[open]) .wa-float {
 }
 .lux-ed__model {
   position: absolute;
-  right: clamp(-200px, -9vw, 0px);
+  right: clamp(-90px, -4vw, 0px);
   bottom: 0;
   height: 100%;
   z-index: -1;
@@ -4262,6 +4262,9 @@ body:has(dialog[open]) .wa-float {
   width: auto;
   max-width: none;
   filter: drop-shadow(-30px 10px 60px rgb(0 0 0 / 0.6));
+  /* The hair sweeps far to the left: fade it out before it reaches the headline. */
+  -webkit-mask-image: linear-gradient(to right, transparent 4%, rgb(0 0 0 / 0.3) 26%, #000 52%);
+  mask-image: linear-gradient(to right, transparent 4%, rgb(0 0 0 / 0.3) 26%, #000 52%);
 }
 .lux-ed__copy {
   position: relative;
@@ -4387,7 +4390,7 @@ body:has(dialog[open]) .wa-float {
 }
 @media (min-width: 900px) and (max-width: 1099px) {
   .lux-ed__model {
-    right: -22vw;
+    right: -8vw;
   }
   .lux-ed__badge {
     display: none;
@@ -4409,7 +4412,9 @@ body:has(dialog[open]) .wa-float {
     position: absolute;
     left: 50%;
     bottom: 0;
-    translate: -57% 0;
+    translate: calc(-1 * var(--face-x, 57%)) 0;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
   .lux-ed__model::after {
     content: "";
