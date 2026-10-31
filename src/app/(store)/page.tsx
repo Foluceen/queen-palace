@@ -67,12 +67,11 @@ async function collectionRails(collections: Collection[]): Promise<CollectionWit
 export default async function HomePage() {
   const [home, settings, arrivals, collections] = await Promise.all([homepageOrEmpty(), getSettings(), newArrivals(), collectionsOrEmpty()]);
   const rails = await collectionRails(collections);
-  const town = /\b(Ilesha|Ilesa)\b/i.exec(settings.address)?.[0] ?? null;
   const sections = home.sections.filter((s) => s.type !== "hero" && s.type !== "marquee");
   return (
     <>
       <LuxHero settings={settings} />
-      <LuxMarquee town={town} />
+      <LuxMarquee />
       <LuxLooks collections={collections} />
       {/* null = the product list couldn't be loaded (logged above): show nothing rather than "being added". */}
       {/* The lead collection (Futura Wigs) comes before "New in"; the next one after it. */}

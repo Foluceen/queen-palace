@@ -804,7 +804,7 @@ export const seedSettings: StoreSettings = {
     returns: "Tell us within the return window if your hair isn't right. Read the returns policy for what can be returned and how.",
   },
   social: { instagram: null, tiktok: null, facebook: null },
-  announcement: { enabled: true, message: "Visit us in Ijoka, beside Ibiyemi Building Material, Ilesha.", href: "/contact" },
+  announcement: { enabled: true, message: "Visit us in Ijoka, beside Ibiyemi Building Material.", href: "/contact" },
   freeShippingThreshold: null,
 };
 

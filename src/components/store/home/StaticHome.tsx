@@ -24,28 +24,25 @@ export const LOOKS = [
   { key: "body-wave", src: "/media/looks/copper-body-wave.jpg", label: "Body wave", q: "body wave", focus: "50% 45%", alt: "Long copper body wave wig seen from the back" },
 ] as const;
 
-function townOf(address: string): string | null {
-  const m = address.match(/\b(Ilesha|Ilesa)\b/i);
-  return m ? m[0] : null;
-}
 
 /**
  * Editorial hero: the model is a background-removed cutout (transparent WebP) so she sits
  * directly on the black page with our own pink and gold light behind her. Set to null to fall
  * back to the arched lookbook stage.
  */
-export const HERO_PHOTO: { src: string; width: number; height: number; alt: string; faceX: number } | null = {
-  src: "/media/hero/model-long-wave.webp",
-  width: 1672,
-  height: 941,
-  alt: "Model wearing an extra-long, glossy dark brown body wave lace wig with a middle part",
+export const HERO_PHOTO: { src: string; width: number; height: number; alt: string; faceX: number; portrait?: boolean } | null = {
+  src: "/media/hero/owner.webp",
+  width: 556,
+  height: 1244,
+  alt: "The owner of Queen Luxury Hair in a yellow two-piece, wearing a long black body wave wig",
   /** Where her face sits across the photo (0 = left edge, 1 = right edge); phones centre on it. */
-  faceX: 0.79,
+  faceX: 0.44,
+  /** Standing portrait (taller than wide): shown large and cropped at the hips, no hair fade. */
+  portrait: true,
 };
 
 export function LuxHero({ settings }: { settings: StoreSettings }) {
   if (HERO_PHOTO) return <LuxHeroEditorial settings={settings} photo={HERO_PHOTO} />;
-  const town = townOf(settings.address);
   const words = ["Hair", "that", "wears", "like"];
   return (
     <section className="hero lux-hero" aria-labelledby="lux-hero-title">
@@ -55,7 +52,6 @@ export function LuxHero({ settings }: { settings: StoreSettings }) {
           <p className="lux-eyebrow" data-hero-fade>
             <span className="lux-eyebrow__rule" aria-hidden />
             {settings.name}
-            {town ? ` · ${town}` : ""}
           </p>
           <h1 id="lux-hero-title" className="lux-hero__title">
             {words.map((w) => (
@@ -77,7 +73,7 @@ export function LuxHero({ settings }: { settings: StoreSettings }) {
             </span>
           </h1>
           <p className="lux-hero__body" data-hero-fade>
-            Wigs, frontals, closures and bundles, chosen to look like you on your best day. Shop online{town ? ` or visit the store in ${town}` : ""}.
+            Wigs, frontals, closures and bundles, chosen to look like you on your best day. Shop online or visit the store.
           </p>
           <div className="lux-hero__ctas" data-hero-fade>
             <Link href="/collections" className="btn btn--blush btn--lg">
@@ -98,14 +94,13 @@ export function LuxHero({ settings }: { settings: StoreSettings }) {
 }
 
 function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo: NonNullable<typeof HERO_PHOTO> }) {
-  const town = townOf(settings.address);
   const trust = [
     { icon: "crown", title: "Wigs & frontals", body: "Closures and bundles too" },
     { icon: "spark", title: "Help choosing", body: "Lace, length and density" },
-    { icon: "pin", title: town ? `Pickup in ${town}` : "Delivery or pickup", body: "Or delivery at checkout" },
+    { icon: "pin", title: "Delivery or pickup", body: "Choose at checkout" },
   ] as const;
   return (
-    <section className="hero lux-ed" aria-labelledby="lux-hero-title">
+    <section className={`hero lux-ed ${photo.portrait ? "lux-ed--portrait" : ""}`} aria-labelledby="lux-hero-title">
       <HeroMotion className="lux-ed__inner">
         {/* Background: light stage behind the model */}
         <div className="lux-ed__bg" aria-hidden data-depth="-2">
@@ -119,8 +114,12 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
 
         {/* Middle ground: the model */}
         <div className="lux-ed__model" data-depth="4" style={{ ["--face-x" as string]: `${photo.faceX * 100}%` }}>
-          <Image src={photo.src} alt={photo.alt} width={photo.width} height={photo.height} priority sizes="(min-width: 900px) 80vw, 180vw" className="lux-ed__img" />
+          <Image src={photo.src} alt={photo.alt} width={photo.width} height={photo.height} priority quality={95} sizes={photo.portrait ? "(min-width: 900px) 40vw, 100vw" : "(min-width: 900px) 80vw, 180vw"} className="lux-ed__img" />
+          {/* One-off light pass, cut to her silhouette (same image as the mask, same box as the photo). */}
+          <span className="lux-ed__sweep" aria-hidden style={{ ["--sweep-mask" as string]: `url(${photo.src})`, aspectRatio: `${photo.width} / ${photo.height}` }} />
         </div>
+        {/* Full-width floor fade: the portrait melts into the page without any visible edges. */}
+        {photo.portrait ? <span className="lux-ed__floor" aria-hidden /> : null}
 
         {/* Foreground: copy */}
         <div className="container lux-ed__copy">
@@ -128,7 +127,6 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
           <p className="lux-eyebrow" data-hero-fade>
             <span className="lux-eyebrow__rule" aria-hidden />
             {settings.name}
-            {town ? ` · ${town}` : ""}
           </p>
           <h1 id="lux-hero-title" className="lux-hero__title lux-ed__title">
             <span className="lux-ed__line">
@@ -213,8 +211,8 @@ function TrustIcon({ name }: { name: "crown" | "spark" | "pin" }) {
   );
 }
 
-export function LuxMarquee({ town }: { town: string | null }) {
-  const items = ["Wigs", "Lace frontals", "Closures", "Bundles", "Hair care", ...(town ? [`Visit us in ${town}`] : [])];
+export function LuxMarquee() {
+  const items = ["Wigs", "Lace frontals", "Closures", "Bundles", "Hair care", "Wig tools"];
   return <Marquee items={items} />;
 }
 

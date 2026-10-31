@@ -4535,3 +4535,211 @@ body:has(.buybar.is-visible) footer {
 .circle__label {
   word-spacing: 0.18em;
 }
+
+/* ---------------------------------------------------------------------------
+   Hero with a standing portrait (the owner). Shown large, cropped at the hips,
+   faded into the black page at the bottom.
+   --------------------------------------------------------------------------- */
+.lux-ed--portrait .lux-ed__model {
+  right: clamp(16px, 8vw, 150px);
+  filter: drop-shadow(-24px 18px 50px rgb(0 0 0 / 0.65));
+}
+.lux-ed--portrait .lux-ed__img {
+  height: 126%;
+  margin-top: 1.5%;
+  filter: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.lux-ed__floor {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+  height: 30%;
+  background: linear-gradient(to top, #000 8%, rgb(0 0 0 / 0.75) 40%, transparent);
+  pointer-events: none;
+}
+.lux-ed--portrait .lux-ed__glow--pink {
+  right: 2%;
+  top: -18%;
+}
+.lux-ed--portrait .lux-ed__arc {
+  right: 4%;
+}
+@media (min-width: 900px) and (max-width: 1099px) {
+  .lux-ed--portrait .lux-ed__model {
+    right: 2vw;
+  }
+}
+@media (max-width: 899px) {
+  .lux-ed--portrait .lux-ed__model {
+    height: min(76svh, 600px);
+    filter: none;
+  }
+  .lux-ed--portrait .lux-ed__img {
+    position: absolute;
+    top: 0;
+    bottom: auto;
+    left: 50%;
+    height: 124%;
+    margin: 0;
+    translate: calc(-1 * var(--face-x, 50%)) 0;
+  }
+  .lux-ed--portrait .lux-ed__model::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 42%;
+    background: linear-gradient(to top, #000 10%, transparent);
+    pointer-events: none;
+  }
+  .lux-ed__floor {
+    display: none;
+  }
+  .lux-ed--portrait .lux-ed__badge {
+    display: none;
+  }
+  .lux-ed--portrait .lux-ed__copy {
+    margin-top: -150px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Cinematic entry (pure CSS, starts at first paint; no JavaScript needed):
+   letterbox bars open, the model rises out of the dark into focus, a light beam
+   passes across her once, and the pink glow blooms before it starts breathing.
+   --------------------------------------------------------------------------- */
+.lux-ed::before,
+.lux-ed::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  height: 13%;
+  background: #000;
+  pointer-events: none;
+  animation: lux-ed-bar 1.25s cubic-bezier(0.7, 0, 0.2, 1) 0.15s both;
+}
+.lux-ed::before {
+  top: 0;
+  transform-origin: top;
+}
+.lux-ed::after {
+  bottom: 0;
+  transform-origin: bottom;
+}
+@keyframes lux-ed-bar {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0);
+  }
+}
+.lux-ed__img {
+  animation: lux-ed-enter 1.9s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+@keyframes lux-ed-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(1.07);
+    filter: blur(16px) brightness(0.2) saturate(0.6);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0) brightness(0.9) saturate(1);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: blur(0) brightness(1) saturate(1);
+  }
+}
+/* Same box as .lux-ed__img in each layout, masked by the cutout so only she catches the light. */
+.lux-ed__sweep {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(105deg, transparent 38%, rgb(255 214 238 / 0.55) 50%, transparent 62%);
+  background-size: 260% 100%;
+  -webkit-mask: var(--sweep-mask) center / 100% 100% no-repeat;
+  mask: var(--sweep-mask) center / 100% 100% no-repeat;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: lux-ed-sweep 1.8s ease-in-out 1.1s both;
+}
+.lux-ed--portrait .lux-ed__sweep {
+  top: 1.5%;
+  height: 126%;
+}
+@media (max-width: 899px) {
+  .lux-ed__sweep {
+    display: none;
+  }
+  .lux-ed--portrait .lux-ed__sweep {
+    display: block;
+    left: 50%;
+    top: 0;
+    height: 124%;
+    translate: calc(-1 * var(--face-x, 50%)) 0;
+  }
+}
+@keyframes lux-ed-sweep {
+  0% {
+    opacity: 0;
+    background-position: 120% 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    background-position: -40% 0;
+  }
+}
+.lux-ed__glow--pink {
+  animation:
+    lux-ed-glow 2.2s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both,
+    lux-breathe 9s ease-in-out 2.3s infinite;
+}
+@keyframes lux-ed-glow {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lux-ed::before,
+  .lux-ed::after,
+  .lux-ed__sweep {
+    display: none;
+  }
+  .lux-ed__img,
+  .lux-ed__glow--pink {
+    animation: none;
+  }
+}
+/* Phones crop the portrait to a box, so a blurred start would show its edge: rise from the dark instead. */
+@media (max-width: 899px) and (prefers-reduced-motion: no-preference) {
+  .lux-ed__img {
+    animation-name: lux-ed-enter-m;
+  }
+}
+@keyframes lux-ed-enter-m {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(1.05);
+    filter: brightness(0.25);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: brightness(1);
+  }
+}
