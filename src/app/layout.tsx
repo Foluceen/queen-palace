@@ -4,7 +4,7 @@ import { unstable_rethrow } from "next/navigation";
 import { MotionTierScript } from "@/components/motion/MotionTierScript";
 import { siteUrl } from "@/lib/api/config";
 import { getSettings } from "@/lib/data/storefront";
-import { themeScript } from "@/lib/theme";
+import { shatterScript, themeScript } from "@/lib/theme";
 import "./globals.css";
 
 /* Self-hosted variable fonts (copied from @fontsource by scripts/copy-fonts.mjs).
@@ -98,6 +98,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en-NG" className={`${manrope.variable} ${manropeExt.variable} ${cormorant.variable} ${cormorantExt.variable} ${greatVibes.variable}`} data-theme="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript(settings?.theme?.defaultMode ?? "system") }} />
+        <script dangerouslySetInnerHTML={{ __html: shatterScript }} />
         <MotionTierScript />
       </head>
       <body>{children}</body>

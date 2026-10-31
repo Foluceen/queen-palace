@@ -55,3 +55,10 @@ export function applyPreference(pref: ThemePreference) {
   else set();
   window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: pref }));
 }
+
+/**
+ * Runs before first paint on every page, but only acts on the homepage: when motion is allowed
+ * it marks <html data-shatter="1"> so the hero photo starts hidden and the shatter entrance
+ * (ShatterIn) can build it from shards. Reduced motion or data saver: nothing changes.
+ */
+export const shatterScript = `(function(){try{if(location.pathname!=="/")return;var r=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;var c=navigator.connection;if(r||(c&&c.saveData))return;document.documentElement.setAttribute("data-shatter","1")}catch(e){}})();`;

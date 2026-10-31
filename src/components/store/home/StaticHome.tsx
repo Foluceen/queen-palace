@@ -8,6 +8,7 @@ import { Marquee } from "@/components/motion/Marquee";
 import { Reveal } from "@/components/motion/Reveal";
 import { LookSpotlight } from "@/components/store/home/LookSpotlight";
 import { HeroStage } from "@/components/store/home/HeroStage";
+import { ShatterIn } from "@/components/store/home/ShatterIn";
 import { displayName } from "@/lib/collections";
 import { mapsHref } from "@/lib/contact";
 import type { ProductCard as Card, Collection, CollectionWithProducts, StoreSettings } from "@/lib/types";
@@ -32,8 +33,9 @@ export const LOOKS = [
  */
 export const HERO_PHOTO: { src: string; width: number; height: number; alt: string; faceX: number; portrait?: boolean } | null = {
   src: "/media/hero/owner.webp",
-  width: 556,
-  height: 1244,
+  // 2x super-resolution of the original shoot photo, background removed.
+  width: 1112,
+  height: 2488,
   alt: "The owner of Queen Luxury Hair in a yellow two-piece, wearing a long black body wave wig",
   /** Where her face sits across the photo (0 = left edge, 1 = right edge); phones centre on it. */
   faceX: 0.44,
@@ -115,6 +117,7 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
         {/* Middle ground: the model */}
         <div className="lux-ed__model" data-depth="4" style={{ ["--face-x" as string]: `${photo.faceX * 100}%` }}>
           <Image src={photo.src} alt={photo.alt} width={photo.width} height={photo.height} priority quality={95} sizes={photo.portrait ? "(min-width: 900px) 40vw, 100vw" : "(min-width: 900px) 80vw, 180vw"} className="lux-ed__img" />
+          <ShatterIn />
           {/* One-off light pass, cut to her silhouette (same image as the mask, same box as the photo). */}
           <span className="lux-ed__sweep" aria-hidden style={{ ["--sweep-mask" as string]: `url(${photo.src})`, aspectRatio: `${photo.width} / ${photo.height}` }} />
         </div>

@@ -4743,3 +4743,44 @@ body:has(.buybar.is-visible) footer {
     filter: brightness(1);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Shatter entrance (ShatterIn). <html data-shatter="1"> is set before first paint
+   on the homepage when motion is allowed; the photo starts hidden, shards are
+   built over it, then it fades back in. Failsafe: it shows after 4.5 s anyway.
+   --------------------------------------------------------------------------- */
+html[data-shatter="1"] .lux-ed__img {
+  opacity: 0;
+  animation: lux-ed-failsafe 0.6s ease 4.5s forwards;
+}
+html[data-shatter="1"] .lux-ed.is-formed .lux-ed__img {
+  opacity: 1;
+  animation: none;
+  transition: opacity 0.45s ease;
+}
+@keyframes lux-ed-failsafe {
+  to {
+    opacity: 1;
+  }
+}
+html[data-shatter="1"] .lux-ed__sweep {
+  animation: none;
+  opacity: 0;
+}
+html[data-shatter="1"] .lux-ed.is-formed .lux-ed__sweep {
+  animation: lux-ed-sweep 1.8s ease-in-out 0.25s both;
+}
+.shatter-host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.shatter {
+  position: absolute;
+}
+.shatter__piece {
+  position: absolute;
+  background-repeat: no-repeat;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
