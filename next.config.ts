@@ -101,8 +101,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // Put metadata in <head> for crawlers and link-preview bots (WhatsApp sharing matters here).
-  htmlLimitedBots: /Googlebot|Bingbot|DuckDuckBot|YandexBot|Baiduspider|Chrome-Lighthouse|facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|LinkedInBot|Slackbot|Discordbot|Pinterest|Applebot/i,
+  // Render page metadata (title, share tags) in <head> for every visitor, not only crawlers and
+  // link-preview bots (WhatsApp sharing still works). Streamed metadata arrived in a different
+  // order from request to request and intermittently tripped React hydration error #418 live.
+  htmlLimitedBots: /.*/,
   images: {
     // WebP only: AVIF at these settings smears fine hair texture (measured on live product photos).
     formats: ["image/webp"],
