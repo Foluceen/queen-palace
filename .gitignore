@@ -11,3 +11,4 @@ dist-preview
 
 # e2e screenshots
 e2e-*.png
+/shots/
