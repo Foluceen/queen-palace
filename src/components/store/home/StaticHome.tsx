@@ -227,14 +227,27 @@ interface LookTile {
   label: string;
 }
 
-/** Real collections first (published, with a photo); lookbook placeholders fill the rest of the 4. */
-export function collectionTiles(collections: Collection[], count = 4): LookTile[] {
-  const real: LookTile[] = collections
+/**
+ * Styles we're stocking that don't have their own collection yet. They fill "Shop by collection"
+ * after the real collections and link to the collections list for now. When the owner creates a
+ * collection with the same name (and a photo), the real one shows instead and this one drops out.
+ */
+const COMING_COLLECTIONS: (LookTile & { focus?: string })[] = [
+  { key: "coming-bone-straight", href: "/collections", src: "/media/looks/bone-straight.jpg", alt: "Long, glossy jet-black bone straight lace wig on a mannequin", label: "Bone straight", focus: "50% 28%" },
+  { key: "coming-bouncy-wig", href: "/collections", src: "/media/looks/bouncy-wig.jpg", alt: "Voluminous jet-black bouncy body wave lace wig on a mannequin", label: "Bouncy wig", focus: "50% 30%" },
+];
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Real collections first (published, with a photo); then the styles above, then lookbook photos. */
+export function collectionTiles(collections: Collection[], count = 4): (LookTile & { focus?: string })[] {
+  const real: (LookTile & { focus?: string })[] = collections
     .filter((c) => c.image && c.status !== "draft" && c.status !== "archived")
     .slice(0, count)
     .map((c) => ({ key: c.id, href: `/collections/${c.handle}`, src: c.image!.url, alt: c.image!.alt || `${displayName(c.title)} collection`, label: displayName(c.title) }));
-  const fill: LookTile[] = LOOKS.slice(0, Math.max(0, count - real.length)).map((l) => ({ key: l.key, href: `/search?q=${encodeURIComponent(l.q)}`, src: l.src, alt: l.alt, label: l.label }));
-  return [...real, ...fill];
+  const coming = COMING_COLLECTIONS.filter((t) => !real.some((r) => sameName(r.label, t.label)));
+  const looks = LOOKS.map((l) => ({ key: l.key, href: `/search?q=${encodeURIComponent(l.q)}`, src: l.src, alt: l.alt, label: l.label }));
+  return [...real, ...coming, ...looks].slice(0, count);
 }
 
 export function LuxLooks({ collections = [] }: { collections?: Collection[] }) {
@@ -254,7 +267,7 @@ export function LuxLooks({ collections = [] }: { collections?: Collection[] }) {
               <Link href={t.href} className="circle">
                 <span className="circle__glow" aria-hidden />
                 <span className="circle__frame">
-                  <Image quality={90} src={t.src} alt={t.alt} fill sizes="(min-width: 1100px) 22vw, (min-width: 700px) 30vw, 44vw" className="circle__img" />
+                  <Image quality={90} src={t.src} alt={t.alt} fill sizes="(min-width: 1100px) 22vw, (min-width: 700px) 30vw, 44vw" className="circle__img" style={t.focus ? { objectPosition: t.focus } : undefined} />
                   <span className="circle__shade" aria-hidden />
                   <span className="circle__label script">{t.label}</span>
                 </span>
