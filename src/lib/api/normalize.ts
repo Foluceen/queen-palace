@@ -227,6 +227,7 @@ export function toProductCard(raw: unknown): unknown {
     rating: isObj(raw.rating) ? raw.rating : { average: 0, count: 0 },
     swatches: first ? { option: String(first.name), values: (first.values as unknown[]).map(String) } : null,
     badges,
+    ...(str(raw.createdAt) ? { createdAt: str(raw.createdAt) } : {}),
   };
 }
 const listingOf = (l: unknown) => (isObj(l) && Array.isArray(l.items) ? { ...l, items: l.items.map(toProductCard) } : l);

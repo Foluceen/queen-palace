@@ -16,7 +16,8 @@ export function listingQuery(sp: RawSearchParams): Omit<ProductQuery, "collectio
     q: q || undefined,
     sort: sort && sorts.includes(sort) ? sort : undefined,
     page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,
-    pageSize: 12,
+    /** 15 products per page across collections and the full catalogue. */
+    pageSize: 15,
     options: decodeOptions(first(sp.options)),
     inStock: first(sp.inStock) === "1" || undefined,
   };

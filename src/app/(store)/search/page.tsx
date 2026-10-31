@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ListingControls } from "@/components/store/listing/ListingControls";
+import { Pagination } from "@/components/store/listing/Pagination";
 import { ProductGrid } from "@/components/store/ProductCard";
 import { storefront } from "@/lib/data/storefront";
 import { first, listingQuery, type RawSearchParams } from "@/lib/search-params";
@@ -14,12 +15,18 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const query = listingQuery(sp);
   // With no term, show the full catalog so "Shop all" and sort links still work.
   const result = q ? await storefront().search(q, query.page) : null;
-  const listing = result ? result.products : await storefront().products({ ...query, pageSize: 24 });
+  const listing = result ? result.products : await storefront().products(query);
+  const newIn = !q && query.sort === "newest";
 
   return (
     <div className="container section--tight">
       <header className="page-head">
-        <h1 className="h1">{q ? `Results for “${q}”` : "Shop everything"}</h1>
+        <h1 className="h1">{q ? `Results for “${q}”` : newIn ? "New in" : "Shop everything"}</h1>
+        {!q ? (
+          <p className="muted small">
+            {newIn ? "Our latest arrivals, newest first." : "Every product in the shop."} {listing.total} {listing.total === 1 ? "product" : "products"}.
+          </p>
+        ) : null}
         <form action="/search" role="search" className="search-page__form">
           <label htmlFor="search-page-q" className="sr-only">
             Search
@@ -60,6 +67,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               </div>
             </div>
           )}
+          <Pagination page={listing.page} totalPages={listing.totalPages} basePath="/search" params={Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, first(v)]))} />
         </ListingControls>
       </Suspense>
     </div>

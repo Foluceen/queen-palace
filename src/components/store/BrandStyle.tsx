@@ -6,7 +6,21 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 /** Built-in palette. Only colours the owner changes in admin → Branding are emitted. */
 const DEFAULTS: BrandColors = DEFAULT_BRAND_COLORS;
 
-const changed = (c: BrandColors, k: keyof BrandColors) => HEX.test(c[k]) && c[k].toLowerCase() !== DEFAULTS[k];
+/**
+ * Placeholder colours the backend was seeded with before the Queen Luxury Hair rebrand
+ * (old burgundy and old gold). They were never chosen by the owner, so they are treated as
+ * "not set" and the brand palette (hot pink / soft pink) shows. Any other colour picked in
+ * Admin → Shop details & colours still applies.
+ */
+const LEGACY_SEED: Partial<Record<keyof BrandColors, string[]>> = {
+  burgundy: ["#5a1020", "#6b1630"],
+  gold: ["#c8a96b", "#b8975a"],
+};
+
+const changed = (c: BrandColors, k: keyof BrandColors) => {
+  const v = c[k]?.toLowerCase();
+  return HEX.test(c[k]) && v !== DEFAULTS[k] && !LEGACY_SEED[k]?.includes(v);
+};
 
 /**
  * Applies brand colours from store settings as CSS custom properties for both themes.

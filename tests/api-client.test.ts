@@ -455,3 +455,22 @@ describe("store menu and collection order", () => {
     assert.deepEqual(storeNavigation(custom, ordered).main, custom.main, "a menu saved in admin always wins");
   });
 });
+
+describe("paging when the API returns everything at once", () => {
+  const card = (i: number, price: number, createdAt: string) => ({ id: `p${i}`, handle: `p${i}`, title: `Product ${i}`, subtitle: "", image: null, hoverImage: null, priceRange: { min: price, max: price }, compareAtPriceRange: null, availability: "in_stock" as const, rating: { average: 0, count: 0 }, swatches: null, badges: [], createdAt });
+  const all = { items: Array.from({ length: 40 }, (_, i) => card(i, (40 - i) * 100, `2026-10-${String((i % 28) + 1).padStart(2, "0")}T00:00:00Z`)), page: 1, pageSize: 40, total: 40, totalPages: 1, facets: [], priceBounds: { min: 0, max: 0 } };
+  it("pages 15 at a time, sorts, and leaves properly paged results alone", async () => {
+    const { pageLocally } = await import("../src/lib/listing");
+    const p3 = pageLocally(all, { page: 3, pageSize: 15 });
+    assert.equal(p3.items.length, 10);
+    assert.equal(p3.totalPages, 3);
+    assert.equal(p3.total, 40);
+    assert.equal(pageLocally(all, { page: 9, pageSize: 15 }).page, 3, "a page past the end shows the last page");
+    const cheap = pageLocally(all, { page: 1, pageSize: 15, sort: "price_asc" });
+    assert.equal(cheap.items[0]!.priceRange.min, 100);
+    const newest = pageLocally(all, { page: 1, pageSize: 15, sort: "newest" });
+    assert.ok(Date.parse(newest.items[0]!.createdAt!) >= Date.parse(newest.items[1]!.createdAt!));
+    const paged = { ...all, items: all.items.slice(0, 15), total: 40, totalPages: 3 };
+    assert.equal(pageLocally(paged, { page: 1, pageSize: 15 }), paged, "already paged by the API: untouched");
+  });
+});

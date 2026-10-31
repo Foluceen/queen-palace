@@ -3,6 +3,7 @@
  * never on the mock or the HTTP client directly, so switching NEXT_PUBLIC_DATA_MODE
  * swaps the implementation without touching any component.
  */
+import { pageLocally } from "@/lib/listing";
 import { connection } from "next/server";
 import { cache } from "react";
 import { encodeOptions, type EndpointName, type RequestOf, type ResponseOf } from "@/lib/api/contract";
@@ -53,11 +54,19 @@ export function repositoryFrom(call: Caller): StorefrontRepository {
     navigation: () => call("getNavigation", {}),
     homepage: () => call("getHomepage", {}),
     collections: () => call("listCollections", {}),
-    collection: (handle, { options, ...query }) => orNull(call("getCollection", { params: { handle }, query: { ...query, options: encodeOptions(options) } })),
+    collection: async (handle, { options, ...query }) => {
+      const data = await orNull(call("getCollection", { params: { handle }, query: { ...query, options: encodeOptions(options) } }));
+      // The live API returns whole collections unsorted and unpaged: page them here when it does.
+      return data ? { ...data, listing: pageLocally(data.listing, query) } : null;
+    },
     products: ({ options, ...query }) => call("listProducts", { query: { ...query, options: encodeOptions(options) } }),
     product: (handle) => orNull(call("getProduct", { params: { handle } })),
     reviews: (productId, page = 1) => call("listProductReviews", { params: { productId }, query: { page } }),
-    search: (q, page = 1) => call("search", { query: { q, page } }),
+    search: async (q, page = 1) => {
+      const r = await call("search", { query: { q, page } });
+      // The live API returns every match at once: show them 15 per page like everywhere else.
+      return { ...r, products: pageLocally(r.products, { page, pageSize: 15 }) };
+    },
     page: (slug) => orNull(call("getContentPage", { params: { slug } })),
     paymentOptions: () => call("getPaymentOptions", {}),
   };

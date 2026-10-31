@@ -173,6 +173,8 @@ export interface ProductCard {
   /** Option values surfaced on the card, e.g. available lengths or colours. */
   swatches: { option: string; values: string[] } | null;
   badges: string[];
+  /** When the product was added; used to order "New in" when the API can't sort. */
+  createdAt?: string;
 }
 
 export type ProductSort = "featured" | "best_selling" | "newest" | "price_asc" | "price_desc" | "rating";

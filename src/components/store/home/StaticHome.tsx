@@ -181,7 +181,7 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
         <span className="lux-spark lux-ed__spark lux-ed__spark--2" aria-hidden />
         <span className="lux-spark lux-ed__spark lux-ed__spark--3" aria-hidden />
 
-        <Link href="#looks" className="lux-ed__badge" data-depth="7" data-hero-pop aria-label="Shop by look">
+        <Link href="#looks" className="lux-ed__badge" data-depth="7" data-hero-pop aria-label="Shop by collection">
           <svg viewBox="0 0 120 120" aria-hidden>
             <defs>
               <path id="lux-ed-ring" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0" />
@@ -189,7 +189,7 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
             <circle cx="60" cy="60" r="57" className="hstage__badge-bg" />
             <text className="hstage__badge-text">
               <textPath href="#lux-ed-ring" textLength="272" lengthAdjust="spacing">
-                SHOP BY LOOK · QUEEN LUXURY HAIR ·
+                SHOP BY COLLECTION · QUEEN LUXURY ·
               </textPath>
             </text>
             <path className="hstage__badge-crown" d="M44 68 L48 52 L55 60 L60 48 L65 60 L72 52 L76 68 Z" />
@@ -321,8 +321,8 @@ export function LuxArrivals({ products, settings }: { products: Card[] | null; s
             ))}
           </Carousel>
           <p className="rail__all">
-            <Link href="/collections" className="btn btn--ghost btn--sm">
-              View all
+            <Link href="/search?sort=newest" className="btn btn--ghost btn--sm">
+              View all new in
             </Link>
           </p>
         </div>
