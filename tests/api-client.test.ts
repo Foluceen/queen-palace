@@ -477,12 +477,12 @@ describe("paging when the API returns everything at once", () => {
 
 describe("Shop by collection tiles", () => {
   const col = (handle: string, title: string, image = true) => ({ id: handle, handle, title, summary: "", description: "", image: image ? { id: "m", url: `/x/${handle}.jpg`, alt: "", width: 1, height: 1, mimeType: "image/jpeg", sizeBytes: 1, tags: [], createdAt: "" } : null, banner: null, status: "published" as const, position: 0, productCount: 3, seo: {} });
-  it("shows real collections, then Bone straight and Bouncy wig, and drops a style once it's a real collection", async () => {
+  it("shows real collections, then Braid extensions, Bone straight and Bouncy wig, and drops a style once it's a real collection", async () => {
     const { collectionTiles } = await import("../src/components/store/home/StaticHome");
     const two = collectionTiles([col("futura-wigs", "FUTURA WIGS"), col("wig-tools", "WIG TOOLS")] as never);
-    assert.deepEqual(two.map((t) => t.label), ["Futura Wigs", "Wig Tools", "Bone straight", "Bouncy wig"]);
+    assert.deepEqual(two.map((t) => t.label), ["Futura Wigs", "Braid extensions", "Bone straight", "Bouncy wig"], "Wig Tools stays out of the circles");
     const withBone = collectionTiles([col("futura-wigs", "FUTURA WIGS"), col("bone", "BONE STRAIGHT"), col("wig-tools", "WIG TOOLS")] as never);
-    assert.deepEqual(withBone.map((t) => t.label), ["Futura Wigs", "Bone Straight", "Wig Tools", "Bouncy wig"]);
+    assert.deepEqual(withBone.map((t) => t.label), ["Futura Wigs", "Bone Straight", "Braid extensions", "Bouncy wig"]);
     assert.equal(withBone[1]!.href, "/collections/bone");
   });
 });

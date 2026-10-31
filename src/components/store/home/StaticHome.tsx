@@ -233,16 +233,21 @@ interface LookTile {
  * collection with the same name (and a photo), the real one shows instead and this one drops out.
  */
 const COMING_COLLECTIONS: (LookTile & { focus?: string })[] = [
+  // Photo: Malama Mushitu on Unsplash (Unsplash License, free for commercial use).
+  { key: "coming-braid-extensions", href: "/collections", src: "/media/looks/braid-extensions.jpg", alt: "Long, glossy plum-burgundy braid extensions, seen close up from behind", label: "Braid extensions", focus: "50% 35%" },
   { key: "coming-bone-straight", href: "/collections", src: "/media/looks/bone-straight.jpg", alt: "Long, glossy jet-black bone straight lace wig on a mannequin", label: "Bone straight", focus: "50% 28%" },
   { key: "coming-bouncy-wig", href: "/collections", src: "/media/looks/bouncy-wig.jpg", alt: "Voluminous jet-black bouncy body wave lace wig on a mannequin", label: "Bouncy wig", focus: "50% 30%" },
 ];
+
+/** Real collections kept out of the circles (still in the menu and their own product rows). */
+const HIDDEN_FROM_TILES = ["wig-tools"];
 
 const sameName = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Real collections first (published, with a photo); then the styles above, then lookbook photos. */
 export function collectionTiles(collections: Collection[], count = 4): (LookTile & { focus?: string })[] {
   const real: (LookTile & { focus?: string })[] = collections
-    .filter((c) => c.image && c.status !== "draft" && c.status !== "archived")
+    .filter((c) => c.image && c.status !== "draft" && c.status !== "archived" && !HIDDEN_FROM_TILES.includes(c.handle))
     .slice(0, count)
     .map((c) => ({ key: c.id, href: `/collections/${c.handle}`, src: c.image!.url, alt: c.image!.alt || `${displayName(c.title)} collection`, label: displayName(c.title) }));
   const coming = COMING_COLLECTIONS.filter((t) => !real.some((r) => sameName(r.label, t.label)));
