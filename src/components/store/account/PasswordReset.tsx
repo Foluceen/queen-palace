@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { TextField } from "@/components/ui/Field";
 import { api } from "@/lib/api/browser";
-import { errorMessage } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 
 /** Step 1: request a reset link. The reply is the same whether or not the email has an account. */
@@ -36,7 +36,8 @@ export function ForgotPasswordForm() {
           await api().call("customerRequestPasswordReset", { body: { email: normalizeEmail(email) } });
           setState("sent");
         } catch (err) {
-          setError(errorMessage(err));
+          // Reset emails need an email service on the backend; until then, say so in plain words.
+          setError(err instanceof ApiError && err.status === 501 ? "Password reset by email isn't switched on yet. Please contact us and we'll help you get back into your account." : errorMessage(err));
           setState("idle");
         }
       }}
