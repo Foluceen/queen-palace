@@ -1,5 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
+import { commitPaystackOrderInventory, type InventoryDbPool } from './inventory.js';
+
 const PAYSTACK_ORIGIN = 'https://api.paystack.co';
 const NGN_CHANNELS = ['card', 'bank', 'ussd', 'bank_transfer'];
 
@@ -123,17 +125,13 @@ export async function requestPaystack<T = any>(path: string, secretKey: string, 
 }
 
 export async function markOrderPaidIfVerified(
-  db: { query: (sql: string, params: unknown[]) => Promise<{ rowCount?: number | null; rows?: unknown[] }> },
+  db: Pick<InventoryDbPool, 'connect'>,
   order: PaystackOrder,
   transaction: PaystackTransaction
 ): Promise<boolean> {
-  if (!paystackTransactionMatches(order, transaction)) return false;
+  if (!paystackTransactionMatches(order, transaction) || !order.id || !order.payment_reference) return false;
   const amount = Number(order.total_kobo);
-  const result = await db.query(
-    "UPDATE orders SET payment_status='paid',paid_at=COALESCE(paid_at,now()) WHERE id=$1 AND payment_method='paystack' AND payment_reference=$2 AND total_kobo=$3 AND payment_status IN ('pending','paid') RETURNING id",
-    [order.id, order.payment_reference, amount]
-  );
-  return (result.rowCount || 0) > 0;
+  return commitPaystackOrderInventory(db, order.id, order.payment_reference, amount);
 }
 
 function containsPaystackSecret(value: unknown): boolean {
@@ -204,10 +202,10 @@ export async function enqueuePaystackWebhook(
 }
 
 export async function processPaystackChargeSuccess(
-  db: { query: (sql: string, params: unknown[]) => Promise<{ rowCount?: number | null; rows?: any[] }> },
+  db: InventoryDbPool,
   event: unknown,
   verifyTransaction: (reference: string) => Promise<{ status?: boolean; data?: PaystackTransaction }>
-): Promise<{ status: 'ignored' | 'unmatched' | 'mismatch' | 'retry' | 'paid' }> {
+): Promise<{ status: 'ignored' | 'unmatched' | 'mismatch' | 'retry' | 'paid' | 'paid_shortfall' }> {
   const parsed = parseChargeSuccessEvent(event);
   if (!parsed) return { status: 'ignored' };
   const found = await db.query(
@@ -224,7 +222,9 @@ export async function processPaystackChargeSuccess(
   if (result?.status !== true || !result.data) return { status: 'retry' };
   if (!paystackTransactionMatches(found.rows[0], result.data)) return { status: 'mismatch' };
   const marked = await markOrderPaidIfVerified(db, found.rows[0], result.data);
-  return marked ? { status: 'paid' } : { status: 'mismatch' };
+  if (!marked) return { status: 'mismatch' };
+  const inventory = await db.query('SELECT inventory_status FROM orders WHERE id=$1',[found.rows[0].id]);
+  return inventory.rows?.[0]?.inventory_status === 'shortfall' ? { status: 'paid_shortfall' } : { status: 'paid' };
 }
 
 export function sanitizePaymentSettings(value: unknown): Record<string, any> {

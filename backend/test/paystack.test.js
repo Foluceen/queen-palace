@@ -78,11 +78,27 @@ test('paid status is written only for an exactly matching verified Paystack tran
   assert.equal(typeof paystack.markOrderPaidIfVerified, 'function');
   const order = { id: 'order-id', payment_method: 'paystack', payment_reference: 'ref-1', total_kobo: '123456' };
   const valid = { status: 'success', reference: 'ref-1', amount: 123456, currency: 'NGN' };
+  const state = { order: { ...order, payment_status: 'pending', inventory_status: 'reserved' } };
   const calls = [];
-  const db = { query: async (sql, params) => { calls.push({ sql, params }); return { rowCount: 1, rows: [{ id: 'order-id' }] }; } };
+  const client = {
+    query: async (sql, params = []) => {
+      calls.push({ sql, params });
+      if (/SELECT/i.test(sql)) return { rowCount: 1, rows: [{ ...state.order }] };
+      if (/UPDATE orders SET payment_status='paid'/i.test(sql)) {
+        state.order.payment_status = 'paid';
+        state.order.inventory_status = params[3];
+        return { rowCount: 1, rows: [{ id: state.order.id }] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release: () => {},
+  };
+  const db = { connect: async () => client };
   assert.equal(await paystack.markOrderPaidIfVerified(db, order, valid), true);
-  assert.match(calls[0].sql, /payment_status\s*=\s*'paid'/i);
-  assert.deepEqual(calls[0].params, ['order-id', 'ref-1', 123456]);
+  const update = calls.find((call) => /UPDATE orders SET payment_status='paid'/i.test(call.sql));
+  assert.ok(update);
+  assert.match(update.sql, /inventory_status/i);
+  assert.equal(update.params[3], 'committed');
   calls.length = 0;
   assert.equal(await paystack.markOrderPaidIfVerified(db, order, { ...valid, amount: 123455 }), false);
   assert.equal(calls.length, 0);
@@ -128,19 +144,37 @@ test('webhook queue key is stable and duplicate events are persisted only once',
 test('webhook processing verifies with Paystack before marking a referenced order paid', async () => {
   assert.equal(typeof paystack.processPaystackChargeSuccess, 'function');
   const order = { id: 'order-id', number: 'QLH-1', payment_method: 'paystack', payment_reference: 'ref-1', total_kobo: '123456' };
+  const state = { order: { ...order, payment_status: 'pending', inventory_status: 'reserved' } };
   const calls = [];
-  const db = { query: async (sql, params) => {
-    calls.push({ sql, params });
-    if (/SELECT/i.test(sql)) return { rowCount: 1, rows: [order] };
-    return { rowCount: 1, rows: [{ id: order.id }] };
-  } };
+  const client = {
+    query: async (sql, params = []) => {
+      calls.push({ sql, params });
+      if (/SELECT/i.test(sql)) return { rowCount: 1, rows: [{ ...state.order }] };
+      if (/UPDATE orders SET payment_status='paid'/i.test(sql)) {
+        state.order.payment_status = 'paid';
+        state.order.inventory_status = params[3];
+        return { rowCount: 1, rows: [{ id: state.order.id }] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release: () => {},
+  };
+  const db = {
+    query: async (sql, params = []) => {
+      calls.push({ sql, params });
+      return { rowCount: 1, rows: [{ ...state.order }] };
+    },
+    connect: async () => client,
+  };
   const result = await paystack.processPaystackChargeSuccess(db, { event: 'charge.success', data: { id: 77, reference: 'ref-1' } }, async (ref) => {
     assert.equal(ref, 'ref-1');
     return { status: true, data: { status: 'success', reference: 'ref-1', amount: 123456, currency: 'NGN', metadata: { orderId: 'order-id', orderNumber: 'QLH-1' } } };
   });
   assert.deepEqual(result, { status: 'paid' });
   assert.match(calls[0].sql, /payment_reference\s*=\s*\$1/);
-  assert.match(calls[1].sql, /payment_status\s*=\s*'paid'/i);
+  const paidUpdate = calls.find((call) => /UPDATE orders SET payment_status='paid'/i.test(call.sql));
+  assert.ok(paidUpdate);
+  assert.match(paidUpdate.sql, /inventory_status/i);
   calls.length = 0;
   const mismatch = await paystack.processPaystackChargeSuccess(db, { event: 'charge.success', data: { id: 77, reference: 'ref-1' } }, async () => ({
     status: true, data: { status: 'success', reference: 'ref-1', amount: 1, currency: 'NGN' }
