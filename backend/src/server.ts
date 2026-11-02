@@ -8,9 +8,17 @@ import pg from 'pg';
 import argon2 from 'argon2';
 import crypto from 'node:crypto';
 import { z } from 'zod';
+import { createInitializePayload, createPaystackReference, enqueuePaystackWebhook, isPaystackReady, isPaystackRedirectUrl, markOrderPaidIfVerified, normalizePaymentSettings, parseChargeSuccessEvent, paystackTransactionMatches, processPaystackChargeSuccess, requestPaystack, sanitizePaymentSettings, verifyPaystackWebhookSignature } from './paystack.js';
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10, ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: true } : undefined });
-const app = Fastify({ logger: { redact: ['req.headers.authorization','req.headers.cookie','res.headers["set-cookie"]'] }, bodyLimit: 8*1024*1024, trustProxy: process.env.TRUST_PROXY === 'true' });
+const app = Fastify({ logger: { redact: ['req.headers.authorization','req.headers.cookie','req.headers.x-paystack-signature','res.headers["set-cookie"]'] }, bodyLimit: 8*1024*1024, trustProxy: process.env.TRUST_PROXY === 'true' });
+app.removeContentTypeParser('application/json');
+app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+  const rawBody = Buffer.isBuffer(body) ? Buffer.from(body) : Buffer.from(String(body));
+  (req as any).rawBody = rawBody;
+  try { done(null, JSON.parse(rawBody.toString('utf8'))); }
+  catch (error) { done(error instanceof Error ? error : new Error('Invalid JSON body')); }
+});
 const origins = (process.env.FRONTEND_ORIGINS || 'http://localhost:3000').split(',').map(s=>s.trim()).filter(Boolean);
 await app.register(cookie);
 await app.register(cors, { origin: (origin, cb) => cb(null, !origin || origins.includes(origin)), credentials: true, methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
@@ -89,7 +97,7 @@ async function product(r:any){
 app.get('/health/live', async()=>({ok:true,status:'live'}));
 app.get('/health/ready', async(_req,reply)=>{ try {await pool.query('SELECT 1'); return {ok:true,status:'ready'};} catch {return err(reply,503,'not_ready','Database unavailable');} });
 app.get('/v1/store/settings', async(req,reply)=>{reply.header('Cache-Control','no-store');const s=await getSetting('store');return {...s,timezone:'Africa/Lagos',email:s.contactEmail||null,hours:[],socials:s.social||{}};});
-app.get('/v1/store/payment-options', async()=>({methods:[]}));
+app.get('/v1/store/payment-options',async(req:any,reply:any)=>{reply.header('Cache-Control','no-store');const settings=await getSetting('payments');return {methods:isPaystackReady(settings,process.env.PAYSTACK_SECRET_KEY)?[{method:'paystack',label:'Pay with Paystack',description:'Pay securely on Paystack using card, bank or USSD.'}]:[]};});
 app.get('/v1/collections', async()=>{const r=await pool.query('SELECT c.*,count(DISTINCT CASE WHEN p.status=\'published\' THEN pc.product_id END)::int product_count FROM collections c LEFT JOIN product_collections pc ON pc.collection_id=c.id LEFT JOIN products p ON p.id=pc.product_id WHERE c.status=\'published\' GROUP BY c.id ORDER BY c.position'); return Promise.all(r.rows.map(collectionView));});
 app.get('/v1/collections/:handle', async(req:any,reply)=>{const c=await pool.query('SELECT * FROM collections WHERE handle=$1 AND status=\'published\'',[(req.params as any).handle]); if(!c.rowCount)return err(reply,404,'not_found','Collection not found'); const p=await pool.query('SELECT p.* FROM products p JOIN product_collections pc ON pc.product_id=p.id WHERE pc.collection_id=$1 AND p.status=\'published\' ORDER BY pc.position,p.created_at DESC',[c.rows[0].id]); return {collection:await collectionView({...c.rows[0],product_count:p.rowCount}),listing:{items:await Promise.all(p.rows.map(product)),page:1,pageSize:p.rowCount,total:p.rowCount,totalPages:1,facets:[],priceBounds:{min:p.rowCount?Math.min(...p.rows.map(x=>Number(x.price_kobo))):0,max:p.rowCount?Math.max(...p.rows.map(x=>Number(x.price_kobo))):0}}};});
 app.get('/v1/products',async(req:any,reply)=>{const q=req.query as any;const paging=pageParams(q,24);if(!paging)return err(reply,400,'validation_error','Invalid page or pageSize');const {page,pageSize}=paging;const vals:any[]=[];const where:string[]=["p.status='published'"];if(q.q){vals.push('%'+String(q.q)+'%');where.push(`(p.title ILIKE $${vals.length} OR p.description ILIKE $${vals.length} OR p.handle ILIKE $${vals.length})`);}if(q.inStock==='true')where.push('p.stock>0');if(q.minPrice){vals.push(Number(q.minPrice));where.push(`p.price_kobo >= $${vals.length}`);}if(q.maxPrice){vals.push(Number(q.maxPrice));where.push(`p.price_kobo <= $${vals.length}`);}const sort=q.sort==='price_asc'?'p.price_kobo ASC':q.sort==='price_desc'?'p.price_kobo DESC':q.sort==='newest'?'p.created_at DESC':'p.featured DESC,p.created_at DESC';const count=await pool.query(`SELECT count(*)::int n FROM products p WHERE ${where.join(' AND ')}`,vals);vals.push(pageSize,(page-1)*pageSize);const r=await pool.query(`SELECT p.* FROM products p WHERE ${where.join(' AND ')} ORDER BY ${sort} LIMIT $${vals.length-1} OFFSET $${vals.length}`,vals);const items=await Promise.all(r.rows.map(product));return {items,page,pageSize,total:count.rows[0].n,totalPages:Math.max(1,Math.ceil(count.rows[0].n/pageSize)),facets:[],priceBounds:{min:items.length?Math.min(...items.map((x:any)=>x.priceRange.min)):0,max:items.length?Math.max(...items.map((x:any)=>x.priceRange.max)):0}};});
@@ -157,14 +165,235 @@ app.get('/v1/customers/me/reviews',async(req:any,reply)=>{const s=await requireS
 app.get('/v1/admin/reviews',async(req:any,reply)=>{const s=await requireSession(req,reply,'admin');if(!s)return;const status=String((req.query as any)?.status||'');const rows=await reviewRows(status?`WHERE rv.status=$1 ORDER BY rv.created_at DESC`:'ORDER BY rv.created_at DESC',status?[status]:[]);return {items:rows.map(r=>reviewView(r,true)),page:1,pageSize:rows.length,total:rows.length,totalPages:1};});
 app.patch('/v1/admin/reviews/:id',async(req:any,reply)=>{const s=await requireSession(req,reply,'admin');if(!s)return;const b=z.object({status:z.enum(['approved','rejected','pending']),rejectionReason:z.string().max(500).nullable().optional(),reply:z.string().max(2000).nullable().optional()}).safeParse(req.body);if(!b.success)return err(reply,400,'validation_error','Invalid moderation request');if(b.data.status==='rejected'&&!b.data.rejectionReason)return err(reply,400,'validation_error','Rejection reason required');const r=await pool.query('UPDATE reviews SET status=$1,rejection_reason=$2,reply=$3,moderated_at=now(),updated_at=now() WHERE id=$4 RETURNING *',[b.data.status,b.data.status==='rejected'?(b.data.rejectionReason||null):null,b.data.reply||null,(req.params as any).id]);if(!r.rowCount)return err(reply,404,'not_found','Review not found');const rows=await reviewRows('WHERE rv.id=$1',[(req.params as any).id]);return {review:reviewView(rows[0],true)};});
 app.get('/v1/search',async(req:any)=>{const q=String((req.query as any)?.q||'').trim();const r=q?await pool.query('SELECT * FROM products WHERE status=\'published\' AND (title ILIKE $1 OR description ILIKE $1 OR handle ILIKE $1) LIMIT 50',['%'+q+'%']):{rows:[]};const items=await Promise.all(r.rows.map(product));return {query:q,products:{items,page:1,pageSize:items.length,total:items.length,totalPages:1,facets:[],priceBounds:{min:items.length?Math.min(...items.map((x:any)=>x.price)):0,max:items.length?Math.max(...items.map((x:any)=>x.price)):0}},collections:[],suggestions:[]};});
-app.post('/v1/checkout',async(req:any,reply)=>{const s=z.object({cartId:z.string().uuid(),contact:z.object({email:z.string().email(),phone:z.string().min(1),marketingOptIn:z.boolean()}),shippingAddress:z.record(z.any()),shippingRateId:z.string(),paymentMethod:z.enum(['paystack','flutterwave','bank_transfer','pay_on_delivery']),note:z.string().max(1000).optional(),idempotencyKey:z.string().min(8).max(200)}).safeParse(req.body);if(!s.success)return err(reply,400,'validation_error','Invalid checkout');const client=await pool.connect();try{await client.query('BEGIN');const prior=await client.query('SELECT o.* FROM idempotency_keys k JOIN orders o ON o.id=k.order_id WHERE k.key=$1',[s.data.idempotencyKey]);if(prior.rowCount){await client.query('COMMIT');return {order:{id:prior.rows[0].id,number:prior.rows[0].number},payment:{provider:s.data.paymentMethod,status:'pending',reference:prior.rows[0].number,redirectUrl:null,bankTransfer:null}};}const lines=await client.query('SELECT l.*,p.title product_title,p.price_kobo product_price,p.stock product_stock,v.title variant_title,v.price_kobo variant_price,v.stock variant_stock FROM cart_lines l JOIN products p ON p.id=l.product_id LEFT JOIN product_variants v ON v.id=l.variant_id WHERE l.cart_id=$1 FOR UPDATE OF l,p',[s.data.cartId]);if(!lines.rowCount){await client.query('ROLLBACK');return err(reply,400,'empty_cart','Cart is empty');}let subtotal=0;for(const l of lines.rows){const lineStock=l.variant_id?Number(l.variant_stock):Number(l.product_stock),linePrice=l.variant_id?Number(l.variant_price):Number(l.product_price),lineTitle=l.variant_title||l.product_title;if(l.quantity>lineStock){await client.query('ROLLBACK');return err(reply,409,'out_of_stock','Insufficient stock for '+lineTitle);}subtotal+=linePrice*l.quantity;}const shipping=0,total=subtotal;const number='QLH-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(3).toString('hex').toUpperCase();const access=token();const customer=(await session(req,'customer'));const o=await client.query('INSERT INTO orders(number,email,customer_id,customer_phone,shipping_address,subtotal_kobo,shipping_kobo,total_kobo,access_token_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',[number,s.data.contact.email.toLowerCase(),customer?.subject_id||null,s.data.contact.phone,JSON.stringify(s.data.shippingAddress),subtotal,shipping,total,hash(access)]);for(const l of lines.rows){const linePrice=l.variant_id?Number(l.variant_price):Number(l.product_price),lineTitle=l.variant_title||l.product_title;await client.query('INSERT INTO order_lines(order_id,product_id,variant_id,title,quantity,unit_price_kobo) VALUES($1,$2,$3,$4,$5,$6)',[o.rows[0].id,l.product_id,l.variant_id||null,lineTitle,l.quantity,linePrice]);if(l.variant_id)await client.query('UPDATE product_variants SET stock=stock-$1,updated_at=now() WHERE id=$2',[l.quantity,l.variant_id]);else await client.query('UPDATE products SET stock=stock-$1,updated_at=now() WHERE id=$2',[l.quantity,l.product_id]);}await client.query('INSERT INTO idempotency_keys(key,order_id) VALUES($1,$2)',[s.data.idempotencyKey,o.rows[0].id]);await client.query('DELETE FROM cart_lines WHERE cart_id=$1',[s.data.cartId]);await client.query('COMMIT');return reply.code(201).send({order:{id:o.rows[0].id,number,accessToken:access,status:'open',paymentStatus:'pending',fulfillmentStatus:'unfulfilled',paymentMethod:s.data.paymentMethod,email:s.data.contact.email,totals:{subtotal,discountTotal:0,shippingTotal:shipping,total,currency:'NGN'},itemCount:lines.rows.length,createdAt:o.rows[0].created_at},payment:{provider:s.data.paymentMethod,status:'pending',reference:number,redirectUrl:null,bankTransfer:null}});}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}});
+app.post('/v1/checkout', async (req:any, reply:any) => {
+  const parsed = z.object({
+    cartId: z.string().uuid(),
+    contact: z.object({ email: z.string().email(), phone: z.string().min(1), marketingOptIn: z.boolean() }),
+    shippingAddress: z.record(z.any()),
+    shippingRateId: z.string(),
+    paymentMethod: z.enum(['paystack']),
+    note: z.string().max(1000).optional(),
+    idempotencyKey: z.string().min(8).max(200)
+  }).safeParse(req.body);
+  if (!parsed.success) return err(reply,400,'validation_error','Invalid checkout');
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  if (!isPaystackReady(await getSetting('payments'),secret)) return err(reply,503,'payment_unavailable','Paystack payment is not enabled for this mode');
+
+  const client = await pool.connect();
+  let order:any;
+  let accessToken = '';
+  let reference = '';
+  let created = false;
+  try {
+    await client.query('BEGIN');
+    const prior = await client.query('SELECT o.* FROM idempotency_keys k JOIN orders o ON o.id=k.order_id WHERE k.key=$1',[parsed.data.idempotencyKey]);
+    if (prior.rowCount) {
+      const existing = prior.rows[0];
+      if (existing.payment_method !== 'paystack') {
+        await client.query('ROLLBACK');
+        return err(reply,409,'idempotency_conflict','This checkout key belongs to a different payment method');
+      }
+      if (existing.payment_status === 'paid') {
+        await client.query('COMMIT');
+        return { order: { id:existing.id, number:existing.number, status:existing.status, paymentStatus:'paid' }, payment: { provider:'paystack', status:'success', reference:existing.payment_reference, redirectUrl:existing.payment_redirect_url||null } };
+      }
+      if (existing.payment_reference && existing.payment_redirect_url) {
+        await client.query('COMMIT');
+        return { order: { id:existing.id, number:existing.number, status:existing.status, paymentStatus:existing.payment_status }, payment: { provider:'paystack', status:'pending', reference:existing.payment_reference, redirectUrl:existing.payment_redirect_url } };
+      }
+      accessToken = token();
+      reference = createPaystackReference(existing.number);
+      const refreshed = await client.query("UPDATE orders SET payment_reference=$1,payment_redirect_url=NULL,access_token_hash=$2 WHERE id=$3 AND payment_status='pending' RETURNING *",[reference,hash(accessToken),existing.id]);
+      if (!refreshed.rowCount) {
+        await client.query('ROLLBACK');
+        return err(reply,409,'payment_state_changed','This order can no longer be retried');
+      }
+      order = refreshed.rows[0];
+    } else {
+      const lines = await client.query('SELECT l.*,p.title product_title,p.price_kobo product_price,p.stock product_stock,v.title variant_title,v.price_kobo variant_price,v.stock variant_stock FROM cart_lines l JOIN products p ON p.id=l.product_id LEFT JOIN product_variants v ON v.id=l.variant_id WHERE l.cart_id=$1 FOR UPDATE OF l,p',[parsed.data.cartId]);
+      if (!lines.rowCount) {
+        await client.query('ROLLBACK');
+        return err(reply,400,'empty_cart','Cart is empty');
+      }
+      let subtotal = 0;
+      for (const line of lines.rows) {
+        const stock = line.variant_id ? Number(line.variant_stock) : Number(line.product_stock);
+        const price = line.variant_id ? Number(line.variant_price) : Number(line.product_price);
+        const title = line.variant_title || line.product_title;
+        if (line.quantity > stock) {
+          await client.query('ROLLBACK');
+          return err(reply,409,'out_of_stock','Insufficient stock for '+title);
+        }
+        subtotal += price * line.quantity;
+      }
+      if (!Number.isSafeInteger(subtotal) || subtotal < 1) {
+        await client.query('ROLLBACK');
+        return err(reply,400,'invalid_total','Order total is invalid');
+      }
+      const shipping = 0;
+      const total = subtotal + shipping;
+      const number = 'QLH-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(3).toString('hex').toUpperCase();
+      accessToken = token();
+      reference = createPaystackReference(number);
+      const customer = await session(req,'customer');
+      const inserted = await client.query('INSERT INTO orders(number,email,customer_id,customer_phone,shipping_address,subtotal_kobo,shipping_kobo,total_kobo,access_token_hash,payment_method,payment_reference) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',[
+        number,parsed.data.contact.email.toLowerCase(),customer?.subject_id||null,parsed.data.contact.phone,JSON.stringify(parsed.data.shippingAddress),subtotal,shipping,total,hash(accessToken),'paystack',reference
+      ]);
+      order = inserted.rows[0];
+      for (const line of lines.rows) {
+        const price = line.variant_id ? Number(line.variant_price) : Number(line.product_price);
+        const title = line.variant_title || line.product_title;
+        await client.query('INSERT INTO order_lines(order_id,product_id,variant_id,title,quantity,unit_price_kobo) VALUES($1,$2,$3,$4,$5,$6)',[order.id,line.product_id,line.variant_id||null,title,line.quantity,price]);
+        if (line.variant_id) await client.query('UPDATE product_variants SET stock=stock-$1,updated_at=now() WHERE id=$2',[line.quantity,line.variant_id]);
+        else await client.query('UPDATE products SET stock=stock-$1,updated_at=now() WHERE id=$2',[line.quantity,line.product_id]);
+      }
+      await client.query('INSERT INTO idempotency_keys(key,order_id) VALUES($1,$2)',[parsed.data.idempotencyKey,order.id]);
+      await client.query('DELETE FROM cart_lines WHERE cart_id=$1',[parsed.data.cartId]);
+      created = true;
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(()=>{});
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const callback = new URL(`/order/${encodeURIComponent(order.number)}`,'https://www.queenluxuryhair.store');
+  callback.searchParams.set('token',accessToken);
+  try {
+    const payload = createInitializePayload({
+      email:order.email,
+      totalKobo:Number(order.total_kobo),
+      reference,
+      callbackUrl:callback.toString(),
+      orderId:order.id,
+      orderNumber:order.number
+    });
+    const initialized:any = await requestPaystack('/transaction/initialize',secret!,payload);
+    const redirectUrl = initialized?.data?.authorization_url;
+    if (!isPaystackRedirectUrl(redirectUrl)) throw new Error('Paystack returned an invalid checkout URL');
+    await pool.query('UPDATE orders SET payment_redirect_url=$1 WHERE id=$2 AND payment_reference=$3',[redirectUrl,order.id,reference]);
+    const view = await orderView(order);
+    return reply.code(created?201:200).send({ order:{...view,accessToken}, payment:{provider:'paystack',status:'pending',reference,redirectUrl} });
+  } catch {
+    req.log.warn({orderNumber:order.number},'Paystack initialization failed');
+    return reply.code(502).send({
+      error:{code:'payment_initialization_failed',message:'Your order is saved, but secure payment could not be started. Please retry checkout.'},
+      order:{id:order.id,number:order.number,accessToken,status:order.status||'pending',paymentStatus:'pending',paymentMethod:'paystack'},
+      payment:{provider:'paystack',status:'pending',reference,redirectUrl:null}
+    });
+  }
+});
 // Public content and customer order/account extensions.
 app.get('/v1/store/navigation',async(req,reply)=>{reply.header('Cache-Control','no-store');return getSetting('navigation');});
 app.get('/v1/store/homepage',async(req,reply)=>{reply.header('Cache-Control','no-store');return getSetting('homepage');});
 app.get('/v1/store/pages/:slug',async(req:any,reply)=>err(reply,404,'not_found','Page not found'));
 app.post('/v1/checkout/shipping-rates',async(req:any,reply)=>{const s=z.object({address:z.record(z.any()).optional(),country:z.string().optional()}).safeParse(req.body||{});if(!s.success)return err(reply,400,'validation_error','Invalid address');return {rates:[{id:'local',label:'Standard delivery',amount:0,currency:'NGN',estimatedDays:'3-7 business days'}]};});
 async function orderView(o:any,includePrivate=false){const lines=await pool.query('SELECT product_id,variant_id,title,quantity,unit_price_kobo FROM order_lines WHERE order_id=$1',[o.id]);return {id:o.id,number:o.number,accessToken:includePrivate?undefined:null,status:o.status,paymentStatus:o.payment_status,fulfillmentStatus:o.fulfillment_status||'unfulfilled',paymentMethod:o.payment_method||'pay_on_delivery',email:o.email,phone:o.customer_phone||null,shippingAddress:o.shipping_address||{},totals:{subtotal:Number(o.subtotal_kobo),discountTotal:Number(o.discount_kobo||0),shippingTotal:Number(o.shipping_kobo),total:Number(o.total_kobo),currency:'NGN'},items:lines.rows.map(l=>({productId:l.product_id,variantId:l.variant_id||null,title:l.title,quantity:l.quantity,unitPrice:Number(l.unit_price_kobo)})),itemCount:lines.rows.reduce((n,l)=>n+l.quantity,0),createdAt:o.created_at};}
-app.get('/v1/orders/:number',async(req:any,reply)=>{const q=await pool.query('SELECT * FROM orders WHERE number=$1',[(req.params as any).number]);if(!q.rowCount)return err(reply,404,'not_found','Order not found');const s=await session(req,'customer');const supplied=String((req.query as any)?.token||'');const authorized=Boolean(s&&q.rows[0].customer_id===s.subject_id)||(Boolean(supplied)&&hash(supplied)===q.rows[0].access_token_hash);if(!authorized)return err(reply,403,'forbidden','Order access denied');return {order:await orderView(q.rows[0])};});
+let paystackWebhookWorkerRunning = false;
+async function drainPaystackWebhookEvents() {
+  if (paystackWebhookWorkerRunning) return;
+  paystackWebhookWorkerRunning = true;
+  try {
+    for (let i=0;i<10;i++) {
+      const claimed = await pool.query(`UPDATE paystack_webhook_events SET status='processing',attempts=attempts+1,locked_at=now()
+        WHERE event_key=(SELECT event_key FROM paystack_webhook_events
+          WHERE (status='pending' AND next_attempt_at<=now()) OR (status='processing' AND locked_at<now()-interval '2 minutes')
+          ORDER BY received_at LIMIT 1 FOR UPDATE SKIP LOCKED)
+        RETURNING event_key,payload,attempts`);
+      if (!claimed.rowCount) break;
+      const row = claimed.rows[0];
+      let outcome:{status:string};
+      try {
+        outcome = await processPaystackChargeSuccess(pool,row.payload,(reference)=>requestPaystack(`/transaction/verify/${encodeURIComponent(reference)}`,process.env.PAYSTACK_SECRET_KEY||''));
+      } catch {
+        outcome = {status:'retry'};
+      }
+      if (outcome.status === 'paid') {
+        await pool.query("UPDATE paystack_webhook_events SET status='processed',processed_at=now(),locked_at=NULL,last_error=NULL WHERE event_key=$1",[row.event_key]);
+      } else if (outcome.status === 'retry') {
+        await pool.query("UPDATE paystack_webhook_events SET status='pending',locked_at=NULL,next_attempt_at=now()+make_interval(secs=>LEAST(900,power(2,LEAST(attempts,10))::int)),last_error='verification_retry' WHERE event_key=$1",[row.event_key]);
+      } else {
+        await pool.query("UPDATE paystack_webhook_events SET status='rejected',processed_at=now(),locked_at=NULL,last_error=$2 WHERE event_key=$1",[row.event_key,outcome.status]);
+      }
+    }
+  } catch {
+    app.log.error('Paystack webhook worker encountered a processing error');
+  } finally {
+    paystackWebhookWorkerRunning = false;
+  }
+}
+
+app.post('/v1/payments/paystack/webhook',async(req:any,reply:any)=>{
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  const rawBody = (req as any).rawBody as Buffer|undefined;
+  const signature = req.headers['x-paystack-signature'];
+  if (!secret || !rawBody || !verifyPaystackWebhookSignature(rawBody,signature,secret)) return err(reply,401,'invalid_signature','Invalid Paystack webhook signature');
+  const event = req.body;
+  if (!parseChargeSuccessEvent(event)) return reply.code(200).send({received:true});
+  try {
+    const inserted = await enqueuePaystackWebhook(pool,event);
+    const response = reply.code(200).send({received:true});
+    if (inserted) setImmediate(()=>{void drainPaystackWebhookEvents();});
+    return response;
+  } catch {
+    req.log.error('Unable to persist Paystack webhook event');
+    return reply.code(503).send({received:false});
+  }
+});
+
+const paystackWebhookTimer = setInterval(()=>{void drainPaystackWebhookEvents();},5000);
+paystackWebhookTimer.unref();
+app.addHook('onClose',async()=>{clearInterval(paystackWebhookTimer);});
+
+app.get('/v1/orders/:number',async(req:any,reply:any)=>{
+  const q = await pool.query('SELECT * FROM orders WHERE number=$1',[(req.params as any).number]);
+  if (!q.rowCount) return err(reply,404,'not_found','Order not found');
+  let order = q.rows[0];
+  const customerSession = await session(req,'customer');
+  const supplied = String((req.query as any)?.token||'');
+  const authorized = Boolean(customerSession&&order.customer_id===customerSession.subject_id)||(Boolean(supplied)&&hash(supplied)===order.access_token_hash);
+  if (!authorized) return err(reply,403,'forbidden','Order access denied');
+  reply.header('Cache-Control','no-store');
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  if (order.payment_method==='paystack'&&order.payment_status==='pending'&&order.payment_reference&&secret) {
+    try {
+      const verified:any = await requestPaystack(`/transaction/verify/${encodeURIComponent(order.payment_reference)}`,secret);
+      if (verified?.status===true&&verified.data&&paystackTransactionMatches(order,verified.data)) {
+        await markOrderPaidIfVerified(pool,order,verified.data);
+        const refreshed = await pool.query('SELECT * FROM orders WHERE id=$1',[order.id]);
+        if (refreshed.rowCount) order = refreshed.rows[0];
+      }
+    } catch {
+      // A transient provider failure leaves the order pending; the webhook worker will retry.
+    }
+  }
+  return {order:await orderView(order)};
+});
+app.post('/v1/orders/:number/verify-payment',async(req:any,reply:any)=>{
+  const body=z.object({token:z.string().min(20).max(200),reference:z.string().max(200).optional()}).safeParse(req.body);
+  if(!body.success)return err(reply,400,'validation_error','Order access token required');
+  const result=await pool.query('SELECT * FROM orders WHERE number=$1',[(req.params as any).number]);
+  if(!result.rowCount)return err(reply,404,'not_found','Order not found');
+  let order=result.rows[0];
+  if(hash(body.data.token)!==order.access_token_hash)return err(reply,403,'forbidden','Order access denied');
+  reply.header('Cache-Control','no-store');
+  const secret=process.env.PAYSTACK_SECRET_KEY;
+  if(order.payment_method==='paystack'&&order.payment_status==='pending'&&order.payment_reference&&secret){
+    try{
+      const verified:any=await requestPaystack(`/transaction/verify/${encodeURIComponent(order.payment_reference)}`,secret);
+      if(verified?.status===true&&verified.data&&paystackTransactionMatches(order,verified.data)){
+        await markOrderPaidIfVerified(pool,order,verified.data);
+        const refreshed=await pool.query('SELECT * FROM orders WHERE id=$1',[order.id]);
+        if(refreshed.rowCount)order=refreshed.rows[0];
+      }
+    }catch{
+      // A transient provider failure leaves the order pending for a later check or webhook.
+    }
+  }
+  return {order:await orderView(order)};
+});
 app.post('/v1/orders/track',async(req:any,reply)=>{const s=z.object({number:z.string().min(4),email:z.string().email().optional(),accessToken:z.string().optional()}).safeParse(req.body);if(!s.success)return err(reply,400,'validation_error','Order number required');const q=await pool.query('SELECT * FROM orders WHERE number=$1',[s.data.number]);if(!q.rowCount)return err(reply,404,'not_found','Order not found');const o=q.rows[0];if(s.data.email?.toLowerCase()!==o.email.toLowerCase())return err(reply,403,'forbidden','Order access denied');return {order:await orderView(o)};});
 app.get('/v1/customers/me/session',async(req,reply)=>{const s=await requireSession(req,reply,'customer');if(!s)return;const r=await pool.query('SELECT * FROM customers WHERE id=$1',[s.subject_id]);return {customer:r.rowCount?customerView(r.rows[0]):null};});
 app.get('/v1/customers/me/orders',async(req,reply)=>{const s=await requireSession(req,reply,'customer');if(!s)return;const r=await pool.query('SELECT * FROM orders WHERE customer_id=$1 ORDER BY created_at DESC',[s.subject_id]);return {items:await Promise.all(r.rows.map(o=>orderView(o))),page:1,pageSize:r.rowCount,total:r.rowCount,totalPages:1};});
@@ -219,7 +448,7 @@ async function putSetting(key:string,value:any){await pool.query('INSERT INTO se
 app.get('/v1/settings',async(req,reply)=>{reply.header('Cache-Control','public, max-age=60, stale-while-revalidate=300');return getSetting('store');});
 app.get('/v1/navigation',async(req,reply)=>{reply.header('Cache-Control','public, max-age=60, stale-while-revalidate=300');return getSetting('navigation');});
 app.get('/v1/homepage',async(req,reply)=>{reply.header('Cache-Control','public, max-age=60, stale-while-revalidate=300');return getSetting('homepage');});
-app.get('/v1/payment-options',async(req,reply)=>{const p=await getSetting('payments');const methods:any[]=[];if(p?.paystack?.enabled)methods.push({method:'paystack',label:'Card payment',description:'Pay securely by card.'});if(p?.flutterwave?.enabled)methods.push({method:'flutterwave',label:'Card payment',description:'Pay securely by card.'});if(p?.bankTransfer?.enabled)methods.push({method:'bank_transfer',label:'Bank transfer',description:'Transfer to the store account and upload/confirm your payment.'});if(p?.payOnDelivery?.enabled)methods.push({method:'pay_on_delivery',label:'Pay on delivery',description:'Pay when your order arrives.'});return {methods};});
+app.get('/v1/payment-options',async(req:any,reply:any)=>{reply.header('Cache-Control','no-store');const settings=await getSetting('payments');return {methods:isPaystackReady(settings,process.env.PAYSTACK_SECRET_KEY)?[{method:'paystack',label:'Pay with Paystack',description:'Pay securely on Paystack using card, bank or USSD.'}]:[]};});
 const adminCustomerView=(r:any)=>({id:r.id,name:r.name,email:r.email,phone:r.phone||null,hasAccount:Boolean(r.has_account),orderCount:Number(r.order_count||0),totalPaid:Number(r.total_paid||0),lastOrderAt:r.last_order_at||null,createdAt:r.created_at});
 app.get('/v1/admin/customers',async(req:any,reply)=>{if(!await requireSession(req,reply,'admin'))return;const q=String((req.query as any)?.q||'').trim();const paging=pageParams(req.query,20);if(!paging)return err(reply,400,'validation_error','Invalid page or pageSize');const {page,pageSize}=paging;const vals:any[]=[];let where='1=1';if(q){vals.push('%'+q+'%');where=`(c.name ILIKE $1 OR c.email ILIKE $1 OR c.phone ILIKE $1)`;}const count=await pool.query(`SELECT count(*)::int n FROM customers c WHERE ${where}`,vals);vals.push(pageSize,(page-1)*pageSize);const rows=await pool.query(`SELECT c.*,true has_account,count(o.id)::int order_count,coalesce(sum(CASE WHEN o.payment_status IN ('paid','partially_refunded') THEN o.total_kobo ELSE 0 END),0)::bigint total_paid,max(o.created_at) last_order_at FROM customers c LEFT JOIN orders o ON o.customer_id=c.id WHERE ${where} GROUP BY c.id ORDER BY last_order_at DESC NULLS LAST,c.created_at DESC LIMIT $${vals.length-1} OFFSET $${vals.length}`,vals);return {items:rows.rows.map(adminCustomerView),page,pageSize,total:count.rows[0].n,totalPages:Math.max(1,Math.ceil(count.rows[0].n/pageSize))};});
 app.get('/v1/admin/customers/:id',async(req:any,reply)=>{if(!await requireSession(req,reply,'admin'))return;const r=await pool.query('SELECT c.*,true has_account,count(o.id)::int order_count,coalesce(sum(CASE WHEN o.payment_status IN (\'paid\',\'partially_refunded\') THEN o.total_kobo ELSE 0 END),0)::bigint total_paid,max(o.created_at) last_order_at FROM customers c LEFT JOIN orders o ON o.customer_id=c.id WHERE c.id=$1 GROUP BY c.id',[(req.params as any).id]);if(!r.rowCount)return err(reply,404,'not_found','Customer not found');const orders=await pool.query('SELECT * FROM orders WHERE customer_id=$1 ORDER BY created_at DESC',[(req.params as any).id]);const addresses=await pool.query('SELECT * FROM customer_addresses WHERE customer_id=$1 ORDER BY is_default DESC,created_at DESC',[(req.params as any).id]);return {...adminCustomerView(r.rows[0]),orders:await Promise.all(orders.rows.map((o:any)=>orderView(o))),addresses:addresses.rows,marketingOptIn:false};});
@@ -230,8 +459,8 @@ app.get('/v1/admin/settings/store',async(req,reply)=>{if(!await requireSession(r
 app.put('/v1/admin/settings/store',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;const b=z.record(z.any()).safeParse(req.body);if(!b.success)return err(reply,422,'validation_failed','Invalid store settings');return putSetting('store',b.data);});
 app.get('/v1/admin/settings/shipping',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;return getSetting('shipping');});
 app.put('/v1/admin/settings/shipping',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;const b=z.record(z.any()).safeParse(req.body);if(!b.success)return err(reply,422,'validation_failed','Invalid shipping settings');return putSetting('shipping',b.data);});
-app.get('/v1/admin/settings/payments',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;return getSetting('payments');});
-app.put('/v1/admin/settings/payments',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;const b=z.record(z.any()).safeParse(req.body);if(!b.success)return err(reply,422,'validation_failed','Invalid payment settings');return putSetting('payments',b.data);});
+app.get('/v1/admin/settings/payments',async(req:any,reply:any)=>{if(!await requireSession(req,reply,'admin'))return;reply.header('Cache-Control','no-store');return sanitizePaymentSettings(await getSetting('payments'));});
+app.put('/v1/admin/settings/payments',async(req:any,reply:any)=>{if(!await requireSession(req,reply,'admin'))return;const body=z.record(z.any()).safeParse(req.body);if(!body.success)return err(reply,422,'validation_failed','Invalid payment settings');try{return await putSetting('payments',normalizePaymentSettings(body.data));}catch{return err(reply,422,'validation_failed','Invalid Paystack payment settings. Secret keys belong in server environment configuration.');}});
 app.get('/v1/admin/content/homepage',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;return getSetting('homepage');});
 app.put('/v1/admin/content/homepage',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;return putSetting('homepage',{...(req.body as any),updatedAt:new Date().toISOString()});});
 app.get('/v1/admin/content/navigation',async(req,reply)=>{if(!await requireSession(req,reply,'admin'))return;return getSetting('navigation');});
