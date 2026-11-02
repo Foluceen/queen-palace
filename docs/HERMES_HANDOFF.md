@@ -245,6 +245,19 @@ Contract types: `Order`, `FulfillmentUpdate` and the related types in `src/lib/t
 - **Customer password reset confirm:** `POST /customers/auth/password-reset/confirm`.
 - **Reviews:** `GET /products/:id/reviews` returns 500 for an unknown id (should be 404). Full spec in `docs/REVIEWS_API.md`.
 
+## Performance: backend items (frontend side is done)
+
+Measured 2 Nov 2026. Shop pages are now cached at Vercel's CDN (x-vercel-cache HIT, ~0.2 s to first byte), so the API is only hit when a page refreshes (every 60 s) and for the cart/checkout/admin. These are the remaining wins, all on the API side:
+
+1. **Compression.** API responses are sent uncompressed (no `content-encoding`; a collection response is ~60 KB of JSON). Turn on gzip (and brotli if available) in nginx for `application/json`. Expect 70-85% smaller responses.
+2. **Server-side paging and sorting.** `GET /collections/:handle/products` and `GET /search` ignore `page`, `pageSize`, `sort` and `q`, so every call returns the whole list and the frontend pages it. Please honour those params (and return `total`); the frontend already sends them.
+3. **Database.** Indexes on `product_variants.product_id`, `product_media.product_id`, `collection_products(collection_id, position)`, `products(handle)`, `products(status, created_at)`, `orders(number)`, `orders(created_at)`. Check list endpoints for N+1 queries (one query per product for variants/media) and load them in one query each. Select only the columns a response needs.
+4. **Connection pooling** for the database (a fixed pool rather than a connection per request).
+5. **Caching.** Short-lived cache (Redis or in-memory, 30-60 s) for public reads: settings, navigation, collections list, collection products, product by handle. Clear on admin save.
+6. **Background jobs** for slow work: emails, image processing, Paystack webhook follow-ups, so requests return quickly.
+7. **Hosting.** Keep the API and the database in the same region/datacentre. Vercel serves the frontend from its edge; the API's region decides cart and checkout speed.
+8. **Monitoring.** Request timing logs or OpenTelemetry traces on the API, so slow endpoints are visible. Load balancing is not needed at the current traffic.
+
 ## Owner permissions (unchanged requirement)
 The owner role must carry all 17 permissions (or `*`), and `GET /admin/auth/session` must return them:
 `dashboard:read, products:read, products:write, collections:write, inventory:write, media:write, orders:read, orders:write, orders:refund, customers:read, content:write, discounts:write, reviews:moderate, inquiries:respond, analytics:read, settings:write, staff:manage`.
