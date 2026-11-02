@@ -8,14 +8,21 @@ import { siteUrl } from "@/lib/api/config";
 import { RecentlyViewed } from "@/components/store/product/RecentlyViewed";
 import { whatsappNumber } from "@/lib/contact";
 import { getProduct, getSettings, storefront } from "@/lib/data/storefront";
-import { first, type RawSearchParams } from "@/lib/search-params";
 
 export const revalidate = 60;
+
+/**
+ * No product pages are built ahead of time; each one is rendered on its first visit and then
+ * served from the cache (refreshed every `revalidate` seconds), so new products work at once.
+ */
+export async function generateStaticParams(): Promise<{ handle: string }[]> {
+  return [];
+}
 
 /** Shortens to a word boundary for meta descriptions. */
 const clip = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, text.lastIndexOf(" ", max)).replace(/[,.;:]$/, "")}…`);
 
-type Props = { params: Promise<{ handle: string }>; searchParams: Promise<RawSearchParams> };
+type Props = { params: Promise<{ handle: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
@@ -45,8 +52,8 @@ async function reviewsOrNull(productId: string) {
   }
 }
 
-export default async function ProductPage({ params, searchParams }: Props) {
-  const [{ handle }, sp] = await Promise.all([params, searchParams]);
+export default async function ProductPage({ params }: Props) {
+  const { handle } = await params;
   const data = await getProduct(handle);
   if (!data) notFound();
   const { product, collections, related, attributes, productType } = data;
@@ -155,7 +162,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <div className="container pdp-wrap">
         <ProductExperience
           product={product}
-          initialVariantId={first(sp.variant) ?? null}
+          initialVariantId={null}
           collection={collection ? { handle: collection.handle, title: collection.title } : null}
           whatsappNumber={whatsappNumber(settings)}
           storeName={settings.name}

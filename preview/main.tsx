@@ -62,7 +62,7 @@ const routes: Route[] = [
   { pattern: "/", store: HomePage as ServerPage },
   { pattern: "/collections", store: CollectionsPage as ServerPage },
   { pattern: "/collections/:handle", store: CollectionPage as ServerPage },
-  { pattern: "/products/:handle", store: ProductPage as ServerPage },
+  { pattern: "/products/:handle", store: ProductPage as unknown as ServerPage },
   { pattern: "/search", store: SearchPage as ServerPage },
   { pattern: "/cart", store: CartPage as ServerPage },
   { pattern: "/checkout", store: CheckoutPage as ServerPage },

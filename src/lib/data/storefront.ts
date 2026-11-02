@@ -4,7 +4,6 @@
  * swaps the implementation without touching any component.
  */
 import { pageLocally } from "@/lib/listing";
-import { connection } from "next/server";
 import { cache } from "react";
 import { encodeOptions, type EndpointName, type RequestOf, type ResponseOf } from "@/lib/api/contract";
 import { ApiError, createApiClient } from "@/lib/api/client";
@@ -88,20 +87,17 @@ async function mockCaller<K extends EndpointName>(name: K, req: RequestOf<K>): P
 const revalidate = Number(process.env.CATALOG_REVALIDATE_SECONDS ?? 60);
 
 /**
- * Live mode: every server render reads the real API. `connection()` marks the route as
- * request-time rendered, so builds never call the API and never bake API failures (or data)
- * into static HTML. API responses are still cached in Next's data cache for
- * CATALOG_REVALIDATE_SECONDS (tag "catalog"); after that window the next request refetches.
+ * Live mode: pages are rendered from the real API and cached as static HTML (ISR) for
+ * CATALOG_REVALIDATE_SECONDS, so most visits are served straight from the CDN. API responses
+ * are cached in Next's data cache for the same window (tag "catalog"). A failed refresh never
+ * replaces a good cached page: Next keeps serving the last good version and retries later.
  * There is no fallback to mock data: failures throw and the route's error boundary shows a
  * retry state.
  */
 function liveCaller(): Caller {
   // Vercel functions time out at 10s by default; fail before that so the error page renders.
   const client = createApiClient(serverApiBase(), { timeoutMs: 8000, init: { next: { revalidate, tags: ["catalog"] } } });
-  return async (name, req) => {
-    await connection();
-    return client.call(name, req);
-  };
+  return (name, req) => client.call(name, req);
 }
 
 const getRepository = cache((): StorefrontRepository => repositoryFrom(dataMode === "mock" ? mockCaller : liveCaller()));

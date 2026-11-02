@@ -31,3 +31,13 @@ export function ProductSkeleton() {
     </div>
   );
 }
+
+/** Collection page: banner, then the product grid. */
+export function CollectionSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading">
+      <div className="skeleton" style={{ height: "clamp(180px, 28vw, 320px)", borderRadius: 0 }} />
+      <GridSkeleton />
+    </div>
+  );
+}

@@ -276,6 +276,19 @@ export function ProductExperience({ product, initialVariantId, collection, whats
   const variant = useMemo(() => product.variants.find((v) => product.options.every((o) => v.options[o.name] === selected[o.name])), [product, selected]);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // A shared link with ?variant= opens on that size/colour. Read in the browser (not on the
+  // server) so the product page can be cached as static HTML; declared before the sync below so
+  // it reads the link before the URL is rewritten.
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("variant");
+      if (id && id !== initialVariantId && product.variants.some((v) => v.id === id)) setSelected(initialOptions(product, id));
+    } catch {
+      /* ignore malformed URLs */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
+
   // Keep ?variant= in sync without a navigation, so the URL is shareable.
   useEffect(() => {
     if (!variant) return;
