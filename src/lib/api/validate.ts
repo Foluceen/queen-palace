@@ -122,7 +122,7 @@ export const validators: Partial<Record<EndpointName, Check>> = {
   removeCartLine: cart,
   applyDiscount: cart,
   removeDiscount: cart,
-  getShippingRates: (v) => each(v, (q, w) => fields(q, { id: "string", label: "string", amount: "number", etaDays: "array", totals: "object" }, w), "shippingQuotes"),
+  getShippingRates: (v) => each(v, (q, w) => fields(q, { id: "string", label: "string", amount: "number" }, w), "shippingQuotes"),
   placeOrder: (v) =>
     fields(v, { order: "object", payment: "object" }, "checkout") ??
     fields((v as { order: unknown }).order, { number: "string", accessToken: "string", paymentStatus: "string" }, "checkout.order") ??

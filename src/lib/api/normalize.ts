@@ -300,6 +300,29 @@ export function normalizeAdminOrder(raw: unknown): unknown {
   };
 }
 
+/**
+ * Delivery quotes: the production API answers `{ rates: [{ id, label, amount, currency,
+ * estimatedDays: "3-7 business days" }] }` without per-option totals. Unwrap the list and turn
+ * the delivery time into a [min, max] range when it can be read; otherwise keep it as text.
+ */
+function normalizeShippingQuotes(v: unknown): unknown {
+  const list = Array.isArray(v) ? v : isObj(v) ? (Array.isArray(v.rates) ? v.rates : Array.isArray(v.quotes) ? v.quotes : Array.isArray(v.items) ? v.items : null) : null;
+  if (!list) return v;
+  return list.map((q) => {
+    if (!isObj(q)) return q;
+    const eta = Array.isArray(q.etaDays) && q.etaDays.length === 2 ? q.etaDays : null;
+    const text = str(q.estimatedDays) ?? str(q.eta) ?? "";
+    const nums = text.match(/\d+/g)?.map(Number) ?? [];
+    const parsed: [number, number] | null = /day/i.test(text) && nums.length ? [nums[0]!, nums[1] ?? nums[0]!] : null;
+    return {
+      ...q,
+      id: q.id === undefined ? q.id : String(q.id),
+      description: str(q.description) ?? (eta || parsed ? "" : text),
+      etaDays: eta ?? parsed,
+    };
+  });
+}
+
 /** Dashboard low-stock rows arrive in snake_case from the production API. */
 function normalizeDashboard(v: unknown): unknown {
   if (!isObj(v) || !Array.isArray(v.lowStock)) return v;
@@ -317,6 +340,7 @@ function normalizeDashboard(v: unknown): unknown {
 }
 
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
+  getShippingRates: normalizeShippingQuotes,
   adminListReviews: itemsOf,
   adminModerateReview: unwrapKey("review"),
   adminGetOrder: normalizeAdminOrder,

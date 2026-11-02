@@ -397,8 +397,11 @@ export interface ShippingRate {
 }
 
 /** A shipping option as quoted for a specific cart, with the backend's totals if chosen. */
-export interface ShippingQuote extends ShippingRate {
-  totals: CartTotals & { shippingTotal: Kobo };
+export interface ShippingQuote extends Omit<ShippingRate, "etaDays"> {
+  /** null when the backend gives the delivery time only as text (then it's in description). */
+  etaDays: [number, number] | null;
+  /** The backend's totals if this option is chosen. Some backends quote the price only. */
+  totals?: CartTotals & { shippingTotal: Kobo };
 }
 
 export type PaymentMethod = "paystack" | "flutterwave" | "bank_transfer" | "pay_on_delivery";

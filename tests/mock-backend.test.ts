@@ -109,7 +109,7 @@ describe("cart and checkout", () => {
     assert.deepEqual(osogbo.map((r) => r.id), ["rate_osun_std"]);
     const kano = callMock("getShippingRates", { body: { cartId: cart.id, address: { state: "Kano", city: "Kano" } } });
     assert.deepEqual(kano.map((r) => r.id), ["rate_ng_std"]);
-    for (const q of [...ilesha, ...kano]) assert.equal(q.totals.total, cart.totals.subtotal + q.amount);
+    for (const q of [...ilesha, ...kano]) assert.equal(q.totals!.total, cart.totals.subtotal + q.amount);
   });
 
   it("places a pay-on-delivery order as pending, reserves stock, and is idempotent", () => {
@@ -128,7 +128,7 @@ describe("cart and checkout", () => {
     const res = callMock("placeOrder", { body });
     assert.equal(res.order.paymentStatus, "pending");
     assert.equal(res.payment.redirectUrl, null);
-    assert.equal(res.order.totals.total, rate!.totals.total);
+    assert.equal(res.order.totals.total, rate!.totals!.total);
     const again = callMock("placeOrder", { body });
     assert.equal(again.order.number, res.order.number);
     const after = callMock("getProduct", { params: { handle: "care-silk-bonnet" } }).product.variants.find((x) => x.id === v.id)!;

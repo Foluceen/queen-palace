@@ -497,4 +497,17 @@ describe("Shop by collection tiles", () => {
     assert.ok(!JSON.stringify(body).includes("sk_"));
     assert.equal(normalizePaymentSettings(null).paystack.mode, "test");
   });
+  it("delivery quotes: live { rates } shape is unwrapped and the delivery time read", async () => {
+    const { normalizeResponse } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    const live = { rates: [{ id: "local", label: "Standard delivery", amount: 250000, currency: "NGN", estimatedDays: "3-7 business days" }] };
+    const q = normalizeResponse("getShippingRates", live) as { id: string; etaDays: [number, number] | null; description: string; amount: number }[];
+    assert.equal(validateResponse("getShippingRates", q), null);
+    assert.deepEqual(q[0]!.etaDays, [3, 7]);
+    assert.equal(q[0]!.amount, 250000);
+    const odd = normalizeResponse("getShippingRates", { rates: [{ id: "x", label: "Pickup", amount: 0, estimatedDays: "Same day pickup" }] }) as { etaDays: unknown; description: string }[];
+    assert.equal(odd[0]!.etaDays, null);
+    assert.equal(odd[0]!.description, "Same day pickup");
+    assert.notEqual(validateResponse("getShippingRates", { rates: "nope" }), null);
+  });
 });

@@ -125,7 +125,9 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
   if (!cart && cartError) return <ErrorState message={cartError} onRetry={() => void refresh()} />;
   if (!cart || !cart.lines.length) return <EmptyState title="Your bag is empty" body="Add something before checking out." action={{ label: "Browse collections", href: "/collections" }} />;
 
-  const totals = quote?.totals ?? cart.totals;
+  // The backend's own totals for this option when it sends them; otherwise the bag total plus the
+  // quoted delivery price, for display. The order itself is always priced by the backend.
+  const totals = quote ? (quote.totals ?? { ...cart.totals, shippingTotal: quote.amount, total: cart.totals.total - (cart.totals.shippingTotal ?? 0) + quote.amount }) : cart.totals;
 
   const place = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -259,7 +261,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
                   <span className="choice__body">
                     <span className="choice__title">{q.label}</span>
                     <span className="small muted">
-                      {q.description} {formatEta(q.etaDays)}.
+                      {[q.description, q.etaDays ? formatEta(q.etaDays) : ""].filter(Boolean).join(" ")}
                     </span>
                   </span>
                   <span className="choice__price">{q.amount === 0 ? "Free" : <Price amount={q.amount} />}</span>
@@ -333,7 +335,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           ) : null}
           <div>
             <dt>Delivery</dt>
-            <dd>{quote ? quote.totals.shippingTotal === 0 ? "Free" : <Price amount={quote.totals.shippingTotal} /> : <span className="muted">Choose your state</span>}</dd>
+            <dd>{quote ? totals.shippingTotal === 0 ? "Free" : <Price amount={totals.shippingTotal ?? quote.amount} /> : <span className="muted">Choose your state</span>}</dd>
           </div>
           <div className="totals__grand">
             <dt>Total</dt>
