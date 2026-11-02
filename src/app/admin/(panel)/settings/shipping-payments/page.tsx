@@ -8,7 +8,7 @@ import { LoadError, LoadingRows, MoneyInput, PageHeader, Panel, Switch } from "@
 import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
-import { paystackKeyProblem } from "@/lib/paystack";
+import { normalizePaymentSettings, paystackKeyProblem, paystackOnlySettings } from "@/lib/paystack";
 import { NIGERIAN_STATES, type PaymentSettings, type ShippingSettings, type ShippingZone } from "@/lib/types";
 
 type ZoneRate = ShippingZone["rates"][number];
@@ -19,7 +19,7 @@ const rid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 8)}`;
 
 function PaystackSettings() {
   const toast = useToast();
-  const { data, error, reload } = useResource(() => api().call("adminGetPaymentSettings"));
+  const { data, error, reload } = useResource(async () => normalizePaymentSettings(await api().call("adminGetPaymentSettings")));
   const [pay, setPay] = useState<PaymentSettings | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -52,16 +52,10 @@ function PaystackSettings() {
     setSaving(true);
     try {
       // Paystack is the only way the shop takes money: every other option is switched off.
-      const next = await api().call("adminUpdatePaymentSettings", {
-        body: {
-          ...pay,
-          paystack: { ...ps, publicKey: ps.publicKey.trim() },
-          flutterwave: { ...pay.flutterwave, enabled: false },
-          bankTransfer: { ...pay.bankTransfer, enabled: false },
-          payOnDelivery: { ...pay.payOnDelivery, enabled: false },
-        },
-      });
-      setPay(next);
+      const body = paystackOnlySettings(pay);
+      const next = normalizePaymentSettings(await api().call("adminUpdatePaymentSettings", { body }));
+      // If the server's reply leaves the key out, keep what was just saved on screen.
+      setPay(next.paystack.publicKey || !body.paystack.publicKey ? next : { ...next, paystack: body.paystack });
       setDirty(false);
       setTried(false);
       toast("Payment settings saved");

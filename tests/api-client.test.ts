@@ -485,4 +485,16 @@ describe("Shop by collection tiles", () => {
     assert.deepEqual(withBone.map((t) => t.label), ["Futura Wigs", "Bone Straight", "Braid extensions", "Bouncy wig"]);
     assert.equal(withBone[1]!.href, "/collections/bone");
   });
+  it("payment settings: partial server reply is filled in, save sends Paystack only", async () => {
+    const { normalizePaymentSettings, paystackOnlySettings } = await import("../src/lib/paystack");
+    const n = normalizePaymentSettings({ paystack: { enabled: true, mode: "test", publicKey: " pk_test_abc ", secretKey: "sk_test_x" } });
+    assert.equal(n.flutterwave.enabled, false);
+    assert.equal(n.payOnDelivery.states.length, 0);
+    assert.ok(!("secretKey" in n.paystack));
+    const body = paystackOnlySettings({ ...n, bankTransfer: { ...n.bankTransfer, enabled: true } });
+    assert.equal(body.paystack.publicKey, "pk_test_abc");
+    assert.equal(body.bankTransfer.enabled, false);
+    assert.ok(!JSON.stringify(body).includes("sk_"));
+    assert.equal(normalizePaymentSettings(null).paystack.mode, "test");
+  });
 });
