@@ -339,6 +339,90 @@ function normalizeDashboard(v: unknown): unknown {
   };
 }
 
+
+/* ------------------------------------------------------------- customer account */
+
+/** Splits a full name the backend stores in one field. */
+const splitName = (name: unknown): { firstName: string; lastName: string } => {
+  const parts = (str(name) ?? "").split(/\s+/);
+  return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
+};
+
+/** A customer in any of the backend's shapes ({ name } on login, { firstName, lastName } elsewhere). */
+function toCustomer(c: unknown): unknown {
+  if (!isObj(c)) return c;
+  const split = splitName(c.name);
+  return {
+    ...c,
+    id: String(c.id ?? ""),
+    firstName: str(c.firstName) ?? str(c.first_name) ?? split.firstName,
+    lastName: str(c.lastName) ?? str(c.last_name) ?? split.lastName,
+    email: str(c.email) ?? "",
+    phone: str(c.phone),
+    createdAt: str(c.createdAt) ?? str(c.created_at) ?? "",
+  };
+}
+const customerSession = (v: unknown) => (isObj(v) && isObj(v.customer) ? { ...v, customer: toCustomer(v.customer) } : v);
+const customerAccount = (v: unknown) => toCustomer(isObj(v) && isObj(v.customer) ? v.customer : v);
+
+/** The backend keeps the landmark inside line2 ("… · Landmark: …"); see addressRequest. */
+const LANDMARK = "Landmark: ";
+/** Saved addresses arrive as database rows: { items: [{ recipient, line1, line2, is_default, … }] }. */
+function toSavedAddress(a: unknown): unknown {
+  if (!isObj(a) || typeof a.firstName === "string") return a;
+  const name = splitName(a.recipient);
+  const rawLine2 = str(a.line2) ?? "";
+  const at = rawLine2.indexOf(LANDMARK);
+  const line2 = (at >= 0 ? rawLine2.slice(0, at) : rawLine2).replace(/\s*·\s*$/, "");
+  return {
+    id: String(a.id ?? ""),
+    label: str(a.label) ?? "Address",
+    isDefault: a.isDefault === true || a.is_default === true,
+    ...name,
+    phone: str(a.phone) ?? "",
+    line1: str(a.line1) ?? "",
+    line2,
+    landmark: at >= 0 ? rawLine2.slice(at + LANDMARK.length) : "",
+    city: str(a.city) ?? "",
+    state: str(a.state) ?? "",
+    country: "NG",
+  };
+}
+function savedAddresses(v: unknown): unknown {
+  const list = Array.isArray(v) ? v : isObj(v) && Array.isArray(v.items) ? v.items : isObj(v) && isObj(v.address) ? null : v;
+  return Array.isArray(list) ? list.map(toSavedAddress) : v;
+}
+/** Wishlist: GET answers { items: [products] }, PUT answers { items: [ids] }. */
+function wishlist(v: unknown): unknown {
+  if (!isObj(v) || Array.isArray(v.productIds) || !Array.isArray(v.items)) return v;
+  return { productIds: v.items.map((x) => (isObj(x) ? String(x.id ?? "") : String(x))).filter(Boolean) };
+}
+
+/**
+ * Request bodies the live backend expects in its own shape. Mock mode keeps the frontend shape.
+ * Saved address: { label, recipient, line1, line2, city, state, country, phone, isDefault }.
+ */
+export function normalizeRequest(name: EndpointName, body: unknown, live: boolean): unknown {
+  if (!live || !isObj(body)) return body;
+  if (name === "saveAddress") {
+    const b = body as Record<string, unknown>;
+    const line2 = [str(b.line2), str(b.landmark) ? `${LANDMARK}${str(b.landmark)}` : null].filter(Boolean).join(" · ");
+    return {
+      ...(str(b.id) ? { id: str(b.id) } : {}),
+      label: str(b.label) ?? "Home",
+      recipient: [str(b.firstName), str(b.lastName)].filter(Boolean).join(" "),
+      line1: str(b.line1) ?? "",
+      ...(line2 ? { line2 } : {}),
+      city: str(b.city) ?? "",
+      state: str(b.state) ?? "",
+      country: "NG",
+      phone: str(b.phone) ?? "",
+      isDefault: b.isDefault === true,
+    };
+  }
+  return body;
+}
+
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
   getShippingRates: normalizeShippingQuotes,
   // Store order replies come as { order: { …, items } } like the admin ones: same mapping.
@@ -346,6 +430,15 @@ const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
   verifyPayment: normalizeAdminOrder,
   trackOrder: normalizeAdminOrder,
   listCustomerOrders: itemsOf,
+  customerLogin: customerSession,
+  customerRegister: customerSession,
+  getCustomer: customerSession,
+  getCustomerAccount: customerAccount,
+  listAddresses: savedAddresses,
+  saveAddress: savedAddresses,
+  deleteAddress: savedAddresses,
+  getWishlist: wishlist,
+  replaceWishlist: wishlist,
   adminListReviews: itemsOf,
   adminModerateReview: unwrapKey("review"),
   adminGetOrder: normalizeAdminOrder,

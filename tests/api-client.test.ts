@@ -524,4 +524,32 @@ describe("Shop by collection tiles", () => {
     }
     assert.notEqual(validateResponse("verifyPayment", live), null);
   });
+  it("customer account: live shapes for login, account, addresses and wishlist", async () => {
+    const { normalizeResponse, normalizeRequest } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    const login = normalizeResponse("customerLogin", { customer: { id: "c1", name: "Ada Grace Obi", email: "a@b.co" } }) as { customer: { firstName: string; lastName: string } };
+    assert.equal(validateResponse("customerLogin", login), null);
+    assert.equal(login.customer.firstName, "Ada");
+    assert.equal(login.customer.lastName, "Grace Obi");
+    const acct = normalizeResponse("getCustomerAccount", { customer: { id: "c1", firstName: "Ada", lastName: "Obi", email: "a@b.co", phone: null, createdAt: "x" } }) as { firstName: string };
+    assert.equal(acct.firstName, "Ada");
+    const row = { id: "a1", customer_id: "c1", label: "Home", recipient: "Ada Obi", line1: "1 Allen Ave", line2: "Flat 2 · Landmark: Opposite the bank", city: "Ikeja", state: "Lagos", postal_code: "", country: "NG", phone: "0803", is_default: true };
+    const list = normalizeResponse("listAddresses", { items: [row] }) as { firstName: string; lastName: string; isDefault: boolean; line2: string; landmark: string }[];
+    assert.equal(list[0]!.firstName, "Ada");
+    assert.equal(list[0]!.isDefault, true);
+    assert.equal(list[0]!.line2, "Flat 2");
+    assert.equal(list[0]!.landmark, "Opposite the bank");
+    // A save that answers only { address } is left alone (the page reloads the list).
+    assert.ok(!Array.isArray(normalizeResponse("saveAddress", { address: row })));
+    const body = normalizeRequest("saveAddress", { label: "Home", firstName: "Ada", lastName: "Obi", phone: "0803", line1: "1 Allen Ave", line2: "Flat 2", landmark: "Opposite the bank", city: "Ikeja", state: "Lagos", country: "NG", isDefault: true }, true) as Record<string, unknown>;
+    assert.equal(body.recipient, "Ada Obi");
+    assert.equal(body.line2, "Flat 2 · Landmark: Opposite the bank");
+    assert.ok(!("firstName" in body) && !("id" in body));
+    const back = normalizeResponse("listAddresses", { items: [{ ...row, line2: body.line2 }] }) as { line2: string; landmark: string }[];
+    assert.equal(back[0]!.landmark, "Opposite the bank");
+    assert.deepEqual(normalizeRequest("saveAddress", { firstName: "A" }, false), { firstName: "A" });
+    assert.deepEqual(normalizeResponse("getWishlist", { items: [{ id: "p1", title: "x" }] }), { productIds: ["p1"] });
+    assert.deepEqual(normalizeResponse("replaceWishlist", { items: ["p1", "p2"] }), { productIds: ["p1", "p2"] });
+    assert.deepEqual(normalizeResponse("getWishlist", { productIds: ["p9"] }), { productIds: ["p9"] });
+  });
 });

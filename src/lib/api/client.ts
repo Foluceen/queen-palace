@@ -15,7 +15,8 @@
  * - 401/403 on authenticated endpoints are reported through `onAuthError`.
  */
 import { routes, type EndpointName, type RequestOf, type ResponseOf } from "./contract";
-import { normalizeResponse } from "./normalize";
+import { normalizeRequest, normalizeResponse } from "./normalize";
+import { isMockMode } from "./config";
 import { validateResponse } from "./validate";
 
 export class ApiError extends Error {
@@ -106,7 +107,7 @@ export function createApiClient(baseUrl: string, defaults: ClientOptions = {}) {
           ...defaults.headers,
           ...options.headers,
         },
-        body: req.body !== undefined ? JSON.stringify(req.body) : undefined,
+        body: req.body !== undefined ? JSON.stringify(normalizeRequest(name, req.body, !isMockMode && !baseUrl.endsWith("/api/mock"))) : undefined,
         signal: controller.signal,
       });
     } catch (err) {

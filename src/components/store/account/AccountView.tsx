@@ -114,7 +114,7 @@ export function AccountView() {
             <ul className="acct-orders">
               {orders.map((o) => (
                 <li key={o.id}>
-                  <Link href={`/order/${o.number}?token=${encodeURIComponent(o.accessToken)}`} className="acct-orders__row">
+                  <Link href={`/order/${encodeURIComponent(o.number)}${o.accessToken ? `?token=${encodeURIComponent(o.accessToken)}` : ""}`} className="acct-orders__row">
                     <span>
                       <strong>{o.number}</strong>
                       <span className="small muted"> {formatDate(o.createdAt)}</span>
@@ -157,6 +157,8 @@ function Addresses() {
   useEffect(() => {
     void load();
   }, [load]);
+  // Some backends answer a save/remove with just that address (or { ok }): then reload the list.
+  const applyList = async (res: unknown) => (Array.isArray(res) ? setList(res as SavedAddress[]) : load());
 
   const save = async () => {
     if (!editing) return;
@@ -164,7 +166,7 @@ function Addresses() {
     setError(null);
     setFields({});
     try {
-      setList(await api().call("saveAddress", { body: editing }));
+      await applyList(await api().call("saveAddress", { body: editing }));
       setEditing(null);
     } catch (err) {
       if (err instanceof ApiError && err.fields) setFields(err.fields);
@@ -242,7 +244,13 @@ function Addresses() {
                   Edit
                 </button>
                 {!a.isDefault ? (
-                  <button type="button" className="link-btn small" onClick={async () => setList(await api().call("saveAddress", { body: { ...a, isDefault: true } }))}>
+                  <button type="button" className="link-btn small" onClick={async () => {
+                      try {
+                        await applyList(await api().call("saveAddress", { body: { ...a, isDefault: true } }));
+                      } catch (err) {
+                        setLoadError(errorMessage(err));
+                      }
+                    }}>
                     Make default
                   </button>
                 ) : null}
@@ -251,7 +259,7 @@ function Addresses() {
                   className="link-btn small"
                   onClick={async () => {
                     try {
-                      setList(await api().call("deleteAddress", { params: { id: a.id } }));
+                      await applyList(await api().call("deleteAddress", { params: { id: a.id } }));
                     } catch (err) {
                       setLoadError(errorMessage(err));
                     }

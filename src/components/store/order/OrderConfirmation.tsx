@@ -15,7 +15,7 @@ import { OrderView } from "./OrderView";
  */
 export function OrderConfirmation({ number, token, reference }: { number: string; token: string; reference: string | null }) {
   const [order, setOrder] = useState<Order | null>(null);
-  const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null);
+  const [error, setError] = useState<{ message: string; notFound: boolean; denied?: boolean } | null>(null);
   const [checking, setChecking] = useState(false);
 
   const load = useCallback(async () => {
@@ -24,7 +24,7 @@ export function OrderConfirmation({ number, token, reference }: { number: string
       const o = reference ? await api().call("verifyPayment", { params: { number }, body: { token, reference } }) : await api().call("getOrder", { params: { number }, query: { token } });
       setOrder(o);
     } catch (err) {
-      setError({ message: errorMessage(err), notFound: err instanceof ApiError && err.isNotFound });
+      setError({ message: errorMessage(err), notFound: err instanceof ApiError && err.isNotFound, denied: err instanceof ApiError && (err.status === 401 || err.status === 403) });
     }
   }, [number, token, reference]);
 
@@ -33,6 +33,9 @@ export function OrderConfirmation({ number, token, reference }: { number: string
   }, [load]);
 
   if (error) {
+    if (!token && error.denied) {
+      return <ErrorState title="Sign in to see this order" message="Open the link from your order confirmation, sign in to the account you ordered with, or track your order with its number and email." />;
+    }
     return error.notFound ? (
       <ErrorState title="We couldn't find this order" message="Check the link in your confirmation email, or look it up with your order number and email." />
     ) : (
@@ -58,7 +61,9 @@ export function OrderConfirmation({ number, token, reference }: { number: string
       <header className="page-head">
         <p className="muted">Order {order.number}</p>
         <h1 className="h1">{heading}</h1>
-        <p className="lede">{isMockMode ? `In live mode the receipt is emailed to ${order.email}.` : `We've emailed your receipt to ${order.email}.`} Keep this page's link to check on your order any time.</p>
+        <p className="lede">
+          Bookmark this page to check on your order. You can also track it any time with order number <strong>{order.number}</strong> and {order.email}.
+        </p>
       </header>
       {isMockMode ? <p className="notice notice--info">Demo mode: this order is stored in the mock server's memory. No payment provider is connected, so the payment stays pending.</p> : null}
       {awaiting && order.paymentMethod !== "pay_on_delivery" ? (
@@ -71,7 +76,8 @@ export function OrderConfirmation({ number, token, reference }: { number: string
             onClick={async () => {
               setChecking(true);
               try {
-                setOrder(await api().call("verifyPayment", { params: { number }, body: { token } }));
+                // Both endpoints re-check a pending Paystack payment; verify needs the order link's token.
+                setOrder(token ? await api().call("verifyPayment", { params: { number }, body: { token } }) : await api().call("getOrder", { params: { number }, query: { token } }));
               } catch (err) {
                 setError({ message: errorMessage(err), notFound: false });
               } finally {

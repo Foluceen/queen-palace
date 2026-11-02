@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { OrderConfirmation } from "@/components/store/order/OrderConfirmation";
-import { ErrorState } from "@/components/ui/States";
 import { first, type RawSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Your order", robots: { index: false, follow: false } };
@@ -13,11 +12,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const reference = first(sp.reference) ?? first(sp.tx_ref) ?? null;
   return (
     <div className="container section--tight">
-      {token ? (
-        <OrderConfirmation number={decodeURIComponent(number)} token={token} reference={reference} />
-      ) : (
-        <ErrorState title="This order link is incomplete" message="Open the link from your confirmation email, or track your order with its number and your email." />
-      )}
+      {/* Without a token the backend still shows the order to the signed-in customer who placed it. */}
+      <OrderConfirmation number={decodeURIComponent(number)} token={token ?? ""} reference={token ? reference : null} />
     </div>
   );
 }
