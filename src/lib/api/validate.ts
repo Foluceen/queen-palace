@@ -128,6 +128,8 @@ export const validators: Partial<Record<EndpointName, Check>> = {
     fields((v as { order: unknown }).order, { number: "string", accessToken: "string", paymentStatus: "string" }, "checkout.order") ??
     fields((v as { payment: unknown }).payment, { redirectUrl: "string|null" }, "checkout.payment"),
   getOrder: (v) => fields(v, { number: "string", paymentStatus: "string", fulfillmentStatus: "string", lines: "array", totals: "object" }, "order"),
+  verifyPayment: (v) => fields(v, { number: "string", paymentStatus: "string", fulfillmentStatus: "string", lines: "array", totals: "object" }, "order"),
+  trackOrder: (v) => fields(v, { number: "string", paymentStatus: "string", fulfillmentStatus: "string", lines: "array", totals: "object" }, "order"),
   getCustomer: (v) => fields(v, { customer: "object" }, "customerSession"),
   customerLogin: (v) => fields(v, { customer: "object" }, "customerSession"),
   customerRegister: (v) => fields(v, { customer: "object" }, "customerSession"),

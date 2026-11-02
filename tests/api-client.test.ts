@@ -510,4 +510,18 @@ describe("Shop by collection tiles", () => {
     assert.equal(odd[0]!.description, "Same day pickup");
     assert.notEqual(validateResponse("getShippingRates", { rates: "nope" }), null);
   });
+  it("store order replies: live { order: { items } } shape becomes a full order", async () => {
+    const { normalizeResponse } = await import("../src/lib/api/normalize");
+    const { validateResponse } = await import("../src/lib/api/validate");
+    const live = { order: { id: "o1", number: "QLH-ABC-123", accessToken: null, status: "pending", paymentStatus: "paid", fulfillmentStatus: "unfulfilled", paymentMethod: "paystack", email: "a@b.co", phone: "0803", shippingAddress: { firstName: "A", lastName: "B", line1: "1 Road", city: "Ikeja", state: "Lagos", phone: "0803", country: "NG" }, totals: { subtotal: 5500000, discountTotal: 0, shippingTotal: 0, total: 5500000, currency: "NGN" }, items: [{ productId: "p1", variantId: "v1", title: "Futura", quantity: 1, unitPrice: 5500000 }], itemCount: 1, createdAt: "2026-11-02T13:40:00Z" } };
+    for (const name of ["getOrder", "verifyPayment", "trackOrder"] as const) {
+      const o = normalizeResponse(name, live) as { lines: { lineTotal: number }[]; number: string; paymentStatus: string; timeline: unknown[] };
+      assert.equal(validateResponse(name, o), null, name);
+      assert.equal(o.number, "QLH-ABC-123");
+      assert.equal(o.paymentStatus, "paid");
+      assert.equal(o.lines[0]!.lineTotal, 5500000);
+      assert.deepEqual(o.timeline, []);
+    }
+    assert.notEqual(validateResponse("verifyPayment", live), null);
+  });
 });

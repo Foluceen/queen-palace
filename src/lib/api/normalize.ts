@@ -341,6 +341,11 @@ function normalizeDashboard(v: unknown): unknown {
 
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
   getShippingRates: normalizeShippingQuotes,
+  // Store order replies come as { order: { …, items } } like the admin ones: same mapping.
+  getOrder: normalizeAdminOrder,
+  verifyPayment: normalizeAdminOrder,
+  trackOrder: normalizeAdminOrder,
+  listCustomerOrders: itemsOf,
   adminListReviews: itemsOf,
   adminModerateReview: unwrapKey("review"),
   adminGetOrder: normalizeAdminOrder,

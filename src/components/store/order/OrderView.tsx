@@ -146,9 +146,12 @@ export function OrderView({ order }: { order: Order }) {
             <br />
             {order.shippingAddress.phone}
           </address>
-          <p className="small muted">
-            {order.shippingRate.label}, {formatEta(order.shippingRate.etaDays).toLowerCase()} once dispatched
-          </p>
+          {order.shippingRate?.label ? (
+            <p className="small muted">
+              {order.shippingRate.label}
+              {order.shippingRate.etaDays?.[1] ? `, ${formatEta(order.shippingRate.etaDays).toLowerCase()} once dispatched` : ""}
+            </p>
+          ) : null}
           <h2 className="h3">Payment</h2>
           <p>{paymentMethodLabel[order.paymentMethod]}</p>
           {order.timeline.length ? (
