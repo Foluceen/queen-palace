@@ -67,6 +67,26 @@ export function Footer({ settings, navigation }: { settings: StoreSettings; navi
         <p className="small">
           © {year} {settings.name}. Prices in Nigerian naira (₦).
         </p>
+        {/* Always shown, whatever menu the admin sets: required by our payment provider. */}
+        <nav aria-label="Store policies">
+          <ul className="cluster small site-footer__legal">
+            <li>
+              <Link href="/terms">Terms</Link>
+            </li>
+            <li>
+              <Link href="/privacy">Privacy</Link>
+            </li>
+            <li>
+              <Link href="/returns">Refunds &amp; cancellations</Link>
+            </li>
+            <li>
+              <Link href="/shipping">Shipping &amp; delivery</Link>
+            </li>
+            <li>
+              <Link href="/contact">Contact</Link>
+            </li>
+          </ul>
+        </nav>
         {socials.length ? (
           <ul className="cluster small">
             {socials.map((k) => (

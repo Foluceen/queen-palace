@@ -355,6 +355,10 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           {placing ? "Placing order" : method === "paystack" ? "Place order and pay with Paystack" : "Place order"}
         </button>
         <p className="small muted">The total above is confirmed by our system when you place the order.</p>
+        <p className="small muted">
+          By placing your order you agree to our <Link href="/terms">terms</Link>, <Link href="/returns">refund and cancellation policy</Link> and{" "}
+          <Link href="/shipping">delivery policy</Link>. See how we handle your details in our <Link href="/privacy">privacy policy</Link>.
+        </p>
       </aside>
     </form>
   );

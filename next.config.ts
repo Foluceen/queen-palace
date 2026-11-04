@@ -118,13 +118,20 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["animejs"],
   },
   async redirects() {
-    if (!siteUrl) return [];
-    return LEGACY_HOSTS.map((host) => ({
+    // Other common addresses for the policy pages (keep in step with POLICY_ALIASES in src/lib/policies.ts).
+    const aliases: [string, string][] = [
+      ["terms-and-conditions", "terms"], ["terms-of-service", "terms"], ["privacy-policy", "privacy"],
+      ["refund-policy", "returns"], ["refunds", "returns"], ["return-policy", "returns"], ["cancellation-policy", "returns"],
+      ["shipping-policy", "shipping"], ["delivery", "shipping"], ["delivery-policy", "shipping"], ["about-us", "about"], ["contact-us", "contact"],
+    ];
+    const pages = aliases.map(([from, to]) => ({ source: `/${from}`, destination: `/${to}`, permanent: true }));
+    if (!siteUrl) return pages;
+    return [...pages, ...LEGACY_HOSTS.map((host) => ({
       source: "/:path*",
       has: [{ type: "host" as const, value: host }],
       destination: `${siteUrl}/:path*`,
       permanent: true,
-    }));
+    }))];
   },
   async headers() {
     return [
