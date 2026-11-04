@@ -5,7 +5,7 @@
  * are applied. Business facts (name, address, contact details, hours) are copied as given
  * and never invented: a missing contact detail stays null and is hidden.
  */
-import { DEFAULT_BRAND_COLORS, DEFAULT_TAGLINE } from "@/lib/brand";
+import { DEFAULT_BRAND_COLORS, DEFAULT_CONTACT, DEFAULT_TAGLINE } from "@/lib/brand";
 import { PERMISSIONS, type AdminSession, type Permission, type StoreSettings } from "@/lib/types";
 import type { EndpointName } from "./contract";
 
@@ -48,8 +48,8 @@ export function normalizeSettings(raw: unknown): unknown {
       `${name}: wigs, frontals, closures, bundles and hair care.${address ? ` Shop online or visit us at ${address}.` : ""}`,
     logo: (raw.logo as StoreSettings["logo"]) ?? null,
     logoDark: (raw.logoDark as StoreSettings["logoDark"]) ?? null,
-    contactEmail: str(raw.contactEmail) ?? str(raw.email),
-    phone: str(raw.phone),
+    contactEmail: str(raw.contactEmail) ?? str(raw.email) ?? DEFAULT_CONTACT.email,
+    phone: str(raw.phone) ?? DEFAULT_CONTACT.phone,
     whatsapp: str(raw.whatsapp),
     address,
     openingHours: hoursText(raw.openingHours ?? raw.hours),

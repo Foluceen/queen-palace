@@ -15,3 +15,9 @@ export const DEFAULT_BRAND_COLORS: BrandColors = {
 };
 
 export const DEFAULT_TAGLINE = "Luxury hair, crowned for you.";
+
+/**
+ * The owner's contact details, given by the owner. Used whenever the backend's store settings
+ * leave them empty; anything saved in Admin → Shop details replaces them.
+ */
+export const DEFAULT_CONTACT = { email: "omoboladefadipe@gmail.com", phone: "09019844327" } as const;

@@ -202,7 +202,7 @@ describe("review response checks", () => {
 });
 
 describe("settings adapter", () => {
-  it("maps the production settings format onto the contract without inventing contact details", async () => {
+  it("maps the production settings format onto the contract, owner contact details as fallback", async () => {
     const { normalizeSettings } = await import("../src/lib/api/normalize");
     const { validateResponse } = await import("../src/lib/api/validate");
     // Exact response from GET https://api.queenluxuryhair.store/v1/store/settings on 29 Oct 2026.
@@ -212,8 +212,9 @@ describe("settings adapter", () => {
     assert.equal(validateResponse("getStoreSettings", s), null);
     assert.equal(s.name, "Queen Luxury Hair");
     assert.equal(s.address, prod.address);
-    assert.equal(s.contactEmail, null);
-    assert.equal(s.phone, null);
+    // Empty contact fields fall back to the details the owner gave us (admin values win).
+    assert.equal(s.contactEmail, "omoboladefadipe@gmail.com");
+    assert.equal(s.phone, "09019844327");
     assert.equal(s.whatsapp, null);
     assert.equal(s.openingHours, null);
     assert.deepEqual(s.social, { instagram: null, tiktok: null, facebook: null });
