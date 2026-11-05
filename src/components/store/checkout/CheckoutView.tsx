@@ -1,10 +1,10 @@
 "use client";
 
-import { DELIVERY_SUMMARY } from "@/lib/brand";
+import { DELIVERY_COST_TEXT, DELIVERY_RATE_ID, DELIVERY_SUMMARY } from "@/lib/delivery";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/components/store/cart/CartProvider";
 import { DiscountForm } from "@/components/store/cart/CartLines";
 import { SIGNED_IN_KEY } from "@/components/store/WishlistProvider";
@@ -14,10 +14,10 @@ import { EmptyState, ErrorState } from "@/components/ui/States";
 import { api } from "@/lib/api/browser";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
-import { formatEta, variantLabel } from "@/lib/format";
+import { variantLabel } from "@/lib/format";
 import { safePaymentRedirect, shouldRotateIdempotencyKey } from "@/lib/checkout";
 import { PHONE_HINT } from "@/lib/phone";
-import { NIGERIAN_STATES, type Address, type PaymentMethod, type PublicPaymentOptions, type SavedAddress, type ShippingQuote } from "@/lib/types";
+import { NIGERIAN_STATES, type Address, type PaymentMethod, type PublicPaymentOptions, type SavedAddress } from "@/lib/types";
 
 const emptyAddress: Address = { firstName: "", lastName: "", phone: "", line1: "", line2: "", city: "", state: "", landmark: "", country: "NG" };
 
@@ -37,10 +37,6 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
   const [optIn, setOptIn] = useState(false);
   const [address, setAddress] = useState<Address>(emptyAddress);
   const [note, setNote] = useState("");
-  const [quotes, setQuotes] = useState<ShippingQuote[] | null>(null);
-  const [quoteState, setQuoteState] = useState<"idle" | "loading" | "error">("idle");
-  const [quoteError, setQuoteError] = useState("");
-  const [rateId, setRateId] = useState<string>("");
   const [method, setMethod] = useState<PaymentMethod | "">(payment.methods[0]?.method ?? "");
   const [fields, setFields] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -49,7 +45,6 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
   // backend returns the same order instead of creating two; replaced after a definite rejection.
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
   const submitting = useRef(false);
-  const [quoteNonce, setQuoteNonce] = useState(0);
   const [saved, setSaved] = useState<SavedAddress[]>([]);
   const [signedIn, setSignedIn] = useState(false);
 
@@ -82,37 +77,6 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
     };
   }, []);
 
-  const quoteKey = `${cart?.id}|${cart?.updatedAt}|${address.state}|${address.city.trim().toLowerCase()}|${quoteNonce}`;
-
-  // Delivery options depend on state, city and the cart; the backend quotes them.
-  useEffect(() => {
-    if (!cart?.id || !address.state) {
-      setQuotes(null);
-      return;
-    }
-    let active = true;
-    setQuoteState("loading");
-    const t = window.setTimeout(async () => {
-      try {
-        const q = await api().call("getShippingRates", { body: { cartId: cart.id, address: { state: address.state, city: address.city } } });
-        if (!active) return;
-        setQuotes(q);
-        setQuoteState("idle");
-        setRateId((prev) => (q.some((r) => r.id === prev) ? prev : (q[0]?.id ?? "")));
-      } catch (err) {
-        if (!active) return;
-        setQuoteState("error");
-        setQuoteError(errorMessage(err));
-      }
-    }, 250);
-    return () => {
-      active = false;
-      window.clearTimeout(t);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quoteKey]);
-
-  const quote = useMemo(() => quotes?.find((q) => q.id === rateId) ?? null, [quotes, rateId]);
   const setA = (k: keyof Address) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setAddress((a) => ({ ...a, [k]: e.target.value }));
 
   if (loading) {
@@ -126,14 +90,14 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
   if (!cart && cartError) return <ErrorState message={cartError} onRetry={() => void refresh()} />;
   if (!cart || !cart.lines.length) return <EmptyState title="Your bag is empty" body="Add something before checking out." action={{ label: "Browse collections", href: "/collections" }} />;
 
-  // The backend's own totals for this option when it sends them; otherwise the bag total plus the
-  // quoted delivery price, for display. The order itself is always priced by the backend.
-  const totals = quote ? (quote.totals ?? { ...cart.totals, shippingTotal: quote.amount, total: cart.totals.total - (cart.totals.shippingTotal ?? 0) + quote.amount }) : cart.totals;
+  // No delivery charge on the site: the driver is paid directly on arrival. The order itself is
+  // always priced by the backend.
+  const totals = cart.totals;
 
   const place = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!method || !rateId) {
-      setSubmitError(!rateId ? "Choose a delivery option." : "Choose how you'd like to pay.");
+    if (!method) {
+      setSubmitError("Choose how you'd like to pay.");
       return;
     }
     // Guard against double submits (double click, Enter + click) before React re-renders.
@@ -148,7 +112,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           cartId: cart.id,
           contact: { email, phone: address.phone, marketingOptIn: optIn },
           shippingAddress: address,
-          shippingRateId: rateId,
+          shippingRateId: DELIVERY_RATE_ID,
           paymentMethod: method,
           note: note || undefined,
           idempotencyKey,
@@ -235,7 +199,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
                 </option>
               ))}
             </SelectField>
-            <TextField label="Nearest landmark (optional)" value={address.landmark} onChange={setA("landmark")} wrapperClassName="span-2" hint="Helps our rider find you, e.g. opposite the filling station." />
+            <TextField label="Nearest landmark (optional)" value={address.landmark} onChange={setA("landmark")} wrapperClassName="span-2" hint="Helps the driver find you, e.g. opposite the filling station." />
           </div>
         </section>
 
@@ -243,36 +207,8 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           <h2 id="co-delivery" className="checkout__heading">
             Delivery
           </h2>
-          {!address.state ? (
-            <p className="muted">Choose your state to see delivery options.</p>
-          ) : quoteState === "loading" && !quotes ? (
-            <div className="skeleton" style={{ height: 120 }} aria-label="Loading delivery options" />
-          ) : quoteState === "error" ? (
-            <div className="notice notice--danger" role="alert">
-              {quoteError}
-              <button type="button" className="link-btn small" onClick={() => setQuoteNonce((n) => n + 1)}>
-                Try again
-              </button>
-            </div>
-          ) : quotes && quotes.length ? (
-            <div className="choices" role="radiogroup" aria-label="Delivery option">
-              {quotes.map((q) => (
-                <label key={q.id} className={`choice ${rateId === q.id ? "is-on" : ""}`}>
-                  <input type="radio" name="rate" value={q.id} checked={rateId === q.id} onChange={() => setRateId(q.id)} />
-                  <span className="choice__body">
-                    <span className="choice__title">{q.label}</span>
-                    <span className="small muted">
-                      {[q.description, q.etaDays ? formatEta(q.etaDays) : ""].filter(Boolean).join(" ")}
-                    </span>
-                  </span>
-                  <span className="choice__price">{q.amount === 0 ? "Free to park" : <Price amount={q.amount} />}</span>
-                </label>
-              ))}
-              <p className="notice notice--info small">{DELIVERY_SUMMARY} Tell us your preferred park or driver in the note below.</p>
-            </div>
-          ) : (
-            <p className="notice notice--warning">We don't deliver to {address.state} yet. Message us and we'll arrange it.</p>
-          )}
+          <p className="notice notice--info">{DELIVERY_SUMMARY}</p>
+          <p className="small muted">Make sure your phone number above is correct so the driver can reach you.</p>
         </section>
 
         <section className="checkout__step" aria-labelledby="co-payment">
@@ -342,12 +278,8 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
             </div>
           ) : null}
           <div>
-            <dt>To the park or driver</dt>
-            <dd>{quote ? totals.shippingTotal === 0 ? "Free" : <Price amount={totals.shippingTotal ?? quote.amount} /> : <span className="muted">Choose your state</span>}</dd>
-          </div>
-          <div>
-            <dt>Transport to you</dt>
-            <dd className="muted">Paid to the driver</dd>
+            <dt>Delivery</dt>
+            <dd className="muted">{DELIVERY_COST_TEXT}</dd>
           </div>
           <div className="totals__grand">
             <dt>Total</dt>
@@ -362,7 +294,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
             {submitError}
           </p>
         ) : null}
-        <button type="submit" className="btn btn--block" disabled={placing || !quote || !method}>
+        <button type="submit" className="btn btn--block" disabled={placing || !method}>
           {placing ? <span className="spinner" aria-hidden /> : null}
           {placing ? "Placing order" : method === "paystack" ? "Place order and pay with Paystack" : "Place order"}
         </button>

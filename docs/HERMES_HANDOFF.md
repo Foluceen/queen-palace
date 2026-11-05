@@ -296,3 +296,14 @@ Done in the real production dashboard with the owner signed in, using clearly na
 - **P2:** upload an image → attach it to the test product → it shows on the storefront → delete it.
 - **P3:** create a collection → assign the test product → reorder → it shows on `/collections/:handle` → delete it (products unassigned).
 - **Cart:** with the published test product, add to bag → change quantity → remove → reload (state persists) → clean up.
+
+## Delivery: no fees, driver paid on arrival (5 Nov 2026)
+
+Owner's rule: customers give address, phone and email only. The shop sends every order through a park or driver; when it reaches the customer's area the driver calls them with the price to their address and is paid directly. Nothing about delivery is chosen or charged on the site.
+
+Frontend (live once Vercel deploys): checkout no longer calls `POST /checkout/shipping-rates` and always sends `shippingRateId: "park_driver"`. No delivery options, no fee; summary says "Pay the driver on arrival". Admin "Delivery prices" removed. Policies updated.
+
+Backend needed:
+- `POST /checkout`: accept `shippingRateId: "park_driver"` (state-independent), `shipping_kobo = 0`, total = items − discount. Store the label "Sent through a park or driver". Reject any other rate id with 422 `invalid_shipping` (or ignore it), but never require shipping zones.
+- `fix/shipping-rates-stock-release`: keep the stock release for abandoned/failed payments; drop the requirement that a zone matches (with no zones it currently blocks every checkout).
+- Emails (Brevo): show delivery as "Pay the driver on arrival", and include the customer's phone in the owner's new-order alert.

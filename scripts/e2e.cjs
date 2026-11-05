@@ -57,9 +57,10 @@ const check = (cond, msg) => {
     await p.getByLabel("Street address").fill("4 Ijoka Road");
     await p.getByLabel("Town or city").fill("Ilesha");
     await p.getByRole("combobox", { name: "State" }).selectOption("Osun");
-    await p.waitForSelector(".choice input[name=rate]", { timeout: 8000 });
-    const rateTitles = await p.locator("label.choice .choice__title").allTextContents();
-    check(rateTitles.includes("Pick up in store") && rateTitles.includes("Ilesha delivery"), `Ilesha options: ${rateTitles.join(", ")}`);
+    // No delivery options or fees: the driver calls the customer and is paid on arrival.
+    check((await p.locator(".choice input[name=rate]").count()) === 0, "no delivery options to choose");
+    check((await p.locator("section[aria-labelledby=co-delivery]").textContent()).includes("the driver will call you"), "checkout explains driver delivery");
+    check((await p.locator(".checkout__summary").textContent()).includes("Pay the driver on arrival"), "summary shows delivery is paid to the driver");
     const payTitles = await p.locator("label.choice input[name=payment]").count();
     check(payTitles === 1 && (await p.locator("label.choice", { hasText: "Pay with card, bank transfer or USSD" }).count()) === 1, "Paystack is the only way to pay");
     await p.locator("label.choice", { hasText: "Pay with card" }).click();

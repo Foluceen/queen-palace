@@ -1,5 +1,6 @@
 "use client";
 
+import { DELIVERY_COST_TEXT } from "@/lib/delivery";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -132,7 +133,7 @@ export function CartTotals({ showShippingNote = true }: { showShippingNote?: boo
       ) : null}
       <div>
         <dt>Delivery</dt>
-        <dd className="muted">{t.shippingTotal === null ? "Free to your park or driver" : <Price amount={t.shippingTotal} />}</dd>
+        <dd className="muted">{t.shippingTotal ? <Price amount={t.shippingTotal} /> : DELIVERY_COST_TEXT}</dd>
       </div>
       <div className="totals__grand">
         <dt>Total</dt>
@@ -140,7 +141,7 @@ export function CartTotals({ showShippingNote = true }: { showShippingNote?: boo
           <Price amount={t.total} />
         </dd>
       </div>
-      {showShippingNote && t.shippingTotal === null ? <p className="small muted totals__note">Transport from the park to you is paid directly to the driver.</p> : null}
+      {showShippingNote && t.shippingTotal === null ? <p className="small muted totals__note">The driver calls you when your order reaches your area and you pay them directly for delivery.</p> : null}
     </dl>
   );
 }

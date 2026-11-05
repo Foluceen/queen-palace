@@ -1,8 +1,9 @@
 "use client";
 
+import { DELIVERY_COST_TEXT } from "@/lib/delivery";
 import Image from "next/image";
 import { Price } from "@/components/ui/Price";
-import { formatDate, formatDateTime, formatEta, fulfillmentStatusLabel, formatNaira, paymentMethodLabel, paymentStatusLabel, variantLabel } from "@/lib/format";
+import { formatDate, formatDateTime, fulfillmentStatusLabel, formatNaira, paymentMethodLabel, paymentStatusLabel, variantLabel } from "@/lib/format";
 import type { FulfillmentStatus, Order } from "@/lib/types";
 
 const progress: FulfillmentStatus[] = ["unfulfilled", "processing", "shipped", "out_for_delivery", "delivered"];
@@ -115,14 +116,19 @@ export function OrderView({ order }: { order: Order }) {
                 </dd>
               </div>
             ) : null}
-            <div>
-              <dt>To the park or driver</dt>
-              <dd>{order.totals.shippingTotal ? <Price amount={order.totals.shippingTotal} /> : "Free"}</dd>
-            </div>
-            <div>
-              <dt>Transport to you</dt>
-              <dd className="muted">Paid to the driver</dd>
-            </div>
+            {order.totals.shippingTotal ? (
+              <div>
+                <dt>Delivery</dt>
+                <dd>
+                  <Price amount={order.totals.shippingTotal} />
+                </dd>
+              </div>
+            ) : (
+              <div>
+                <dt>Delivery</dt>
+                <dd className="muted">{DELIVERY_COST_TEXT}</dd>
+              </div>
+            )}
             <div className="totals__grand">
               <dt>Total</dt>
               <dd>
@@ -150,12 +156,7 @@ export function OrderView({ order }: { order: Order }) {
             <br />
             {order.shippingAddress.phone}
           </address>
-          {order.shippingRate?.label ? (
-            <p className="small muted">
-              {order.shippingRate.label}
-              {order.shippingRate.etaDays?.[1] ? `, ${formatEta(order.shippingRate.etaDays).toLowerCase()} once dispatched` : ""}
-            </p>
-          ) : null}
+          <p className="small muted">We send your order through a park or driver. The driver will call you on this number when it reaches your area.</p>
           <h2 className="h3">Payment</h2>
           <p>{paymentMethodLabel[order.paymentMethod]}</p>
           {order.timeline.length ? (

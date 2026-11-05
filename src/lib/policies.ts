@@ -20,7 +20,7 @@ export const POLICY_PAGES: Record<string, ContentPage> = {
     { kind: "heading", text: "Products and descriptions" },
     { kind: "list", items: ["We describe each product as accurately as we can, including texture, length, density and colour.", "Lengths are measured with the hair pulled straight, so curly and wavy hair looks shorter when worn.", "Colours can look slightly different on different screens and in different light.", "Products are subject to availability. If an item sells out after you pay, we will tell you and offer a replacement or a full refund."] },
     { kind: "heading", text: "Prices and payment" },
-    { kind: "list", items: ["All prices are in Nigerian naira (₦).", "The total you pay is shown at checkout before you pay. Transport from the park or driver to your location is not included and is paid directly to the driver or park.", "Payments are processed securely by Paystack by card, bank transfer or USSD. We never see or store your card details.", "If a price on the site is clearly wrong because of an error, we will contact you before sending the order, and you can choose to pay the correct price or cancel for a full refund."] },
+    { kind: "list", items: ["All prices are in Nigerian naira (₦).", "The total you pay is shown at checkout before you pay. Delivery is not included: the driver tells you the delivery price when your order reaches your area, and you pay the driver directly.", "Payments are processed securely by Paystack by card, bank transfer or USSD. We never see or store your card details.", "If a price on the site is clearly wrong because of an error, we will contact you before sending the order, and you can choose to pay the correct price or cancel for a full refund."] },
     { kind: "heading", text: "Your order" },
     { kind: "list", items: ["Your order is confirmed once Paystack confirms your payment. You will see the confirmation on your order page.", "Keep your order number. You can track your order on our Track order page with your order number and email.", "We may cancel an order if payment is not completed, if we suspect fraud, or if an item is no longer available. Any money paid is refunded in full."] },
     { kind: "heading", text: "Delivery, returns and refunds" },
@@ -67,33 +67,31 @@ export const POLICY_PAGES: Record<string, ContentPage> = {
     { kind: "heading", text: "Wrong, damaged or faulty items" },
     { kind: "paragraph", text: "If you receive the wrong item, or an item that is damaged or faulty, contact us within 48 hours of delivery with your order number and photos. We will replace it or refund you in full, and cover the cost of sending it back and sending the replacement." },
     { kind: "heading", text: "How to return an item" },
-    { kind: "list", items: ["Contact us with your order number, the item and the reason, with photos.", "We will confirm whether the return is approved and how to send it back.", "Bring the item to our store in Ilesha or send it by courier. Unless the item was wrong or faulty, the cost of returning it is yours.", "We check the item when it arrives and confirm your refund."] },
+    { kind: "list", items: ["Contact us with your order number, the item and the reason, with photos.", "We will confirm whether the return is approved and how to send it back.", "Send it back to us through a park or driver, or bring it to our store in Ilesha. Unless the item was wrong or faulty, the cost of returning it is yours.", "We check the item when it arrives and confirm your refund."] },
     { kind: "heading", text: "Refunds" },
-    { kind: "list", items: ["Approved refunds are paid back to the card or account you paid with, through Paystack.", "We start the refund within 3 working days of approving it. Your bank usually shows it within 5 to 10 working days after that.", "Transport fares you paid to a park or driver are not paid to us, so we can't refund them, except for wrong, damaged or faulty items, where we cover the cost of sending a replacement.", "If you prefer, we can exchange the item for another product instead of a refund."] },
+    { kind: "list", items: ["Approved refunds are paid back to the card or account you paid with, through Paystack.", "We start the refund within 3 working days of approving it. Your bank usually shows it within 5 to 10 working days after that.", "Delivery prices you paid to a driver are not paid to us, so we can't refund them, except for wrong, damaged or faulty items, where we cover the cost of sending a replacement.", "If you prefer, we can exchange the item for another product instead of a refund."] },
   ]),
 
-  shipping: page("shipping", "Shipping and delivery policy", "How we prepare and deliver your order, how long it takes and what it costs.", [
+  shipping: page("shipping", "Shipping and delivery policy", "How we send your order and how delivery is paid for.", [
     { kind: "heading", text: "How delivery works" },
-    { kind: "list", items: ["We take your order to the motor park, bus company or driver you choose, at no cost to you.", "You pay the transport fare from the park or driver to your location yourself, directly to the driver or transport company. This fare is not included in your order total and is not paid to us.", "Tell us your preferred park or driver in the note at checkout, or we will contact you to agree one.", "We send you the driver's or waybill details once your order has been handed over."] },
+    { kind: "list", items: ["At checkout you give us your delivery address, phone number and email. You don't choose or pay for delivery on our website.", "We send your order through a trusted motor park, transport company or driver serving your area.", "When your order reaches your area, the driver will call you on the phone number you gave and tell you the price to bring it to your address.", "You pay that delivery price directly to the driver. It is not part of your order total and is not paid to us."] },
     { kind: "heading", text: "Where we send to" },
-    { kind: "paragraph", text: "We send orders across Nigeria through parks and drivers serving your area. Customers in Ilesha can also pick up from our store." },
-    { kind: "heading", text: "Transport fares" },
-    { kind: "paragraph", text: "Transport fares are set by the park, transport company or driver, not by us, and depend on your location and the size of the package. Please check the fare with them if you are unsure." },
+    { kind: "paragraph", text: "We send orders to every state in Nigeria." },
+    { kind: "heading", text: "Delivery prices" },
+    { kind: "paragraph", text: "The driver sets the price to bring your order from their location to your address. It depends on the distance and the size of the package. You can agree it with the driver when they call." },
     { kind: "heading", text: "How long it takes" },
-    { kind: "list", items: ["We prepare your order and take it to the park or driver within 1 to 2 working days after your payment is confirmed.", "Travel time from the park to you depends on the transport company and your location, usually 1 to 3 days.", "Working days are Monday to Saturday, excluding public holidays.", "Delays can happen because of weather, holidays or courier issues. We will keep you informed if your order is delayed."] },
-    { kind: "heading", text: "Pickup in Ilesha" },
-    { kind: "paragraph", text: "You can collect your order from our store at Ijoka, Ilesha. We will contact you when it is ready. Please bring your order number." },
+    { kind: "list", items: ["We prepare your order and hand it to the park or driver within 1 to 2 working days after your payment is confirmed.", "Travel time to your area depends on the transport company and your location, usually 1 to 3 days.", "Working days are Monday to Saturday, excluding public holidays.", "Delays can happen because of weather, holidays or transport issues. We will keep you informed if your order is delayed."] },
     { kind: "heading", text: "Tracking your order" },
     { kind: "paragraph", text: "Check your order's status any time on our Track order page with your order number and email, or from your account if you have one. We will also contact you by phone about delivery." },
     { kind: "heading", text: "Receiving your order" },
-    { kind: "list", items: ["Please keep your phone on so the driver or park can reach you, and collect your package promptly. Parks may charge for packages left uncollected.", "Check your package when it arrives. If anything is missing, wrong or damaged, contact us within 48 hours with photos.", "Once we hand your package to the park or driver and send you the details, it is with the transport company. If it is lost or damaged in transit, contact us at once and we will help you follow it up with them."] },
+    { kind: "list", items: ["Please keep your phone on and the number correct, so the driver can reach you. If the driver can't reach you, your package may wait at the park, and parks may charge for packages left uncollected.", "Check your package when it arrives. If anything is missing, wrong or damaged, contact us within 48 hours with photos.", "Once we hand your package to the park or driver and send you the details, it is with the transport company. If it is lost or damaged in transit, contact us at once and we will help you follow it up with them."] },
   ]),
 
   about: page("about", `About ${STORE}`, "A hair and beauty store in Ijoka, Ilesha, Osun State, Nigeria.", [
     { kind: "heading", text: "What we sell" },
     { kind: "list", items: ["Wigs and frontals, including Futura wigs, bone straight and bouncy styles.", "Braiding extensions.", "Hair care products and tools."] },
     { kind: "heading", text: "Shopping with us" },
-    { kind: "paragraph", text: "Order online and pay securely with Paystack by card, bank transfer or USSD. We send your order to the park or driver you choose anywhere in Nigeria, or you can pick it up from our store in Ilesha." },
+    { kind: "paragraph", text: "Order online and pay securely with Paystack by card, bank transfer or USSD. We send orders anywhere in Nigeria through trusted parks and drivers." },
   ]),
 
   "hair-care": page("hair-care", "Hair care guide", "How to wash, store and refresh each kind of hair, so your install lasts.", [
@@ -107,8 +105,7 @@ export const POLICY_PAGES: Record<string, ContentPage> = {
 
   faq: page("faq", "Frequently asked questions", "Quick answers about ordering, paying and delivery.", [
     { kind: "qa", question: "How do I pay?", answer: "Pay securely with Paystack by card, bank transfer or USSD. Your card details go straight to Paystack; we never see them." },
-    { kind: "qa", question: "How does delivery work?", answer: "We take your order to the park or driver you choose, free. You pay the transport fare from there to your location directly to the driver or park. Tell us your preferred park or driver in the note at checkout. See our Shipping and delivery policy for details." },
-    { kind: "qa", question: "Can I pick up my order?", answer: "Yes, from our store in Ijoka, Ilesha. We will contact you when it's ready." },
+    { kind: "qa", question: "How does delivery work?", answer: "Give us your address, phone number and email at checkout. We send your order through a trusted park or driver. When it reaches your area, the driver calls you with the price to bring it to your address, and you pay the driver directly. See our Shipping and delivery policy." },
     { kind: "qa", question: "Can I cancel or return my order?", answer: "You can cancel before your order is sent out for a full refund. Unworn items with the lace uncut can be returned within 7 days. See our Refund and cancellation policy." },
     { kind: "qa", question: "How is hair length measured?", answer: "Lengths are measured with the hair pulled straight, so curly and wavy hair looks shorter when worn." },
     { kind: "qa", question: "How do I track my order?", answer: "Use the Track order page with your order number and the email you used at checkout." },

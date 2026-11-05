@@ -4,16 +4,13 @@ import { useEffect, useState } from "react";
 import { RequirePermission } from "@/components/admin/AdminSession";
 import { useResource, useUnsavedWarning } from "@/components/admin/hooks";
 import { useToast } from "@/components/admin/Toast";
-import { LoadError, LoadingRows, MoneyInput, PageHeader, Panel, Switch } from "@/components/admin/ui";
+import { LoadError, LoadingRows, PageHeader, Panel, Switch } from "@/components/admin/ui";
 import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/client";
 import { normalizePaymentSettings, paystackKeyProblem, paystackOnlySettings } from "@/lib/paystack";
-import { NIGERIAN_STATES, type PaymentSettings, type ShippingSettings, type ShippingZone } from "@/lib/types";
-
-type ZoneRate = ShippingZone["rates"][number];
-
-const rid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 8)}`;
+import { DELIVERY_SUMMARY } from "@/lib/delivery";
+import type { PaymentSettings } from "@/lib/types";
 
 /* ------------------------------------------------------------------ payment */
 
@@ -150,169 +147,12 @@ function PaystackSettings() {
   );
 }
 
-/* ----------------------------------------------------------------- delivery */
-
-function StatePicker({ value, onChange, taken }: { value: string[]; onChange(v: string[]): void; taken: string[] }) {
+/** Delivery isn't priced on the site: the driver is paid directly on arrival. */
+function DeliveryInfo() {
   return (
-    <details className="astates">
-      <summary>{value.length ? `${value.length} ${value.length === 1 ? "state" : "states"}: ${value.join(", ")}` : "Every state not in another area"}</summary>
-      <ul className="achecks achecks--grid">
-        {NIGERIAN_STATES.map((s) => {
-          const other = taken.includes(s) && !value.includes(s);
-          return (
-            <li key={s}>
-              <label className={`checkbox ${other ? "muted" : ""}`}>
-                <input type="checkbox" checked={value.includes(s)} disabled={other} onChange={(e) => onChange(e.target.checked ? [...value, s] : value.filter((x) => x !== s))} />
-                {s}
-              </label>
-            </li>
-          );
-        })}
-      </ul>
-    </details>
-  );
-}
-
-function RateCard({ rate, onChange, onRemove }: { rate: ZoneRate; onChange(patch: Partial<ZoneRate>): void; onRemove(): void }) {
-  return (
-    <li className="arate">
-      <div className="arate__grid">
-        <label className="field">
-          <span className="field__label">Name</span>
-          <input className="input" value={rate.label} onChange={(e) => onChange({ label: e.target.value })} placeholder="e.g. Rider delivery" />
-        </label>
-        <label className="field">
-          <span className="field__label">Price</span>
-          <MoneyInput value={rate.amount} onChange={(v) => onChange({ amount: v ?? 0 })} ariaLabel="Price" />
-        </label>
-        <label className="field">
-          <span className="field__label">Free if the order is over</span>
-          <MoneyInput value={rate.freeOver} onChange={(v) => onChange({ freeOver: v })} ariaLabel="Free if the order is over" placeholder="Never free" />
-        </label>
-        <div className="field">
-          <span className="field__label">Arrives in</span>
-          <span className="arate__days">
-            <input className="input" type="number" min={0} value={rate.etaDays[0]} onChange={(e) => onChange({ etaDays: [Number(e.target.value), rate.etaDays[1]] })} aria-label="Fewest days" />
-            <span>to</span>
-            <input className="input" type="number" min={0} value={rate.etaDays[1]} onChange={(e) => onChange({ etaDays: [rate.etaDays[0], Number(e.target.value)] })} aria-label="Most days" />
-            <span>days</span>
-          </span>
-        </div>
-        <label className="field arate__wide">
-          <span className="field__label">Short note for customers (optional)</span>
-          <input className="input" value={rate.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="e.g. We call before we come." />
-        </label>
-      </div>
-      <button type="button" className="link-btn small arate__remove" onClick={onRemove}>
-        <Icon name="trash" size={14} /> Remove this option
-      </button>
-    </li>
-  );
-}
-
-function DeliverySettings() {
-  const toast = useToast();
-  const { data, error, reload } = useResource(() => api().call("adminGetShippingSettings"));
-  const [ship, setShip] = useState<ShippingSettings | null>(null);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
-  useUnsavedWarning(dirty);
-
-  useEffect(() => {
-    if (data) setShip(data);
-  }, [data]);
-
-  if (error) return <LoadError message={`Your delivery settings couldn't be loaded: ${error}`} onRetry={reload} />;
-  if (!ship) return <LoadingRows rows={4} />;
-
-  const setZone = (i: number, z: ShippingZone) => {
-    setShip({ ...ship, zones: ship.zones.map((x, j) => (j === i ? z : x)) });
-    setDirty(true);
-  };
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      setShip(await api().call("adminUpdateShippingSettings", { body: ship }));
-      setDirty(false);
-      toast("Delivery prices saved");
-    } catch (err) {
-      toast(`Delivery prices weren't saved: ${errorMessage(err)}`, "danger");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Panel title="Delivery prices">
-      <p className="small muted">Group states into areas, then say how you deliver to each area and what it costs. Customers only see the options for their state.</p>
-      <div className="astack">
-        {ship.zones.map((z, i) => (
-          <div key={z.id} className="azone">
-            <div className="azone__head">
-              <label className="field azone__name">
-                <span className="field__label">Area name</span>
-                <input className="input" value={z.name} onChange={(e) => setZone(i, { ...z, name: e.target.value })} placeholder="e.g. Osun State" />
-              </label>
-              <button
-                type="button"
-                className="link-btn small"
-                onClick={() => {
-                  setShip({ ...ship, zones: ship.zones.filter((_, j) => j !== i) });
-                  setDirty(true);
-                }}
-              >
-                Remove area
-              </button>
-            </div>
-            <div className="field">
-              <span className="field__label">Which states?</span>
-              <StatePicker value={z.states} taken={z.cities.length ? [] : ship.zones.filter((x) => x.id !== z.id && !x.cities.length).flatMap((x) => x.states)} onChange={(states) => setZone(i, { ...z, states })} />
-            </div>
-            <label className="field">
-              <span className="field__label">Only these towns (optional)</span>
-              <input
-                className="input"
-                value={z.cities.join(", ")}
-                onChange={(e) => setZone(i, { ...z, cities: e.target.value.split(",").map((c) => c.trimStart()).filter((c, k, arr) => c || k === arr.length - 1) })}
-                onBlur={() => setZone(i, { ...z, cities: z.cities.map((c) => c.trim()).filter(Boolean) })}
-                placeholder="e.g. Ilesha, Ijebu-Jesa"
-              />
-              <span className="field__hint">Leave empty for the whole state. Separate towns with commas.</span>
-            </label>
-            <p className="azone__sub">How you deliver here</p>
-            <ul className="arates">
-              {z.rates.map((r, k) => (
-                <RateCard
-                  key={r.id}
-                  rate={r}
-                  onChange={(patch) => setZone(i, { ...z, rates: z.rates.map((x, m) => (m === k ? { ...x, ...patch } : x)) })}
-                  onRemove={() => setZone(i, { ...z, rates: z.rates.filter((_, m) => m !== k) })}
-                />
-              ))}
-            </ul>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setZone(i, { ...z, rates: [...z.rates, { id: rid("rate"), label: "", description: "", amount: 0, etaDays: [1, 3], freeOver: null }] })}>
-              <Icon name="plus" size={16} /> Add a way to deliver
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="btn btn--ghost"
-          onClick={() => {
-            setShip({ ...ship, zones: [...ship.zones, { id: rid("zone"), name: "", states: [], cities: [], rates: [{ id: rid("rate"), label: "Rider delivery", description: "", amount: 0, etaDays: [2, 4], freeOver: null }] }] });
-            setDirty(true);
-          }}
-        >
-          <Icon name="plus" size={16} /> Add an area
-        </button>
-      </div>
-      <div className="apay__actions">
-        <button type="button" className="btn" onClick={save} disabled={saving || !dirty}>
-          {saving ? <span className="spinner" aria-hidden /> : null}
-          Save delivery prices
-        </button>
-      </div>
+    <Panel title="Delivery">
+      <p>{DELIVERY_SUMMARY}</p>
+      <p className="small muted">Customers only give their address, phone number and email at checkout. There are no delivery fees to set here. To change how delivery works, ask your developer.</p>
     </Panel>
   );
 }
@@ -320,10 +160,10 @@ function DeliverySettings() {
 export default function ShippingPaymentsPage() {
   return (
     <RequirePermission permission="settings:write">
-      <PageHeader title="Delivery & payment" description="How customers pay you, and what delivery costs." />
+      <PageHeader title="Delivery & payment" description="How customers pay you, and how delivery works." />
       <div className="asettings">
         <PaystackSettings />
-        <DeliverySettings />
+        <DeliveryInfo />
       </div>
     </RequirePermission>
   );

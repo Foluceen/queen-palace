@@ -99,7 +99,7 @@ function LuxHeroEditorial({ settings, photo }: { settings: StoreSettings; photo:
   const trust = [
     { icon: "crown", title: "Wigs & frontals", body: "Closures and bundles too" },
     { icon: "spark", title: "Help choosing", body: "Lace, length and density" },
-    { icon: "pin", title: "Free to your park", body: "Or pick up in Ilesha" },
+    { icon: "pin", title: "Delivery nationwide", body: "Pay the driver on arrival" },
   ] as const;
   return (
     <section className={`hero lux-ed ${photo.portrait ? "lux-ed--portrait" : ""}`} aria-labelledby="lux-hero-title">
@@ -380,7 +380,7 @@ export function LuxStandard() {
   const points = [
     { title: "Lace that blends", body: "Ask us to show you the hairline up close before you buy, in store or on a video call." },
     { title: "Help choosing", body: "Length, density and lace size explained in plain words, so the unit suits your face and budget." },
-    { title: "Your way", body: "We take it to your park or driver for free, or collect it from the store." },
+    { title: "Nationwide", body: "We send it through a trusted park or driver, who calls you when it reaches your area." },
   ];
   return (
     <section className="section lux-standard" aria-labelledby="standard-title">

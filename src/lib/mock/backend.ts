@@ -4,6 +4,7 @@
  * prices, stock, shipping and discounts are computed here, never in components, and
  * no order placed through mock checkout is ever marked as paid.
  */
+import { DELIVERY_LABEL, DELIVERY_RATE_ID } from "@/lib/delivery";
 import { isNigerianPhone, PHONE_ERROR } from "@/lib/phone";
 import { decodeOptions, type Contract, type EndpointName, type RequestOf, type ResponseOf } from "@/lib/api/contract";
 import type {
@@ -723,8 +724,10 @@ export const handlers: Handlers = {
       mcart.notices = preview.notices;
       fail(409, "cart_changed", preview.notices.join(" "));
     }
+    // The store sends every order through a park or driver; the customer pays the driver on arrival.
+    const parkDriver = { id: DELIVERY_RATE_ID, label: DELIVERY_LABEL, description: "", amount: 0, etaDays: [1, 3] as [number, number] };
     const rates = ratesFor(db, a.state, preview.totals.subtotal - preview.totals.discountTotal, a.city);
-    const rate = rates.find((r) => r.id === body.shippingRateId) ?? fail(422, "invalid_shipping", "That delivery option isn't available for your state. Choose another.");
+    const rate = body.shippingRateId === DELIVERY_RATE_ID ? parkDriver : (rates.find((r) => r.id === body.shippingRateId) ?? fail(422, "invalid_shipping", "That delivery option isn't available for your state. Choose another."));
     const cart = computeCart(db, mcart, rate.amount);
 
     const pm = body.paymentMethod;
