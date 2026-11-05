@@ -6,9 +6,9 @@ import { LoopVideo } from "./LoopVideo";
 
 /** The owner's product clips. The lineup (three wigs) is the centrepiece. */
 const REELS = [
-  { key: "pink", src: "/media/video/pink-body-wave.mp4", poster: "/media/video/pink-body-wave-poster.webp", title: "Pink body wave", note: "Soft, bouncy colour", alt: "Model showing a long pink body wave wig" },
+  { key: "pink", src: "/media/video/pink-body-wave.mp4", poster: "/media/video/pink-body-wave-poster.webp", title: "Pink Futura wig", note: "Soft, bouncy colour", alt: "Model showing a long pink Futura wig with soft waves" },
   { key: "lineup", src: "/media/video/lineup.mp4", poster: "/media/video/lineup-poster.webp", title: "The lineup", note: "Straight, wavy and deep curl", alt: "Three black wigs on mannequins: straight, body wave and deep curl" },
-  { key: "curly", src: "/media/video/deep-curly.mp4", poster: "/media/video/deep-curly-poster.webp", title: "Deep curly", note: "Full, defined curls", alt: "Long black deep curly lace wig on a mannequin" },
+  { key: "curly", src: "/media/video/deep-curly.mp4", poster: "/media/video/deep-curly-poster.webp", title: "Pixie curls", note: "Full, defined curls", alt: "Long black pixie curls lace wig on a mannequin" },
 ];
 const MIDDLE = 1;
 
