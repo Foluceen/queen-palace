@@ -396,7 +396,7 @@ export function LuxStandard() {
             <LoopVideo src="/media/video/wigs-sofa.mp4" poster="/media/video/wigs-sofa-poster.webp" label="Straight wigs in copper and dark brown laid out to show their shine and lace" className="lux-standard__img lux-standard__video" />
           </div>
           <div className="lux-standard__chip">
-            <Image src="/media/looks/copper-body-wave.jpg" alt="" fill sizes="140px" className="lux-standard__img" />
+            <Image src="/media/looks/lace-hairline-hand.webp" alt="Close-up of a wig's lace hairline held open in the palm, showing the plucked baby hairs" fill sizes="(min-width: 900px) 240px, 160px" quality={90} className="lux-standard__img" />
           </div>
         </Reveal>
         <div className="lux-standard__copy">
