@@ -8,7 +8,7 @@ import { prefersReducedMotion } from "@/lib/motion/anime";
  * scrolled away, and shows only the still poster when the visitor prefers reduced motion or
  * has data saver on.
  */
-export function LoopVideo({ src, poster, label, className }: { src: string; poster: string; label: string; className?: string }) {
+export function LoopVideo({ src, poster, label, className, threshold = 0 }: { src: string; poster: string; label: string; className?: string; /** How much must be visible before it plays (0–1). */ threshold?: number }) {
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -28,11 +28,11 @@ export function LoopVideo({ src, poster, label, className }: { src: string; post
           void v.play().catch(() => undefined);
         } else if (loaded) v.pause();
       },
-      { rootMargin: "200px 0px" },
+      threshold ? { threshold } : { rootMargin: "200px 0px" },
     );
     io.observe(v);
     return () => io.disconnect();
-  }, [src]);
+  }, [src, threshold]);
 
   return <video ref={ref} className={className} poster={poster} muted loop playsInline preload="none" aria-label={label} />;
 }
