@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RequirePermission, useAdmin } from "@/components/admin/AdminSession";
 import { useResource } from "@/components/admin/hooks";
@@ -12,13 +12,14 @@ import { ConfirmButton, LoadError, LoadingRows, MoneyInput, PageHeader, Panel } 
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api/browser";
-import { errorMessage } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { formatDateTime, formatEta, formatNaira, fulfillmentStatusLabel, paymentMethodLabel } from "@/lib/format";
 import type { FulfillmentStatus, Kobo, Order } from "@/lib/types";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
+  const router = useRouter();
   const { can } = useAdmin();
   const { data: order, setData, error, loading, reload } = useResource(() => api().call("adminGetOrder", { params: { id } }), [id]);
   const [fs, setFs] = useState<FulfillmentStatus>("processing");
@@ -266,7 +267,7 @@ export default function OrderDetailPage() {
                 confirmLabel="Cancel order"
                 danger
                 onConfirm={async () => {
-                  await run("cancel", () => api().call("adminCancelOrder", { params: { id }, body: { reason: cancelReason, restock } }), "Order cancelled");
+                  await run("cancel", () => api().call("adminCancelOrder", { params: { id }, body: { reason: cancelReason.trim() || "Cancelled by staff", restock } }), "Order cancelled");
                 }}
               >
                 <TextField label="Why? (optional)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Customer asked to cancel" />
@@ -274,6 +275,29 @@ export default function OrderDetailPage() {
                   <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} /> Put items back in stock
                 </label>
               </ConfirmButton>
+            </Panel>
+          ) : null}
+          {canWrite ? (
+            <Panel title="Delete order">
+              <p className="small muted">For test orders and orders that were never paid. Paid orders can only be deleted after you give the money back.</p>
+              <ConfirmButton
+                label="Delete order"
+                title={`Delete order ${order.number}?`}
+                body="This removes the order for good. If it wasn't paid, its items go back in stock. This can't be undone."
+                confirmLabel="Delete order"
+                danger
+                onConfirm={async () => {
+                  try {
+                    await api().call("adminDeleteOrder", { params: { id } });
+                    toast(`Order ${order.number} deleted`);
+                    router.replace("/admin/orders");
+                  } catch (err) {
+                    // A server without this feature yet answers "route not found" (404/405) or 501.
+                    const missing = err instanceof ApiError && (err.status === 405 || err.status === 501 || (err.status === 404 && err.code !== "not_found"));
+                    toast(missing ? "Deleting orders isn't switched on yet on the server. Ask Hermes to add it." : errorMessage(err), "danger");
+                  }
+                }}
+              />
             </Panel>
           ) : null}
         </aside>

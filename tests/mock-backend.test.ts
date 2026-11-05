@@ -136,6 +136,32 @@ describe("cart and checkout", () => {
     expectError(() => callMock("getOrder", { params: { number: res.order.number }, query: { token: "wrong" } }), 404);
   });
 
+  it("deletes an unpaid order and puts its items back in stock; refuses a paid one", () => {
+    const ctx = session();
+    callMock("adminLogin", { body: { email: "owner@queenluxuryhair.test", password: "demo-owner" } }, ctx);
+    const v = firstInStock("care-silk-bonnet");
+    const before = v.inventory.available;
+    const cart = callMock("createCart", { body: { lines: [{ variantId: v.id, quantity: 1 }] } });
+    const [rate] = callMock("getShippingRates", { body: { cartId: cart.id, address: { state: "Osun", city: "Ilesha" } } });
+    const res = callMock("placeOrder", {
+      body: {
+        cartId: cart.id,
+        contact: { email: "test@example.com", phone: "08030000000", marketingOptIn: false },
+        shippingAddress: { firstName: "Ada", lastName: "Test", phone: "08030000000", line1: "1 Test Street", city: "Ilesha", state: "Osun", country: "NG" },
+        shippingRateId: rate!.id,
+        paymentMethod: "pay_on_delivery",
+        idempotencyKey: "test-key-del",
+      },
+    });
+    assert.deepEqual(callMock("adminDeleteOrder", { params: { id: res.order.id } }, ctx), { ok: true });
+    expectError(() => callMock("adminGetOrder", { params: { id: res.order.id } }, ctx), 404);
+    const after = callMock("getProduct", { params: { handle: "care-silk-bonnet" } }).product.variants.find((x) => x.id === v.id)!;
+    assert.equal(after.inventory.available, before);
+    const paid = callMock("adminListOrders", { query: { pageSize: 100 } }, ctx).items.find((o) => o.paymentStatus === "paid");
+    if (paid) expectError(() => callMock("adminDeleteOrder", { params: { id: paid.id } }, ctx), 409);
+    expectError(() => callMock("adminDeleteOrder", { params: { id: res.order.id } }), 401);
+  });
+
   it("does not offer pay on delivery outside its states", () => {
     const v = firstInStock("care-silk-bonnet");
     const cart = callMock("createCart", { body: { lines: [{ variantId: v.id, quantity: 1 }] } });

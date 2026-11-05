@@ -1267,6 +1267,23 @@ export const handlers: Handlers = {
     event(o, "cancelled", `Order cancelled: ${body.reason || "no reason given"}.${body.restock ? " Items restocked." : ""}`);
     return o;
   },
+  adminDeleteOrder: ({ params }, ctx, db) => {
+    requirePerm(db, ctx, "orders:write");
+    const o = db.orders.find((x) => x.id === params.id) ?? fail(404, "not_found", "Order not found.");
+    if (["paid", "partially_refunded"].includes(o.paymentStatus)) fail(409, "order_paid", "This order was paid. Give the money back first, then you can delete it.");
+    // Unpaid orders still hold their items: put them back unless a cancel already did.
+    if (o.status !== "cancelled") {
+      for (const l of o.lines) {
+        const f = findVariant(db, l.variantId);
+        if (f && f.variant.inventory.tracked) {
+          f.variant.inventory.available += l.quantity;
+          refreshProduct(f.product);
+        }
+      }
+    }
+    db.orders = db.orders.filter((x) => x.id !== o.id);
+    return { ok: true };
+  },
   adminRefundOrder: ({ params, body }, ctx, db) => {
     requirePerm(db, ctx, "orders:refund");
     const o = db.orders.find((x) => x.id === params.id) ?? fail(404, "not_found", "Order not found.");

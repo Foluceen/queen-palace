@@ -211,7 +211,8 @@ export default function ProductEditorPage() {
     return suffix ? `${base}-${suffix}` : i === 0 ? base : `${base}-${i + 1}`;
   };
 
-  const save = async () => {
+  /** Saves the form. Returns true when it worked. `status` overrides the draft's (used to archive). */
+  const save = async (status: PublishStatus = draft.status): Promise<boolean> => {
     setErrors({});
     setFormError(null);
     // Friendly checks before anything is sent (the store checks again).
@@ -222,7 +223,7 @@ export default function ProductEditorPage() {
       setErrors(problems);
       setFormError(problems.title ?? problems.price ?? null);
       window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
+      return false;
     }
     setSaving(true);
     const handle = handleFor(draft.handle, draft.title);
@@ -232,7 +233,7 @@ export default function ProductEditorPage() {
       handle,
       subtitle: draft.subtitle,
       description: draft.description,
-      status: draft.status,
+      status,
       featured: draft.featured,
       collectionIds: draft.collectionIds,
       mediaIds: draft.media.map((m) => m.id),
@@ -279,10 +280,12 @@ export default function ProductEditorPage() {
       toast(isNew ? (draft.status === "published" ? "Product added and showing in the shop" : "Product saved. It's hidden until you switch on “Show in shop”.") : "Changes saved");
       if (isNew) router.replace(`/admin/products/${saved.id}`);
       else product.setData(saved);
+      return true;
     } catch (err) {
       if (err instanceof ApiError && err.fields) setErrors(err.fields);
       setFormError(errorMessage(err));
       window.scrollTo({ top: 0, behavior: "smooth" });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -529,41 +532,47 @@ export default function ProductEditorPage() {
               </div>
             </Panel>
 
-            {!isNew && canWrite ? (
-              <Panel title="Copy or delete">
-                <div className="cluster">
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={duplicate} disabled={duplicating || dirty} title={dirty ? "Save your changes first" : undefined}>
-                    {duplicating ? <span className="spinner" aria-hidden /> : <Icon name="copy" size={16} />}
-                    Make a copy
-                  </button>
-                  <ConfirmButton
-                    label="Delete product"
-                    title={`Delete ${draft.title}?`}
-                    body="Past orders keep their details. If you might sell it again, switch off “Show in shop” instead."
-                    confirmLabel="Delete product"
-                    danger
-                    className="btn btn--ghost btn--sm"
-                    onConfirm={async () => {
-                      try {
-                        await api().call("adminDeleteProduct", { params: { id } });
-                        setDirty(false);
-                        toast("Product deleted");
-                        router.replace("/admin/products");
-                      } catch (err) {
-                        toast(errorMessage(err), "danger");
-                      }
-                    }}
-                  />
-                </div>
-              </Panel>
-            ) : null}
           </div>
         </details>
+
+          {!isNew && canWrite ? (
+            <Panel title="Copy or delete">
+              <div className="cluster">
+                <button type="button" className="btn btn--ghost btn--sm" onClick={duplicate} disabled={duplicating || dirty} title={dirty ? "Save your changes first" : undefined}>
+                  {duplicating ? <span className="spinner" aria-hidden /> : <Icon name="copy" size={16} />}
+                  Make a copy
+                </button>
+                <ConfirmButton
+                  label="Delete product"
+                  title={`Delete ${draft.title}?`}
+                  body="This removes it for good. If it’s on past orders it will be archived instead (hidden from the shop, kept for your records). If you might sell it again, switch off “Show in shop” instead."
+                  confirmLabel="Delete product"
+                  danger
+                  className="btn btn--ghost btn--sm"
+                  onConfirm={async () => {
+                    try {
+                      await api().call("adminDeleteProduct", { params: { id } });
+                      setDirty(false);
+                      toast("Product deleted");
+                      router.replace("/admin/products");
+                    } catch (err) {
+                      // Products on past orders are kept so those orders stay complete: hide it instead.
+                      if (err instanceof ApiError && err.status === 409) {
+                        update({ status: "archived" });
+                        const ok = await save("archived");
+                        toast(ok ? "This product is on past orders, so it can't be deleted. It's now archived: hidden from the shop and kept for your records." : errorMessage(err), ok ? "success" : "danger");
+                      } else toast(errorMessage(err), "danger");
+                    }
+                  }}
+                />
+              </div>
+            </Panel>
+          ) : null}
 
         {canWrite ? (
           <div className="asavebar">
             <span className="small muted">{dirty ? "Changes not saved yet" : isNew ? "Fill in the steps above" : "All changes saved"}</span>
-            <button type="button" className="btn btn--lg" onClick={save} disabled={saving}>
+            <button type="button" className="btn btn--lg" onClick={() => void save()} disabled={saving}>
               {saving ? <span className="spinner" aria-hidden /> : <Icon name="check" size={18} />}
               {isNew ? "Save product" : "Save changes"}
             </button>

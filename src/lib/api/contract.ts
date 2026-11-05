@@ -190,6 +190,8 @@ export interface Contract {
   adminUpdateFulfillment: Endpoint<Id, undefined, FulfillmentUpdate, Order>;
   adminMarkTransferReceived: Endpoint<Id, undefined, { reference: string; note?: string }, Order>;
   adminCancelOrder: Endpoint<Id, undefined, { reason: string; restock: boolean }, Order>;
+  /** Removes an order for good. The backend only allows unpaid, cancelled, refunded or test-payment orders. */
+  adminDeleteOrder: Endpoint<Id, undefined, undefined, Ok>;
   adminRefundOrder: Endpoint<Id, undefined, { amount: number; reason: string }, Order>;
   adminAddOrderNote: Endpoint<Id, undefined, { message: string }, Order>;
 
@@ -313,6 +315,7 @@ export const routes: { [K in EndpointName]: { method: HttpMethod; path: string; 
   adminUpdateFulfillment: { method: "POST", path: "/admin/orders/:id/fulfillment", auth: "admin" },
   adminMarkTransferReceived: { method: "POST", path: "/admin/orders/:id/transfer-received", auth: "admin" },
   adminCancelOrder: { method: "POST", path: "/admin/orders/:id/cancel", auth: "admin" },
+  adminDeleteOrder: { method: "DELETE", path: "/admin/orders/:id", auth: "admin" },
   adminRefundOrder: { method: "POST", path: "/admin/orders/:id/refunds", auth: "admin" },
   adminAddOrderNote: { method: "POST", path: "/admin/orders/:id/notes", auth: "admin" },
 
