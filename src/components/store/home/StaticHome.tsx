@@ -251,11 +251,19 @@ const HIDDEN_FROM_TILES = ["wig-tools"];
 const sameName = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Real collections first (published, with a photo); then the styles above, then lookbook photos. */
+/** Homepage circle photos chosen by the owner, used instead of the collection's admin photo. */
+const TILE_PHOTOS: Record<string, { src: string; alt: string; focus?: string }> = {
+  "futura-wigs": { src: "/media/looks/futura-copper-wave.webp", alt: "Copper body wave Futura wig with a dark root on a mannequin", focus: "50% 40%" },
+};
+
 export function collectionTiles(collections: Collection[], count = 4): (LookTile & { focus?: string })[] {
   const real: (LookTile & { focus?: string })[] = collections
-    .filter((c) => c.image && c.status !== "draft" && c.status !== "archived" && !HIDDEN_FROM_TILES.includes(c.handle))
+    .filter((c) => (c.image || TILE_PHOTOS[c.handle]) && c.status !== "draft" && c.status !== "archived" && !HIDDEN_FROM_TILES.includes(c.handle))
     .slice(0, count)
-    .map((c) => ({ key: c.id, href: `/collections/${c.handle}`, src: c.image!.url, alt: c.image!.alt || `${displayName(c.title)} collection`, label: displayName(c.title) }));
+    .map((c) => {
+      const own = TILE_PHOTOS[c.handle];
+      return { key: c.id, href: `/collections/${c.handle}`, src: own?.src ?? c.image!.url, alt: own?.alt ?? (c.image!.alt || `${displayName(c.title)} collection`), label: displayName(c.title), focus: own?.focus };
+    });
   const coming = COMING_COLLECTIONS.filter((t) => !real.some((r) => sameName(r.label, t.label)));
   const looks = LOOKS.map((l) => ({ key: l.key, href: `/search?q=${encodeURIComponent(l.q)}`, src: l.src, alt: l.alt, label: l.label }));
   return [...real, ...coming, ...looks].slice(0, count);
