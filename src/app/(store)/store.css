@@ -4952,3 +4952,16 @@ html[data-shatter="1"] .lux-ed.is-formed .lux-ed__sweep {
     transition: none;
   }
 }
+
+/* Small developer credit in the footer base line. */
+.site-footer__credit {
+  white-space: nowrap;
+  color: var(--text-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.8;
+}
+.site-footer__credit:hover {
+  color: var(--blush);
+  opacity: 1;
+}

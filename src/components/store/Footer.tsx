@@ -65,7 +65,10 @@ export function Footer({ settings, navigation }: { settings: StoreSettings; navi
       </div>
       <div className="container site-footer__base">
         <p className="small">
-          © {year} {settings.name}. Prices in Nigerian naira (₦).
+          © {year} {settings.name}. Prices in Nigerian naira (₦).{" "}
+          <a className="site-footer__credit" href="https://wa.me/2348167044807?text=Hi%20Foluceen%2C%20I%20saw%20your%20work%20on%20Queen%20Luxury%20Hair." target="_blank" rel="noopener noreferrer">
+            Built by Foluceen
+          </a>
         </p>
         {/* Always shown, whatever menu the admin sets: required by our payment provider. */}
         <nav aria-label="Store policies">
