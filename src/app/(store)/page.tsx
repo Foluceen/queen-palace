@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CareTips, CollectionTiles, CtaBand, Editorial, Faq, Newsletter, ProductRail, Promises, Promo, ReviewsStrip, ShadeGuide, Testimonials } from "@/components/store/home/Sections";
 import { LuxCollectionRail, LuxHero, LuxLooks, LuxMarquee, LuxStandard, LuxVisit } from "@/components/store/home/StaticHome";
 import { VideoReels } from "@/components/store/home/VideoReels";
+import { FollowUs } from "@/components/store/home/FollowUs";
 import { orderCollections } from "@/lib/collections";
 import { getSettings, storefront } from "@/lib/data/storefront";
 import { unstable_rethrow } from "next/navigation";
@@ -102,6 +103,7 @@ export default async function HomePage() {
         }
       })}
       {sections.length ? null : <LuxStandard />}
+      <FollowUs settings={settings} />
       <LuxVisit settings={settings} />
     </>
   );

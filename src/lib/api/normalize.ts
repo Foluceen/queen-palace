@@ -5,7 +5,7 @@
  * are applied. Business facts (name, address, contact details, hours) are copied as given
  * and never invented: a missing contact detail stays null and is hidden.
  */
-import { DEFAULT_BRAND_COLORS, DEFAULT_CONTACT, DEFAULT_TAGLINE } from "@/lib/brand";
+import { DEFAULT_BRAND_COLORS, DEFAULT_CONTACT, DEFAULT_SOCIAL, DEFAULT_TAGLINE } from "@/lib/brand";
 import { PERMISSIONS, type AdminSession, type Permission, type StoreSettings } from "@/lib/types";
 import type { EndpointName } from "./contract";
 
@@ -60,7 +60,7 @@ export function normalizeSettings(raw: unknown): unknown {
     },
     theme: { defaultMode: theme.defaultMode === "light" || theme.defaultMode === "system" ? theme.defaultMode : "dark" },
     productPageNotes: { shipping: str(notes.shipping) ?? "", returns: str(notes.returns) ?? "" },
-    social: { instagram: str(social.instagram), tiktok: str(social.tiktok), facebook: str(social.facebook) },
+    social: { instagram: str(social.instagram) ?? DEFAULT_SOCIAL.instagram, tiktok: str(social.tiktok) ?? DEFAULT_SOCIAL.tiktok, facebook: str(social.facebook) },
     announcement: announcement
       ? { enabled: announcement.enabled === true, message: str(announcement.message) ?? "", href: (safeHref(str(announcement.href)) as string | null) ?? null }
       : { enabled: false, message: "", href: null },

@@ -217,7 +217,7 @@ describe("settings adapter", () => {
     assert.equal(s.phone, "09019844327");
     assert.equal(s.whatsapp, null);
     assert.equal(s.openingHours, null);
-    assert.deepEqual(s.social, { instagram: null, tiktok: null, facebook: null });
+    assert.deepEqual(s.social, { instagram: "https://www.instagram.com/queenluxuryhair001/", tiktok: "https://www.tiktok.com/@queenpalace234", facebook: null });
   });
 
   it("leaves contract-shaped settings values intact", async () => {
@@ -226,7 +226,7 @@ describe("settings adapter", () => {
     assert.equal(s.tagline, "T");
     assert.equal(s.contactEmail, "a@b.co");
     assert.equal(s.openingHours, "Mon–Sat 9 to 6");
-    assert.deepEqual(s.social, { instagram: "https://instagram.com/x", tiktok: null, facebook: null });
+    assert.deepEqual(s.social, { instagram: "https://instagram.com/x", tiktok: "https://www.tiktok.com/@queenpalace234", facebook: null });
   });
 });
 

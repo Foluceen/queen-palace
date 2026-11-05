@@ -21,3 +21,9 @@ export const DEFAULT_TAGLINE = "Luxury hair, crowned for you.";
  * leave them empty; anything saved in Admin → Shop details replaces them.
  */
 export const DEFAULT_CONTACT = { email: "omoboladefadipe@gmail.com", phone: "09019844327" } as const;
+
+/** The shop's social accounts (from the owner). Used when the store settings leave them empty. */
+export const DEFAULT_SOCIAL = {
+  instagram: "https://www.instagram.com/queenluxuryhair001/",
+  tiktok: "https://www.tiktok.com/@queenpalace234",
+} as const;
