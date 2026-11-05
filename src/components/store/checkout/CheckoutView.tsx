@@ -1,5 +1,6 @@
 "use client";
 
+import { DELIVERY_SUMMARY } from "@/lib/brand";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -243,7 +244,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
             Delivery
           </h2>
           {!address.state ? (
-            <p className="muted">Choose your state to see delivery options and fees.</p>
+            <p className="muted">Choose your state to see delivery options.</p>
           ) : quoteState === "loading" && !quotes ? (
             <div className="skeleton" style={{ height: 120 }} aria-label="Loading delivery options" />
           ) : quoteState === "error" ? (
@@ -264,9 +265,10 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
                       {[q.description, q.etaDays ? formatEta(q.etaDays) : ""].filter(Boolean).join(" ")}
                     </span>
                   </span>
-                  <span className="choice__price">{q.amount === 0 ? "Free" : <Price amount={q.amount} />}</span>
+                  <span className="choice__price">{q.amount === 0 ? "Free to park" : <Price amount={q.amount} />}</span>
                 </label>
               ))}
+              <p className="notice notice--info small">{DELIVERY_SUMMARY} Tell us your preferred park or driver in the note below.</p>
             </div>
           ) : (
             <p className="notice notice--warning">We don't deliver to {address.state} yet. Message us and we'll arrange it.</p>
@@ -296,7 +298,13 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           )}
           {payment.methods.length ? <p className="small muted">Your card details go straight to Paystack. We never see or store them.</p> : null}
           {isMockMode ? <p className="notice notice--info small">Demo mode: placing an order records it with payment pending. No payment provider is connected, so you won't be charged.</p> : null}
-          <TextAreaField label="Note for our team (optional)" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
+          <TextAreaField
+            label="Note for our team (optional)"
+            hint="Your preferred park or driver, and anything else we should know."
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+          />
         </section>
       </div>
 
@@ -334,8 +342,12 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
             </div>
           ) : null}
           <div>
-            <dt>Delivery</dt>
+            <dt>To the park or driver</dt>
             <dd>{quote ? totals.shippingTotal === 0 ? "Free" : <Price amount={totals.shippingTotal ?? quote.amount} /> : <span className="muted">Choose your state</span>}</dd>
+          </div>
+          <div>
+            <dt>Transport to you</dt>
+            <dd className="muted">Paid to the driver</dd>
           </div>
           <div className="totals__grand">
             <dt>Total</dt>

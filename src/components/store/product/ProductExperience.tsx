@@ -403,7 +403,7 @@ export function ProductExperience({ product, initialVariantId, collection, whats
         <ul className="pdp__trust" aria-label="Shopping with us">
           <li>
             <Icon name="truck" size={20} />
-            <span>Delivery or pickup</span>
+            <span>Free to your park or driver</span>
           </li>
           <li>
             <Icon name="check" size={20} />

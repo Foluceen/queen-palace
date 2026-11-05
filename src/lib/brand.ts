@@ -20,4 +20,10 @@ export const DEFAULT_TAGLINE = "Luxury hair, crowned for you.";
  * The owner's contact details, given by the owner. Used whenever the backend's store settings
  * leave them empty; anything saved in Admin → Shop details replaces them.
  */
+/**
+ * How delivery works (from the owner): the shop takes the order to the park or driver the
+ * customer chooses at no cost; the customer pays the transport from there to them directly.
+ */
+export const DELIVERY_SUMMARY = "We take your order to the park or driver you choose, free. You pay the transport from there to your location directly to the driver or park.";
+
 export const DEFAULT_CONTACT = { email: "omoboladefadipe@gmail.com", phone: "09019844327" } as const;

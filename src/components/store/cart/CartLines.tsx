@@ -132,15 +132,15 @@ export function CartTotals({ showShippingNote = true }: { showShippingNote?: boo
       ) : null}
       <div>
         <dt>Delivery</dt>
-        <dd className="muted">{t.shippingTotal === null ? "Calculated at checkout" : <Price amount={t.shippingTotal} />}</dd>
+        <dd className="muted">{t.shippingTotal === null ? "Free to your park or driver" : <Price amount={t.shippingTotal} />}</dd>
       </div>
       <div className="totals__grand">
-        <dt>{t.shippingTotal === null ? "Estimated total" : "Total"}</dt>
+        <dt>Total</dt>
         <dd>
           <Price amount={t.total} />
         </dd>
       </div>
-      {showShippingNote && t.shippingTotal === null ? <p className="small muted totals__note">Your final total, including delivery, is confirmed at checkout.</p> : null}
+      {showShippingNote && t.shippingTotal === null ? <p className="small muted totals__note">Transport from the park to you is paid directly to the driver.</p> : null}
     </dl>
   );
 }

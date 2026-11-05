@@ -116,8 +116,12 @@ export function OrderView({ order }: { order: Order }) {
               </div>
             ) : null}
             <div>
-              <dt>Delivery</dt>
+              <dt>To the park or driver</dt>
               <dd>{order.totals.shippingTotal ? <Price amount={order.totals.shippingTotal} /> : "Free"}</dd>
+            </div>
+            <div>
+              <dt>Transport to you</dt>
+              <dd className="muted">Paid to the driver</dd>
             </div>
             <div className="totals__grand">
               <dt>Total</dt>
