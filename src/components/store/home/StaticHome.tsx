@@ -240,7 +240,7 @@ interface LookTile {
  */
 const COMING_COLLECTIONS: (LookTile & { focus?: string })[] = [
   // Photo: Malama Mushitu on Unsplash (Unsplash License, free for commercial use).
-  { key: "coming-braid-extensions", href: "/collections", src: "/media/looks/braid-extensions.jpg", alt: "Long, glossy plum-burgundy braid extensions, seen close up from behind", label: "Braid extensions", focus: "50% 35%" },
+  { key: "coming-braid-extensions", href: "/collections", src: "/media/looks/braid-extensions-rack.webp", alt: "Rows of braiding extensions in copper, blonde, brown, black and burgundy hanging on a rack", label: "Braid extensions", focus: "50% 58%" },
   { key: "coming-bone-straight", href: "/collections", src: "/media/looks/bone-straight.jpg", alt: "Long, glossy jet-black bone straight lace wig on a mannequin", label: "Bone straight", focus: "50% 28%" },
   { key: "coming-bouncy-wig", href: "/collections", src: "/media/looks/bouncy-wig.jpg", alt: "Voluminous jet-black bouncy body wave lace wig on a mannequin", label: "Bouncy wig", focus: "50% 30%" },
 ];
