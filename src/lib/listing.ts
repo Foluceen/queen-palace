@@ -10,10 +10,10 @@ export function pageLocally(listing: ProductListing, query: Pick<ProductQuery, "
   const size = query.pageSize ?? 15;
   const q = query.q?.trim().toLowerCase();
   const backendPaged = listing.items.length <= size && !(q || query.inStock);
-  if (backendPaged) return listing;
+  if (backendPaged && !query.sort) return listing;
   let items = [...listing.items];
-  if (q) items = items.filter((p) => `${p.title} ${p.subtitle}`.toLowerCase().includes(q));
-  if (query.inStock) items = items.filter((p) => p.availability !== "out_of_stock");
+  if (!backendPaged && q) items = items.filter((p) => `${p.title} ${p.subtitle}`.toLowerCase().includes(q));
+  if (!backendPaged && query.inStock) items = items.filter((p) => p.availability !== "out_of_stock");
   const time = (s?: string) => (s ? Date.parse(s) || 0 : 0);
   switch (query.sort) {
     case "newest":
@@ -31,6 +31,9 @@ export function pageLocally(listing: ProductListing, query: Pick<ProductQuery, "
     default:
       break;
   }
+  // A single page from the backend (e.g. search results that fit on one page): only re-order it.
+  // Sorting an already-sorted page changes nothing, so this is safe for a backend that does sort.
+  if (backendPaged) return { ...listing, items };
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / size));
   const page = Math.min(Math.max(1, query.page ?? 1), totalPages);

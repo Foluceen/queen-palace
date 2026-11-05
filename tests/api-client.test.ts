@@ -553,4 +553,12 @@ describe("Shop by collection tiles", () => {
     assert.deepEqual(normalizeResponse("replaceWishlist", { items: ["p1", "p2"] }), { productIds: ["p1", "p2"] });
     assert.deepEqual(normalizeResponse("getWishlist", { productIds: ["p9"] }), { productIds: ["p9"] });
   });
+  it("pageLocally sorts a single page too (search results ignore sort on the live API)", async () => {
+    const { pageLocally } = await import("../src/lib/listing");
+    const card = (id: string, price: number) => ({ id, title: id, subtitle: "", priceRange: { min: price, max: price }, rating: { average: 0, count: 0 }, availability: "in_stock" }) as never;
+    const listing = { items: [card("a", 300), card("b", 100), card("c", 200)], page: 1, pageSize: 15, total: 3, totalPages: 1 } as never;
+    assert.deepEqual(pageLocally(listing, { sort: "price_asc", pageSize: 15 }).items.map((p: { id: string }) => p.id), ["b", "c", "a"]);
+    assert.deepEqual(pageLocally(listing, { sort: "price_desc", pageSize: 15 }).items.map((p: { id: string }) => p.id), ["a", "c", "b"]);
+    assert.equal(pageLocally(listing, { pageSize: 15 }), listing);
+  });
 });

@@ -32,7 +32,7 @@ export interface StorefrontRepository {
   products(query: ProductQuery): Promise<ProductListing>;
   product(handle: string): Promise<ProductDetail | null>;
   reviews(productId: string, page?: number): Promise<ReviewPage>;
-  search(q: string, page?: number): Promise<SearchResult>;
+  search(q: string, page?: number, sort?: ProductQuery["sort"]): Promise<SearchResult>;
   page(slug: string): Promise<ContentPage | null>;
   paymentOptions(): Promise<PublicPaymentOptions>;
 }
@@ -61,10 +61,10 @@ export function repositoryFrom(call: Caller): StorefrontRepository {
     products: ({ options, ...query }) => call("listProducts", { query: { ...query, options: encodeOptions(options) } }),
     product: (handle) => orNull(call("getProduct", { params: { handle } })),
     reviews: (productId, page = 1) => call("listProductReviews", { params: { productId }, query: { page } }),
-    search: async (q, page = 1) => {
+    search: async (q, page = 1, sort) => {
       const r = await call("search", { query: { q, page } });
-      // The live API returns every match at once: show them 15 per page like everywhere else.
-      return { ...r, products: pageLocally(r.products, { page, pageSize: 15 }) };
+      // The live API returns every match at once and ignores sort: sort and page them here.
+      return { ...r, products: pageLocally(r.products, { page, pageSize: 15, sort }) };
     },
     page: (slug) => orNull(call("getContentPage", { params: { slug } })),
     paymentOptions: () => call("getPaymentOptions", {}),

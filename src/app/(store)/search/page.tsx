@@ -7,14 +7,20 @@ import { ProductGrid } from "@/components/store/ProductCard";
 import { storefront } from "@/lib/data/storefront";
 import { first, listingQuery, type RawSearchParams } from "@/lib/search-params";
 
-export const metadata: Metadata = { title: "Search", robots: { index: false } };
+export async function generateMetadata({ searchParams }: { searchParams: Promise<RawSearchParams> }): Promise<Metadata> {
+  const sp = await searchParams;
+  const q = (first(sp.q) ?? "").trim();
+  const pageNo = Number(first(sp.page)) || 1;
+  const base = q ? `Results for “${q}”` : first(sp.sort) === "newest" ? "New in" : "Shop everything";
+  return { title: pageNo > 1 ? `${base} – page ${pageNo}` : base, robots: { index: false } };
+}
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const sp = await searchParams;
   const q = (first(sp.q) ?? "").trim();
   const query = listingQuery(sp);
   // With no term, show the full catalog so "Shop all" and sort links still work.
-  const result = q ? await storefront().search(q, query.page) : null;
+  const result = q ? await storefront().search(q, query.page, query.sort) : null;
   const listing = result ? result.products : await storefront().products(query);
   const newIn = !q && query.sort === "newest";
 
