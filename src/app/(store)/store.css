@@ -4151,9 +4151,29 @@ body:has(.buybar.is-visible) footer {
 .lux-spotlight__slide {
   position: absolute;
   inset: 0;
+  opacity: 0;
+  transform: scale(1.06);
+  transition: opacity 1.2s ease, transform 1.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lux-spotlight__slide.is-active {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lux-spotlight__slide {
+    transition: none;
+    transform: none;
+  }
 }
 .lux-spotlight__img {
   object-fit: cover;
+}
+/* Portrait shoot photos: taller frame, anchored near the top so faces and hairlines stay in. */
+.lux-spotlight--portrait {
+  aspect-ratio: 4 / 5;
+}
+.lux-spotlight--portrait .lux-spotlight__img {
+  object-position: 50% 18%;
 }
 .lux-spotlight__label {
   position: absolute;

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { loadAnime, motionTier } from "@/lib/motion/anime";
+import { motionTier } from "@/lib/motion/anime";
 
 interface Look {
   src: string;
@@ -11,41 +11,29 @@ interface Look {
 }
 
 /**
- * Cross-fades through the lookbook with Anime.js. It only cycles while on screen, with full
- * motion allowed, and stops for good after a few rounds. Otherwise it shows the first look.
+ * Cross-fades through a few photos with a light CSS transition, so it also runs on budget
+ * phones. It only cycles while on screen and stops after a few rounds; with reduced motion
+ * it shows the first photo.
  */
-export function LookSpotlight({ looks }: { looks: Look[] }) {
+export function LookSpotlight({ looks, portrait = false }: { looks: Look[]; /** Taller 4:5 frame for portrait photos. */ portrait?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
     const root = ref.current;
-    if (!root || looks.length < 2 || motionTier() !== "full") return;
+    if (!root || looks.length < 2 || motionTier() === "none") return;
     let timer = 0;
-    let visible = false;
     let steps = 0;
     const maxSteps = looks.length * 3;
-    let current = 0;
-
-    const step = async () => {
-      if (!visible || document.hidden || steps >= maxSteps) return;
-      const { animate } = await loadAnime();
-      const slides = root.querySelectorAll<HTMLElement>("[data-look]");
-      const next = (current + 1) % looks.length;
-      const from = slides[current];
-      const to = slides[next];
-      if (!from || !to) return;
-      animate(to, { opacity: [0, 1], scale: [1.08, 1], duration: 1400, ease: "outQuart" });
-      animate(from, { opacity: [1, 0], duration: 1100, ease: "inOutQuad" });
-      current = next;
-      steps += 1;
-      setActive(next);
-    };
-
     const io = new IntersectionObserver(([e]) => {
-      visible = !!e?.isIntersecting;
       window.clearInterval(timer);
-      if (visible && steps < maxSteps) timer = window.setInterval(() => void step(), 3600);
+      if (!e?.isIntersecting || steps >= maxSteps) return;
+      timer = window.setInterval(() => {
+        if (document.hidden) return;
+        steps += 1;
+        setActive((a) => (a + 1) % looks.length);
+        if (steps >= maxSteps) window.clearInterval(timer);
+      }, 4000);
     });
     io.observe(root);
     return () => {
@@ -55,10 +43,10 @@ export function LookSpotlight({ looks }: { looks: Look[] }) {
   }, [looks.length]);
 
   return (
-    <div ref={ref} className="lux-spotlight">
+    <div ref={ref} className={`lux-spotlight${portrait ? " lux-spotlight--portrait" : ""}`}>
       {looks.map((l, i) => (
-        <div key={l.src} data-look className="lux-spotlight__slide" style={{ opacity: i === 0 ? 1 : 0 }} aria-hidden={i !== active}>
-          <Image src={l.src} alt={l.alt} fill sizes="(min-width: 900px) 34vw, 90vw" className="lux-spotlight__img" />
+        <div key={l.src} className={`lux-spotlight__slide${i === active ? " is-active" : ""}`} aria-hidden={i !== active}>
+          <Image src={l.src} alt={l.alt} fill sizes="(min-width: 900px) 34vw, 90vw" quality={90} className="lux-spotlight__img" />
         </div>
       ))}
       <p className="lux-spotlight__label script" aria-live="off">

@@ -26,6 +26,11 @@ export const LOOKS = [
   { key: "body-wave", src: "/media/looks/copper-body-wave.jpg", label: "Body wave", q: "body wave", focus: "50% 45%", alt: "Long copper body wave wig seen from the back" },
 ] as const;
 
+/** Photos for the "Visit the store" card (owner's shoot), cross-faded in a portrait frame. */
+const VISIT_LOOKS = [
+  { src: "/media/visit/bone-straight-model.webp", label: "Bone straight", alt: "Model wearing a long, sleek bone straight black wig with a middle part" },
+  { src: "/media/visit/body-wave-duo.webp", label: "Body wave", alt: "Two models wearing long black body wave wigs with soft, voluminous curls" },
+];
 
 /**
  * Editorial hero: the model is a background-removed cutout (transparent WebP) so she sits
@@ -422,7 +427,7 @@ export function LuxVisit({ settings }: { settings: StoreSettings }) {
     <section className="section section--tight" aria-labelledby="visit-title">
       <div className="container">
         <Reveal className="lux-visit">
-          <LookSpotlight looks={LOOKS.map(({ src, alt, label }) => ({ src, alt, label }))} />
+          <LookSpotlight looks={VISIT_LOOKS} portrait />
           <div className="lux-visit__copy">
             <p className="lux-kicker">Visit the store</p>
             <h2 id="visit-title" className="lux-visit__title">
