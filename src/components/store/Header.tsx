@@ -29,7 +29,7 @@ export function Header({ settings, navigation }: { settings: StoreSettings; navi
           <MobileMenu navigation={navigation} storeName={settings.name} />
           <HeaderSearch />
         </div>
-        <Link href="/" className="site-header__logo">
+        <Link href="/" className="site-header__logo" aria-label={`${settings.name} home`}>
           <Wordmark settings={settings} />
         </Link>
         <div className="site-header__right">
