@@ -39,6 +39,7 @@ export default function StaffPage() {
   const staff = useResource(() => api().call("adminListStaff"));
   const roles = useResource(() => api().call("adminListRoles"));
   const [invite, setInvite] = useState<{ name: string; email: string; roleId: string } | null>(null);
+  const [link, setLink] = useState<{ name: string; email: string; url: string; expiresAt: string } | null>(null);
   const [role, setRole] = useState<RoleDraft | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -208,10 +209,13 @@ export default function StaffPage() {
               if (!invite) return;
               setBusy(true);
               try {
-                const s = await api().call("adminInviteStaff", { body: invite });
+                const { invitation, ...s } = await api().call("adminInviteStaff", { body: invite });
                 staff.setData((list) => [...(list ?? []), s]);
                 setInvite(null);
-                toast(`${s.email} invited. Mock mode doesn't send the invite email.`);
+                if (invitation?.token) {
+                  // The token goes in the #fragment: browsers never send it to any server or log.
+                  setLink({ name: s.name || s.email, email: s.email, url: `${window.location.origin}/admin/invite#token=${encodeURIComponent(invitation.token)}`, expiresAt: invitation.expiresAt });
+                } else toast(`${s.email} invited.`);
               } catch (err) {
                 toast(errorMessage(err), "danger");
               } finally {
@@ -234,6 +238,42 @@ export default function StaffPage() {
                 </option>
               ))}
             </SelectField>
+          </div>
+        ) : null}
+      </Sheet>
+
+      <Sheet open={!!link} onClose={() => setLink(null)} title="Send the invite link">
+        {link ? (
+          <div className="astack">
+            <p>
+              <strong>{link.name}</strong> ({link.email}) can now set their own password with this link. Send it to them privately, for example on WhatsApp.
+            </p>
+            <label className="field">
+              <span className="field__label">Invite link</span>
+              <input className="input" readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
+            </label>
+            <div className="cluster">
+              <button
+                type="button"
+                className="btn"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(link.url);
+                    toast("Link copied");
+                  } catch {
+                    toast("Couldn't copy. Select the link and copy it.", "danger");
+                  }
+                }}
+              >
+                Copy link
+              </button>
+              <a className="btn btn--ghost" href={`https://wa.me/?text=${encodeURIComponent(`Your Queen Luxury Hair admin invite. Open this link to set your password: ${link.url}`)}`} target="_blank" rel="noopener noreferrer">
+                Send on WhatsApp
+              </a>
+            </div>
+            <p className="small muted">
+              The link works once and expires {new Date(link.expiresAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", timeZone: "Africa/Lagos" })}. Anyone with it can set the password, so only send it to {link.name}. It won&apos;t be shown again: if it&apos;s lost, remove this person and invite them again.
+            </p>
           </div>
         ) : null}
       </Sheet>

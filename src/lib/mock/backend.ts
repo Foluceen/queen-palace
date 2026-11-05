@@ -1502,7 +1502,19 @@ export const handlers: Handlers = {
     if (!db.roles.some((r) => r.id === body.roleId)) fail(422, "validation_failed", "Choose a role.");
     const s = { id: newId("staff"), name: body.name.trim() || email, email, roleId: body.roleId, status: "invited" as const, lastActiveAt: null };
     db.staff.push(s);
-    return s;
+    const token = `inv_${crypto.randomUUID().replace(/-/g, "")}`;
+    db.staffInvites[token] = { email, expiresAt: Date.now() + 7 * 86400_000 };
+    return { ...s, invitation: { token, expiresAt: new Date(db.staffInvites[token]!.expiresAt).toISOString() } };
+  },
+  acceptStaffInvite: ({ body }, _ctx, db) => {
+    const inv = db.staffInvites[body.token];
+    if (!inv || inv.expiresAt < Date.now()) fail(400, "invalid_invitation", "This invite link is invalid or has expired. Ask for a new one.");
+    if ((body.password ?? "").length < 8) fail(422, "validation_failed", "Use at least 8 characters.", { password: "Use at least 8 characters." });
+    const s = db.staff.find((x) => x.email === inv!.email && x.status === "invited") ?? fail(400, "invalid_invitation", "This invite link has already been used.");
+    db.staffPasswords[s.email] = body.password;
+    s.status = "active";
+    delete db.staffInvites[body.token];
+    return { ok: true as const, email: s.email };
   },
   adminUpdateStaff: ({ params, body }, ctx, db) => {
     const me = requirePerm(db, ctx, "staff:manage");

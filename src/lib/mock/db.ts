@@ -81,6 +81,7 @@ export interface MockDb {
   staff: Staff[];
   roles: Role[];
   staffPasswords: Record<string, string>;
+  staffInvites: Record<string, { email: string; expiresAt: number }>;
   adminSessions: Map<string, { staffId: string; expiresAt: number }>;
   accounts: MockCustomerAccount[];
   customerSessions: Map<string, string>;
@@ -112,6 +113,7 @@ function createDb(): MockDb {
     staff: clone(seedStaff),
     roles: clone(seedRoles),
     staffPasswords: { ...seedStaffPasswords },
+    staffInvites: {},
     adminSessions: new Map(),
     accounts: [{ customer: clone(seedCustomer.customer), password: seedCustomer.password, addresses: clone(seedCustomerAddresses), wishlist: [], marketingOptIn: false }],
     customerSessions: new Map(),

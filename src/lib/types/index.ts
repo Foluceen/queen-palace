@@ -921,6 +921,12 @@ export interface Staff {
   lastActiveAt: ISODate | null;
 }
 
+/** One-time link for a new staff member to set their password (valid for 7 days). */
+export interface StaffInvitation {
+  token: string;
+  expiresAt: ISODate;
+}
+
 export interface AdminSession {
   staff: Staff;
   role: Role;

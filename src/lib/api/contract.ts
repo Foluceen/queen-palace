@@ -73,6 +73,7 @@ import type {
   ShippingRatesInput,
   ShippingSettings,
   Staff,
+  StaffInvitation,
   StoreSettings,
   Variant,
   Wishlist,
@@ -224,7 +225,10 @@ export interface Contract {
   adminUpdateStoreSettings: Endpoint<undefined, undefined, Omit<StoreSettings, "logo" | "logoDark"> & { logoId: string | null; logoDarkId: string | null }, StoreSettings>;
 
   adminListStaff: Endpoint<undefined, undefined, undefined, Staff[]>;
-  adminInviteStaff: Endpoint<undefined, undefined, { name: string; email: string; roleId: string }, Staff>;
+  /** The backend returns the invitation token once, so the inviter can send the link privately. */
+  adminInviteStaff: Endpoint<undefined, undefined, { name: string; email: string; roleId: string }, Staff & { invitation?: StaffInvitation }>;
+  /** Public: the invited person sets their password with the one-time token. */
+  acceptStaffInvite: Endpoint<undefined, undefined, { token: string; password: string }, { ok: true; email?: string }>;
   adminUpdateStaff: Endpoint<Id, undefined, Partial<Pick<Staff, "roleId" | "status" | "name">>, Staff>;
   adminRemoveStaff: Endpoint<Id, undefined, undefined, Ok>;
   adminListRoles: Endpoint<undefined, undefined, undefined, Role[]>;
@@ -349,6 +353,7 @@ export const routes: { [K in EndpointName]: { method: HttpMethod; path: string; 
 
   adminListStaff: { method: "GET", path: "/admin/staff", auth: "admin" },
   adminInviteStaff: { method: "POST", path: "/admin/staff", auth: "admin" },
+  acceptStaffInvite: { method: "POST", path: "/staff/invitations/accept" },
   adminUpdateStaff: { method: "PATCH", path: "/admin/staff/:id", auth: "admin" },
   adminRemoveStaff: { method: "DELETE", path: "/admin/staff/:id", auth: "admin" },
   adminListRoles: { method: "GET", path: "/admin/roles", auth: "admin" },

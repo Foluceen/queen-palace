@@ -423,7 +423,15 @@ export function normalizeRequest(name: EndpointName, body: unknown, live: boolea
   return body;
 }
 
+/** Staff invite: the live API answers { staff: { …, role }, invitation: { token, expiresAt } }. */
+function staffInvite(v: unknown): unknown {
+  if (!isObj(v) || !isObj(v.staff)) return v;
+  const s = v.staff;
+  return { ...s, roleId: str(s.roleId) ?? str(s.role) ?? "", lastActiveAt: s.lastActiveAt ?? null, invitation: isObj(v.invitation) ? v.invitation : undefined };
+}
+
 const normalizers: Partial<Record<EndpointName, (data: unknown) => unknown>> = {
+  adminInviteStaff: staffInvite,
   getShippingRates: normalizeShippingQuotes,
   // Store order replies come as { order: { …, items } } like the admin ones: same mapping.
   getOrder: normalizeAdminOrder,

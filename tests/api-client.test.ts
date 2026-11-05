@@ -561,4 +561,10 @@ describe("Shop by collection tiles", () => {
     assert.deepEqual(pageLocally(listing, { sort: "price_desc", pageSize: 15 }).items.map((p: { id: string }) => p.id), ["a", "c", "b"]);
     assert.equal(pageLocally(listing, { pageSize: 15 }), listing);
   });
+  it("staff invite: live { staff, invitation } reply keeps the one-time token", async () => {
+    const { normalizeResponse } = await import("../src/lib/api/normalize");
+    const r = normalizeResponse("adminInviteStaff", { staff: { id: "s2", name: "Client", email: "c@x.co", role: "owner", status: "invited" }, invitation: { token: "t".repeat(40), expiresAt: "2026-11-12T00:00:00Z" } }) as { roleId: string; invitation?: { token: string } };
+    assert.equal(r.roleId, "owner");
+    assert.equal(r.invitation?.token.length, 40);
+  });
 });
