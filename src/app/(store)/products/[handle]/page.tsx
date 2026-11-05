@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const img = p.media[0];
   return {
     title: p.seo.title ?? p.title,
-    description: p.seo.description ?? clip(`${p.subtitle}. ${p.description}`, 158),
+    description: p.seo.description ?? clip([p.subtitle, p.description].map((x) => x?.trim()).filter(Boolean).join(". "), 158),
     alternates: { canonical: `/products/${p.handle}` },
     openGraph: img ? { images: [{ url: img.url, width: img.width, height: img.height, alt: img.alt }] } : undefined,
   };
