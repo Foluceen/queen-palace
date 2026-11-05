@@ -1,3 +1,4 @@
+import { LoopVideo } from "./LoopVideo";
 import Image from "next/image";
 import { Fragment } from "react";
 import Link from "next/link";
@@ -387,7 +388,7 @@ export function LuxStandard() {
       <div className="container lux-standard__grid">
         <Reveal className="lux-standard__media" variant="fall">
           <div className="lux-standard__frame">
-            <Image src="/media/looks/lace-frontal-hairline.jpg" alt="Close-up of a lace frontal hairline with a soft middle part" fill sizes="(min-width: 900px) 40vw, 90vw" className="lux-standard__img" />
+            <LoopVideo src="/media/video/wigs-sofa.mp4" poster="/media/video/wigs-sofa-poster.webp" label="Straight wigs in copper and dark brown laid out to show their shine and lace" className="lux-standard__img lux-standard__video" />
           </div>
           <div className="lux-standard__chip">
             <Image src="/media/looks/copper-body-wave.jpg" alt="" fill sizes="140px" className="lux-standard__img" />
