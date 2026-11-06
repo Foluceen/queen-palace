@@ -1279,7 +1279,7 @@ export const seedRoles: Role[] = [
 ];
 
 export const seedStaff: Staff[] = [
-  { id: "staff_owner", name: "Demo Owner", email: "owner@queenluxuryhair.test", roleId: "role_owner", status: "active", lastActiveAt: iso(0, 8) },
+  { id: "staff_owner", name: "Demo Owner", email: "owner@queenluxuryhair.test", roleId: "role_owner", status: "active", lastActiveAt: iso(0, 8), isAccountOwner: true },
   { id: "staff_manager", name: "Demo Manager", email: "manager@queenluxuryhair.test", roleId: "role_manager", status: "active", lastActiveAt: iso(0, 7) },
   { id: "staff_fulfil", name: "Demo Fulfilment", email: "fulfilment@queenluxuryhair.test", roleId: "role_fulfilment", status: "active", lastActiveAt: iso(1, 16) },
 ];

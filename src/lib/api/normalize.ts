@@ -130,6 +130,7 @@ export function normalizeAdminSession(raw: unknown): unknown {
       roleId: String(roleObj?.id ?? person.roleId ?? roleName.toLowerCase()),
       status: person.status === "invited" || person.status === "suspended" ? person.status : "active",
       lastActiveAt: str(person.lastActiveAt),
+      isAccountOwner: person.isAccountOwner === true || person.is_account_owner === true,
     },
     role: {
       id: String(roleObj?.id ?? person.roleId ?? roleName.toLowerCase()),

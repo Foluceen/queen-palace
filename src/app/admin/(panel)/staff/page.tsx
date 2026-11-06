@@ -33,6 +33,13 @@ const permissionLabel: Record<Permission, string> = {
 
 type RoleDraft = { id?: string; name: string; description: string; permissions: Permission[] };
 
+/** Plain-English messages for the server's staff rules. */
+function staffError(err: unknown): string {
+  if (err instanceof ApiError && err.code === "account_owner_protected") return "The account owner can't be suspended, removed or changed.";
+  if (err instanceof ApiError && err.code === "owner_management_forbidden") return "Only the account owner can add or manage Owners.";
+  return errorMessage(err);
+}
+
 export default function StaffPage() {
   const toast = useToast();
   const { session } = useAdmin();
@@ -49,8 +56,16 @@ export default function StaffPage() {
   const roleName = (id: string) => roles.data?.find((r) => r.id === id)?.name ?? "Unknown role";
   // Default new people to a role that can actually do something (a role with no permissions
   // would let them sign in and see nothing).
-  const defaultRoleId = () => (roles.data?.find((r) => !r.system && r.permissions.length > 1) ?? roles.data?.find((r) => r.system) ?? roles.data?.[0])?.id ?? "";
+  const defaultRoleId = () => {
+    const list = roles.data?.filter((r) => iAmAccountOwner || !(r.id === "owner" || r.system)) ?? [];
+    return (list.find((r) => !r.system && r.permissions.length > 1) ?? list.find((r) => r.system) ?? list[0])?.id ?? "";
+  };
   const emptyRole = (id: string) => (roles.data?.find((r) => r.id === id)?.permissions.length ?? 1) <= 1;
+  // Account-owner rules (enforced by the server; this only hides what you can't do).
+  const iAmAccountOwner = session.staff.isAccountOwner === true;
+  const isOwnerRole = (id: string) => id === "owner" || roles.data?.find((r) => r.id === id)?.system === true;
+  const canManage = (p: { id: string; roleId: string; isAccountOwner?: boolean }) => p.id !== session.staff.id && !p.isAccountOwner && (!isOwnerRole(p.roleId) || iAmAccountOwner);
+  const assignableRoles = roles.data?.filter((r) => iAmAccountOwner || !isOwnerRole(r.id)) ?? [];
 
   return (
     <RequirePermission permission="staff:manage">
@@ -85,6 +100,7 @@ export default function StaffPage() {
                   <tbody>
                     {staff.data.map((p) => {
                       const me = p.id === session.staff.id;
+                      const manageable = canManage(p);
                       return (
                         <tr key={p.id}>
                           <td>
@@ -92,6 +108,7 @@ export default function StaffPage() {
                               {p.name}
                               {me ? " (you)" : ""}
                             </span>
+                            {p.isAccountOwner ? <span className="badge badge--accent">Account owner</span> : null}
                             <span className="small muted block">{p.email}</span>
                             {p.lastActiveAt ? <span className="small muted block">Active {formatDateTime(p.lastActiveAt)}</span> : null}
                           </td>
@@ -99,7 +116,7 @@ export default function StaffPage() {
                             <select
                               className="select select--sm"
                               value={p.roleId}
-                              disabled={me}
+                              disabled={!manageable}
                               aria-label={`Role for ${p.name}`}
                               onChange={async (e) => {
                                 try {
@@ -107,11 +124,11 @@ export default function StaffPage() {
                                   staff.setData((list) => list?.map((x) => (x.id === p.id ? updated : x)) ?? null);
                                   toast(`${p.name} is now ${roleName(updated.roleId)}`);
                                 } catch (err) {
-                                  toast(errorMessage(err), "danger");
+                                  toast(staffError(err), "danger");
                                 }
                               }}
                             >
-                              {roles.data?.map((r) => (
+                              {(manageable ? assignableRoles : (roles.data ?? [])).map((r) => (
                                 <option key={r.id} value={r.id}>
                                   {r.name}
                                 </option>
@@ -122,7 +139,7 @@ export default function StaffPage() {
                             <StatusBadge tone={p.status === "active" ? "success" : p.status === "invited" ? "info" : "danger"}>{p.status}</StatusBadge>
                           </td>
                           <td>
-                            {!me ? (
+                            {manageable ? (
                               <div className="cluster" style={{ ["--cluster" as string]: "6px" }}>
                                 {p.status === "invited" ? (
                                   <button
@@ -150,7 +167,7 @@ export default function StaffPage() {
                                       staff.setData((list) => list?.map((x) => (x.id === p.id ? updated : x)) ?? null);
                                       toast(updated.status === "suspended" ? `${p.name} suspended` : `${p.name} reactivated`);
                                     } catch (err) {
-                                      toast(errorMessage(err), "danger");
+                                      toast(staffError(err), "danger");
                                     }
                                   }}
                                 >
@@ -172,11 +189,13 @@ export default function StaffPage() {
                                       if (still) toast(`${p.name} can no longer sign in (status: ${still.status}). Deleting them for good needs a server update; ask Hermes.`, "danger");
                                       else toast(`${p.name} removed`);
                                     } catch (err) {
-                                      toast(errorMessage(err), "danger");
+                                      toast(staffError(err), "danger");
                                     }
                                   }}
                                 />
                               </div>
+                            ) : !me ? (
+                              <span className="small muted">{p.isAccountOwner ? "Protected" : "Only the account owner can manage Owners"}</span>
                             ) : null}
                           </td>
                         </tr>
@@ -266,13 +285,14 @@ export default function StaffPage() {
             <TextField label="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} />
             <TextField label="Email" type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} required />
             <SelectField label="Role" value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })}>
-              {roles.data?.map((r) => (
+              {assignableRoles.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                   {r.permissions.length <= 1 ? " (can't see anything yet)" : ""}
                 </option>
               ))}
             </SelectField>
+            {!iAmAccountOwner ? <p className="small muted">Only the account owner can invite Owners.</p> : null}
             {emptyRole(invite.roleId) ? (
               <p className="notice notice--warning small">This role has no permissions yet, so this person would sign in and see nothing. Choose Owner, or edit the role first.</p>
             ) : null}
@@ -344,7 +364,7 @@ export default function StaffPage() {
                     setRole(null);
                     toast("Role deleted");
                   } catch (err) {
-                    toast(errorMessage(err), "danger");
+                    toast(staffError(err), "danger");
                   }
                 }}
               />
@@ -362,7 +382,7 @@ export default function StaffPage() {
                   setRole(null);
                   toast(`${saved.name} saved`);
                 } catch (err) {
-                  toast(errorMessage(err), "danger");
+                  toast(staffError(err), "danger");
                 } finally {
                   setBusy(false);
                 }

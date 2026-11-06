@@ -611,4 +611,11 @@ describe("Shop by collection tiles", () => {
       assert.ok(Date.now() - t0 < 1500);
     });
   });
+  it("admin session keeps the account-owner flag from the live API", async () => {
+    const { normalizeAdminSession } = await import("../src/lib/api/normalize");
+    const s = normalizeAdminSession({ staff: { id: "s1", name: "Builder", email: "foluceen@gmail.com", role: "owner", status: "active", isAccountOwner: true }, permissions: ["*"] }) as { staff: { isAccountOwner?: boolean } };
+    assert.equal(s.staff.isAccountOwner, true);
+    const t = normalizeAdminSession({ staff: { id: "s2", name: "Client", email: "c@x.co", role: "owner", status: "active", isAccountOwner: false }, permissions: ["*"] }) as { staff: { isAccountOwner?: boolean } };
+    assert.equal(t.staff.isAccountOwner, false);
+  });
 });

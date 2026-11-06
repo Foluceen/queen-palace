@@ -33,6 +33,7 @@ import type {
   Review,
   SavedAddress,
   ShippingRate,
+  Staff,
   Variant,
 } from "@/lib/types";
 import { getDb, newId, type MockCart, type MockCustomerAccount, type MockDb } from "./db";
@@ -526,6 +527,13 @@ function parseProductQuery(q: Record<string, unknown> | undefined): ProductQuery
     maxPrice: q?.maxPrice !== undefined && q.maxPrice !== "" ? num(q.maxPrice, 0) : undefined,
     inStock: bool(q?.inStock),
   };
+}
+
+/** Mirrors the live API's account-owner rules (the server is the real security boundary). */
+const isOwnerRoleId = (db: MockDb, roleId: string | undefined) => !!roleId && (roleId === "owner" || db.roles.find((r) => r.id === roleId)?.system === true);
+function guardOwnerRules(db: MockDb, actor: Staff, target: Staff, newRoleId?: string) {
+  if (target.isAccountOwner) fail(403, "account_owner_protected", "The account owner can't be suspended, removed or changed.");
+  if ((isOwnerRoleId(db, target.roleId) || isOwnerRoleId(db, newRoleId)) && !actor.isAccountOwner) fail(403, "owner_management_forbidden", "Only the account owner can add or manage Owners.");
 }
 
 export const handlers: Handlers = {
@@ -1495,7 +1503,8 @@ export const handlers: Handlers = {
     return db.staff;
   },
   adminInviteStaff: ({ body }, ctx, db) => {
-    requirePerm(db, ctx, "staff:manage");
+    const inviter = requirePerm(db, ctx, "staff:manage");
+    if (isOwnerRoleId(db, body.roleId) && !inviter.staff.isAccountOwner) fail(403, "owner_management_forbidden", "Only the account owner can add or manage Owners.");
     const email = body.email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(email)) fail(422, "validation_failed", "Enter a valid email.", { email: "Enter a valid email." });
     if (db.staff.some((s) => s.email === email)) fail(409, "exists", "That person already has a staff account.");
@@ -1507,8 +1516,9 @@ export const handlers: Handlers = {
     return { ...s, invitation: { token, expiresAt: new Date(db.staffInvites[token]!.expiresAt).toISOString() } };
   },
   adminReissueStaffInvite: ({ params }, ctx, db) => {
-    requirePerm(db, ctx, "staff:manage");
+    const me = requirePerm(db, ctx, "staff:manage");
     const s = db.staff.find((x) => x.id === params.id) ?? fail(404, "not_found", "Staff member not found.");
+    guardOwnerRules(db, me.staff, s);
     if (s.status !== "invited") fail(409, "already_active", "This person has already set their password. They can sign in.");
     for (const [t, inv] of Object.entries(db.staffInvites)) if (inv.email === s.email) delete db.staffInvites[t];
     const token = `inv_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -1528,6 +1538,7 @@ export const handlers: Handlers = {
   adminUpdateStaff: ({ params, body }, ctx, db) => {
     const me = requirePerm(db, ctx, "staff:manage");
     const s = db.staff.find((x) => x.id === params.id) ?? fail(404, "not_found", "Staff member not found.");
+    guardOwnerRules(db, me.staff, s, body.roleId);
     if (s.id === me.staff.id && (body.status === "suspended" || (body.roleId && body.roleId !== s.roleId))) fail(409, "self_lockout", "You can't change your own role or suspend yourself.");
     Object.assign(s, body);
     return s;
@@ -1535,6 +1546,8 @@ export const handlers: Handlers = {
   adminRemoveStaff: ({ params }, ctx, db) => {
     const me = requirePerm(db, ctx, "staff:manage");
     if (params.id === me.staff.id) fail(409, "self_lockout", "You can't remove yourself.");
+    const target = db.staff.find((x) => x.id === params.id) ?? fail(404, "not_found", "Staff member not found.");
+    guardOwnerRules(db, me.staff, target);
     db.staff = db.staff.filter((s) => s.id !== params.id);
     return { ok: true };
   },

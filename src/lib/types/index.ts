@@ -919,6 +919,8 @@ export interface Staff {
   roleId: ID;
   status: "active" | "invited" | "suspended";
   lastActiveAt: ISODate | null;
+  /** The one protected account (like Shopify's store owner): nobody can suspend, remove or demote it. */
+  isAccountOwner?: boolean;
 }
 
 /** One-time link for a new staff member to set their password (valid for 7 days). */
