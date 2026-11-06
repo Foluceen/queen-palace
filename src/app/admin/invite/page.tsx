@@ -21,9 +21,22 @@ export default function AcceptInvitePage() {
   const [done, setDone] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = new URLSearchParams(window.location.hash.slice(1)).get("token") ?? "";
-    setToken(t);
-    if (t) window.history.replaceState(null, "", window.location.pathname);
+    // Read the token now and whenever another invite link is opened in this same tab (only the
+    // #fragment changes then, so the page doesn't reload).
+    const read = () => {
+      const t = new URLSearchParams(window.location.hash.slice(1)).get("token");
+      if (t === null) {
+        setToken((cur) => cur ?? "");
+        return;
+      }
+      setToken(t);
+      setError(null);
+      setDone(null);
+      window.history.replaceState(null, "", window.location.pathname);
+    };
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
   }, []);
 
   return (
@@ -40,7 +53,11 @@ export default function AcceptInvitePage() {
             const res = await api().call("acceptStaffInvite", { body: { token: token ?? "", password } }, { skipValidation: true });
             setDone(res.email ?? "");
           } catch (err) {
-            setError(err instanceof ApiError && (err.code === "invalid_invitation" || err.status === 400) ? "This invite link is invalid, already used or expired. Ask the store owner for a new one." : errorMessage(err));
+            if (err instanceof ApiError && err.code === "validation_error") {
+              setError("This link looks incomplete. Open the whole link exactly as it was sent, or ask the store owner for a new one.");
+            } else if (err instanceof ApiError && (err.code === "invalid_invitation" || err.status === 400)) {
+              setError("This invite link has already been used or has expired. If you already set your password, sign in below. If not, ask the store owner for a new invite link.");
+            } else setError(errorMessage(err));
           } finally {
             setBusy(false);
           }
@@ -77,6 +94,11 @@ export default function AcceptInvitePage() {
               {busy ? <span className="spinner" aria-hidden /> : null}
               Save password
             </button>
+            {error ? (
+              <Link href="/admin/login" className="btn btn--ghost btn--block">
+                Go to sign in
+              </Link>
+            ) : null}
           </>
         )}
       </form>

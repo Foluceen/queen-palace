@@ -231,6 +231,8 @@ export interface Contract {
   acceptStaffInvite: Endpoint<undefined, undefined, { token: string; password: string }, { ok: true; email?: string }>;
   adminUpdateStaff: Endpoint<Id, undefined, Partial<Pick<Staff, "roleId" | "status" | "name">>, Staff>;
   adminRemoveStaff: Endpoint<Id, undefined, undefined, Ok>;
+  /** New one-time link for someone who hasn't set their password yet; older links stop working. */
+  adminReissueStaffInvite: Endpoint<Id, undefined, undefined, { invitation: StaffInvitation }>;
   adminListRoles: Endpoint<undefined, undefined, undefined, Role[]>;
   adminSaveRole: Endpoint<undefined, undefined, Omit<Role, "id" | "system"> & { id?: string }, Role>;
   adminDeleteRole: Endpoint<Id, undefined, undefined, Ok>;
@@ -356,6 +358,7 @@ export const routes: { [K in EndpointName]: { method: HttpMethod; path: string; 
   acceptStaffInvite: { method: "POST", path: "/staff/invitations/accept" },
   adminUpdateStaff: { method: "PATCH", path: "/admin/staff/:id", auth: "admin" },
   adminRemoveStaff: { method: "DELETE", path: "/admin/staff/:id", auth: "admin" },
+  adminReissueStaffInvite: { method: "POST", path: "/admin/staff/:id/invitation", auth: "admin" },
   adminListRoles: { method: "GET", path: "/admin/roles", auth: "admin" },
   adminSaveRole: { method: "PUT", path: "/admin/roles", auth: "admin" },
   adminDeleteRole: { method: "DELETE", path: "/admin/roles/:id", auth: "admin" },

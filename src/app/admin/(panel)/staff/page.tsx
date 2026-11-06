@@ -7,9 +7,9 @@ import { useToast } from "@/components/admin/Toast";
 import { ConfirmButton, LoadError, LoadingRows, PageHeader, Panel, Sheet, StatusBadge } from "@/components/admin/ui";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { api } from "@/lib/api/browser";
-import { errorMessage } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
-import { PERMISSIONS, type Permission, type Role } from "@/lib/types";
+import { PERMISSIONS, type Permission, type Role, type StaffInvitation } from "@/lib/types";
 
 const permissionLabel: Record<Permission, string> = {
   "dashboard:read": "See the dashboard",
@@ -40,6 +40,9 @@ export default function StaffPage() {
   const roles = useResource(() => api().call("adminListRoles"));
   const [invite, setInvite] = useState<{ name: string; email: string; roleId: string } | null>(null);
   const [link, setLink] = useState<{ name: string; email: string; url: string; expiresAt: string } | null>(null);
+  // The token goes in the #fragment: browsers never send it to any server or log.
+  const showLink = (s: { name: string; email: string }, invitation: StaffInvitation) =>
+    setLink({ name: s.name || s.email, email: s.email, url: `${window.location.origin}/admin/invite#token=${encodeURIComponent(invitation.token)}`, expiresAt: invitation.expiresAt });
   const [role, setRole] = useState<RoleDraft | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -117,6 +120,23 @@ export default function StaffPage() {
                           <td>
                             {!me ? (
                               <div className="cluster" style={{ ["--cluster" as string]: "6px" }}>
+                                {p.status === "invited" ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn--sm"
+                                    onClick={async () => {
+                                      try {
+                                        const { invitation } = await api().call("adminReissueStaffInvite", { params: { id: p.id } });
+                                        showLink(p, invitation);
+                                      } catch (err) {
+                                        const missing = err instanceof ApiError && (err.status === 405 || err.status === 501 || (err.status === 404 && err.code !== "not_found"));
+                                        toast(missing ? "New invite links need a server update. Ask Hermes to add it." : errorMessage(err), "danger");
+                                      }
+                                    }}
+                                  >
+                                    New invite link
+                                  </button>
+                                ) : null}
                                 <button
                                   type="button"
                                   className="btn btn--ghost btn--sm"
@@ -212,10 +232,8 @@ export default function StaffPage() {
                 const { invitation, ...s } = await api().call("adminInviteStaff", { body: invite });
                 staff.setData((list) => [...(list ?? []), s]);
                 setInvite(null);
-                if (invitation?.token) {
-                  // The token goes in the #fragment: browsers never send it to any server or log.
-                  setLink({ name: s.name || s.email, email: s.email, url: `${window.location.origin}/admin/invite#token=${encodeURIComponent(invitation.token)}`, expiresAt: invitation.expiresAt });
-                } else toast(`${s.email} invited.`);
+                if (invitation?.token) showLink(s, invitation);
+                else toast(`${s.email} invited.`);
               } catch (err) {
                 toast(errorMessage(err), "danger");
               } finally {
@@ -272,7 +290,7 @@ export default function StaffPage() {
               </a>
             </div>
             <p className="small muted">
-              The link works once and expires {new Date(link.expiresAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", timeZone: "Africa/Lagos" })}. Anyone with it can set the password, so only send it to {link.name}. It won&apos;t be shown again: if it&apos;s lost, remove this person and invite them again.
+              The link works once and expires {new Date(link.expiresAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", timeZone: "Africa/Lagos" })}. Anyone with it can set the password, so only send it to {link.name}. It won&apos;t be shown again: if it&apos;s lost or doesn&apos;t work, use <strong>New invite link</strong> next to their name.
             </p>
           </div>
         ) : null}

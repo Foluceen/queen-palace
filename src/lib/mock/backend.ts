@@ -1506,6 +1506,15 @@ export const handlers: Handlers = {
     db.staffInvites[token] = { email, expiresAt: Date.now() + 7 * 86400_000 };
     return { ...s, invitation: { token, expiresAt: new Date(db.staffInvites[token]!.expiresAt).toISOString() } };
   },
+  adminReissueStaffInvite: ({ params }, ctx, db) => {
+    requirePerm(db, ctx, "staff:manage");
+    const s = db.staff.find((x) => x.id === params.id) ?? fail(404, "not_found", "Staff member not found.");
+    if (s.status !== "invited") fail(409, "already_active", "This person has already set their password. They can sign in.");
+    for (const [t, inv] of Object.entries(db.staffInvites)) if (inv.email === s.email) delete db.staffInvites[t];
+    const token = `inv_${crypto.randomUUID().replace(/-/g, "")}`;
+    db.staffInvites[token] = { email: s.email, expiresAt: Date.now() + 7 * 86400_000 };
+    return { invitation: { token, expiresAt: new Date(db.staffInvites[token]!.expiresAt).toISOString() } };
+  },
   acceptStaffInvite: ({ body }, _ctx, db) => {
     const inv = db.staffInvites[body.token];
     if (!inv || inv.expiresAt < Date.now()) fail(400, "invalid_invitation", "This invite link is invalid or has expired. Ask for a new one.");
