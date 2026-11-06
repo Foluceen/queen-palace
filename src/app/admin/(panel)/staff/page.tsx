@@ -39,14 +39,18 @@ export default function StaffPage() {
   const staff = useResource(() => api().call("adminListStaff"));
   const roles = useResource(() => api().call("adminListRoles"));
   const [invite, setInvite] = useState<{ name: string; email: string; roleId: string } | null>(null);
-  const [link, setLink] = useState<{ name: string; email: string; url: string; expiresAt: string } | null>(null);
+  const [link, setLink] = useState<{ name: string; email: string; url: string; expiresAt: string; emailed: boolean } | null>(null);
   // The token goes in the #fragment: browsers never send it to any server or log.
   const showLink = (s: { name: string; email: string }, invitation: StaffInvitation) =>
-    setLink({ name: s.name || s.email, email: s.email, url: `${window.location.origin}/admin/invite#token=${encodeURIComponent(invitation.token)}`, expiresAt: invitation.expiresAt });
+    setLink({ name: s.name || s.email, email: s.email, url: `${window.location.origin}/admin/invite#token=${encodeURIComponent(invitation.token)}`, expiresAt: invitation.expiresAt, emailed: invitation.emailed === true });
   const [role, setRole] = useState<RoleDraft | null>(null);
   const [busy, setBusy] = useState(false);
 
   const roleName = (id: string) => roles.data?.find((r) => r.id === id)?.name ?? "Unknown role";
+  // Default new people to a role that can actually do something (a role with no permissions
+  // would let them sign in and see nothing).
+  const defaultRoleId = () => (roles.data?.find((r) => !r.system && r.permissions.length > 1) ?? roles.data?.find((r) => r.system) ?? roles.data?.[0])?.id ?? "";
+  const emptyRole = (id: string) => (roles.data?.find((r) => r.id === id)?.permissions.length ?? 1) <= 1;
 
   return (
     <RequirePermission permission="staff:manage">
@@ -54,7 +58,7 @@ export default function StaffPage() {
         title="Staff"
         description="People who can sign in here, and what each one is allowed to do."
         actions={
-          <button type="button" className="btn" onClick={() => setInvite({ name: "", email: "", roleId: roles.data?.find((r) => !r.system)?.id ?? "" })}>
+          <button type="button" className="btn" onClick={() => setInvite({ name: "", email: "", roleId: defaultRoleId() })}>
             Invite staff
           </button>
         }
@@ -161,8 +165,12 @@ export default function StaffPage() {
                                   onConfirm={async () => {
                                     try {
                                       await api().call("adminRemoveStaff", { params: { id: p.id } });
-                                      staff.setData((list) => list?.filter((x) => x.id !== p.id) ?? null);
-                                      toast(`${p.name} removed`);
+                                      // Show what the server really did: reload rather than assume.
+                                      const fresh = await api().call("adminListStaff");
+                                      staff.setData(fresh);
+                                      const still = fresh.find((x) => x.id === p.id);
+                                      if (still) toast(`${p.name} can no longer sign in (status: ${still.status}). Deleting them for good needs a server update; ask Hermes.`, "danger");
+                                      else toast(`${p.name} removed`);
                                     } catch (err) {
                                       toast(errorMessage(err), "danger");
                                     }
@@ -230,12 +238,20 @@ export default function StaffPage() {
               setBusy(true);
               try {
                 const { invitation, ...s } = await api().call("adminInviteStaff", { body: invite });
-                staff.setData((list) => [...(list ?? []), s]);
+                staff.setData((list) => [...(list ?? []).filter((x) => x.id !== s.id), s]);
                 setInvite(null);
                 if (invitation?.token) showLink(s, invitation);
-                else toast(`${s.email} invited.`);
+                else toast(invitation?.emailed ? `Invite emailed to ${s.email}` : `${s.email} invited.`);
               } catch (err) {
-                toast(errorMessage(err), "danger");
+                const existing = staff.data?.find((x) => x.email.toLowerCase() === invite.email.trim().toLowerCase());
+                toast(
+                  err instanceof ApiError && err.status === 409
+                    ? existing?.status === "invited"
+                      ? `${invite.email} is already invited. Use "New invite link" next to their name.`
+                      : `${invite.email} already has an account here (${existing?.status ?? "existing"}). Removing them for good needs a server update; ask Hermes.`
+                    : errorMessage(err),
+                  "danger",
+                );
               } finally {
                 setBusy(false);
               }
@@ -253,9 +269,14 @@ export default function StaffPage() {
               {roles.data?.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
+                  {r.permissions.length <= 1 ? " (can't see anything yet)" : ""}
                 </option>
               ))}
             </SelectField>
+            {emptyRole(invite.roleId) ? (
+              <p className="notice notice--warning small">This role has no permissions yet, so this person would sign in and see nothing. Choose Owner, or edit the role first.</p>
+            ) : null}
+            <p className="small muted">We&apos;ll email them a link to set their own password. You&apos;ll also get the link to send yourself.</p>
           </div>
         ) : null}
       </Sheet>
@@ -263,8 +284,15 @@ export default function StaffPage() {
       <Sheet open={!!link} onClose={() => setLink(null)} title="Send the invite link">
         {link ? (
           <div className="astack">
+            {link.emailed ? (
+              <p className="notice notice--success">
+                Invite emailed to <strong>{link.email}</strong>. They open the email and set their own password.
+              </p>
+            ) : (
+              <p className="notice notice--warning">Invite emails aren&apos;t switched on yet, so send this link yourself.</p>
+            )}
             <p>
-              <strong>{link.name}</strong> ({link.email}) can now set their own password with this link. Send it to them privately, for example on WhatsApp.
+              <strong>{link.name}</strong> ({link.email}) can set their own password with this link. If you send it yourself, send it privately, for example on WhatsApp.
             </p>
             <label className="field">
               <span className="field__label">Invite link</span>

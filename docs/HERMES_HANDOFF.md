@@ -318,3 +318,15 @@ An invite for the owner's client failed ("invalid or expired"). The email can't 
 - Audit-log who reissued it.
 
 Also: the accept page now reports `validation_error` and `invalid_invitation` separately, so a short/garbled token and an expired/used token show different messages.
+
+
+## Staff accounts like Shopify: delete, re-invite, invite emails (6 Nov 2026) — REPLACES the section above
+
+The owner hit three server gaps. The admin is ready for all of them now.
+
+1. **Real delete.** `DELETE /v1/admin/staff/:id` currently only sets `status='suspended'`, so the person comes back and their email can never be invited again. Make it delete the staff row (and their invitations and sessions). Keep audit/order history by setting any staff foreign keys to NULL (or store the name in the log). Refuse: deleting yourself (403), and deleting the last active Owner (409 `last_owner`). Return `{ ok: true }`. Suspend stays available via `PATCH status`.
+2. **Re-invite the same email.** `POST /v1/admin/staff`: if the email belongs to someone who never set a password (status `invited`, or `suspended` without having accepted), reuse that row: update name/role, expire old invitations, issue a new token, return 201 as normal. Only return 409 `email_exists` for people who have set a password.
+3. **New link.** `POST /v1/admin/staff/:id/invitation` → 201 `{ invitation: { token, expiresAt, emailed } }` for status `invited` (409 `already_active` otherwise). Expire older invitations.
+4. **Invite email (Brevo).** On invite and on new link, email the person (from orders@queenluxuryhair.store, reply-to the owner): "You've been invited to manage Queen Luxury Hair", with a button to `https://www.queenluxuryhair.store/admin/invite#token=<token>` (keep the token after `#`), and "This link works once and expires in 7 days." Return `invitation.emailed: true` when Brevo accepts it (false on failure; never fail the invite because email failed). The admin then shows "Invite emailed to …" and still offers the link as a backup.
+5. **Reactivate.** `PATCH status: 'active'` on someone who never set a password should put them back to `invited` (or refuse), not `active`, since they have no usable password.
+6. **Current stuck account.** omoboladefadipe@gmail.com is `suspended` and never set a password. After (1)/(2) ship, the owner can delete or re-invite her from the admin. If you need to unblock her sooner, set her back to `invited` and issue a new invitation.

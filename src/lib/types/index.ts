@@ -925,6 +925,8 @@ export interface Staff {
 export interface StaffInvitation {
   token: string;
   expiresAt: ISODate;
+  /** True when the backend emailed the link to the person. */
+  emailed?: boolean;
 }
 
 export interface AdminSession {
