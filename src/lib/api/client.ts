@@ -7,7 +7,8 @@
  * Behaviour, identical in mock and live mode:
  * - Paths and methods come only from `routes` in contract.ts.
  * - Cookies are sent (`credentials: "include"`); session cookies are httpOnly and never read here.
- * - Each request has a timeout. Safe GETs are retried once on network errors and 502/503/504.
+ * - Each request has a timeout. Safe GETs are retried once on network errors, 502/503/504 and
+ *   429 (waiting for Retry-After, capped). Writes (POST/PUT/PATCH/DELETE) are never retried.
  *   Mutations are never retried automatically (checkout uses its own idempotency key).
  * - Errors become `ApiError` with the backend's `{ error: { code, message, fields } }`.
  * - Responses for key endpoints are shape-checked (validate.ts). A mismatch throws
@@ -23,13 +24,16 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly fields?: Record<string, string>;
+  /** For 429: how long the server asked us to wait (from Retry-After), in ms. */
+  readonly retryAfterMs?: number;
 
-  constructor(status: number, code: string, message: string, fields?: Record<string, string>) {
+  constructor(status: number, code: string, message: string, fields?: Record<string, string>, retryAfterMs?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.fields = fields;
+    this.retryAfterMs = retryAfterMs;
   }
 
   get isNotFound() {
@@ -57,7 +61,7 @@ export interface ClientOptions {
   /** Forwarded headers, e.g. the cookie header from a server component request. */
   headers?: Record<string, string>;
   timeoutMs?: number;
-  /** Automatic retries for GET requests on network errors and 502/503/504 (default 1). */
+  /** Automatic retries for GET requests on network errors, 502/503/504 and 429 (default 1). */
   retries?: number;
   /** Called when an authenticated endpoint answers 401 or 403. */
   onAuthError?: (info: { status: 401 | 403; scope: "customer" | "admin"; endpoint: EndpointName }) => void;
@@ -67,6 +71,25 @@ export interface ClientOptions {
 
 const RETRYABLE_STATUS = new Set([502, 503, 504]);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Longest we wait before retrying a rate-limited GET, so the retry fits inside the request timeouts. */
+export const MAX_RATE_LIMIT_WAIT_MS = 2000;
+/** Wait used when a 429 has no usable Retry-After. */
+export const DEFAULT_RATE_LIMIT_WAIT_MS = 500;
+
+/**
+ * Reads a Retry-After header (seconds, or an HTTP date) as milliseconds. Returns undefined when
+ * missing or unreadable; never negative.
+ */
+export function parseRetryAfter(value: string | null | undefined, now = Date.now()): number | undefined {
+  if (!value) return undefined;
+  const v = value.trim();
+  if (/^\d+(\.\d+)?$/.test(v)) return Math.round(Number(v) * 1000);
+  const at = Date.parse(v);
+  return Number.isNaN(at) ? undefined : Math.max(0, at - now);
+}
+
+/** How long to wait before the single retry of a rate-limited GET. */
+export const rateLimitWait = (retryAfterMs: number | undefined) => Math.min(MAX_RATE_LIMIT_WAIT_MS, retryAfterMs ?? DEFAULT_RATE_LIMIT_WAIT_MS);
 
 export function buildPath(template: string, params: Record<string, string> | undefined): string {
   return template.replace(/:([A-Za-z]+)/g, (_, key: string) => {
@@ -134,6 +157,10 @@ export function createApiClient(baseUrl: string, defaults: ClientOptions = {}) {
         (options.onAuthError ?? defaults.onAuthError)?.({ status: res.status, scope: route.auth, endpoint: name });
       }
       const e = readErrorBody(parsed ? data : undefined);
+      if (res.status === 429) {
+        // Always the same code, whatever the backend calls it, so the UI can recognise it.
+        throw new ApiError(429, "rate_limited", e.message ?? defaultMessage(429), e.fields, parseRetryAfter(res.headers.get("Retry-After")));
+      }
       throw new ApiError(res.status, e.code ?? defaultCode(res.status), e.message ?? defaultMessage(res.status), e.fields);
     }
     if (!parsed) throw new ApiError(502, "invalid_response", "The store returned an unexpected response.", { _contract: `non-JSON body (${res.headers.get("content-type") ?? "no content type"})` });
@@ -156,8 +183,15 @@ export function createApiClient(baseUrl: string, defaults: ClientOptions = {}) {
       try {
         return await once<K>(name, req, options);
       } catch (err) {
-        const retryable = err instanceof ApiError && (err.status === 0 || RETRYABLE_STATUS.has(err.status)) && err.code !== "contract_mismatch";
-        if (!retryable || attempt >= retries) throw err;
+        if (!(err instanceof ApiError) || attempt >= retries) throw err;
+        if (err.status === 429) {
+          // Rate limited: one retry at most, after the wait the server asked for (capped).
+          if (attempt >= 1) throw err;
+          await sleep(rateLimitWait(err.retryAfterMs));
+          continue;
+        }
+        const retryable = (err.status === 0 || RETRYABLE_STATUS.has(err.status)) && err.code !== "contract_mismatch";
+        if (!retryable) throw err;
         await sleep(300 * (attempt + 1));
       }
     }

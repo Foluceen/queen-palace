@@ -567,4 +567,48 @@ describe("Shop by collection tiles", () => {
     assert.equal(r.roleId, "owner");
     assert.equal(r.invitation?.token.length, 40);
   });
+  describe("rate limiting (429)", () => {
+    const limited = (retryAfter?: string) => new Response(JSON.stringify({ error: { code: "RATE_LIMITED", message: "Slow down" } }), { status: 429, headers: { "Content-Type": "application/json", ...(retryAfter !== undefined ? { "Retry-After": retryAfter } : {}) } });
+
+    it("retries a GET once after a 429 and succeeds", async () => {
+      stub(limited("0"), json(200, goodCart));
+      const cart = await createApiClient("https://x.test").call("getCart", { params: { cartId: "c1" } });
+      assert.equal(cart.id, "c1");
+      assert.equal(calls.length, 2);
+    });
+
+    it("gives up after one retry and surfaces 429 rate_limited", async () => {
+      stub(limited("0"), limited("0"), json(200, goodCart));
+      await assert.rejects(createApiClient("https://x.test").call("getCart", { params: { cartId: "c1" } }), (e: unknown) => e instanceof ApiError && e.status === 429 && e.code === "rate_limited");
+      assert.equal(calls.length, 2);
+    });
+
+    it("never retries writes on 429", async () => {
+      stub(limited("0"), json(200, goodCart));
+      await assert.rejects(createApiClient("https://x.test").call("createCart", { body: { lines: [] } }), (e: unknown) => e instanceof ApiError && e.status === 429);
+      assert.equal(calls.length, 1);
+    });
+
+    it("reads Retry-After and caps the wait; bad or missing values use a short default", async () => {
+      const { parseRetryAfter, rateLimitWait, MAX_RATE_LIMIT_WAIT_MS, DEFAULT_RATE_LIMIT_WAIT_MS } = await import("../src/lib/api/client");
+      assert.equal(parseRetryAfter("1"), 1000);
+      assert.equal(parseRetryAfter("0.5"), 500);
+      assert.equal(parseRetryAfter("soon"), undefined);
+      assert.equal(parseRetryAfter(null), undefined);
+      const now = Date.parse("2026-11-06T00:00:00Z");
+      assert.equal(parseRetryAfter("Fri, 06 Nov 2026 00:00:03 GMT", now), 3000);
+      assert.equal(parseRetryAfter("Thu, 05 Nov 2026 23:59:00 GMT", now), 0);
+      assert.equal(rateLimitWait(120_000), MAX_RATE_LIMIT_WAIT_MS);
+      assert.equal(rateLimitWait(undefined), DEFAULT_RATE_LIMIT_WAIT_MS);
+      assert.equal(rateLimitWait(800), 800);
+    });
+
+    it("an invalid Retry-After still retries once (after the short default wait)", async () => {
+      stub(limited("not-a-number"), json(200, goodCart));
+      const t0 = Date.now();
+      const cart = await createApiClient("https://x.test").call("getCart", { params: { cartId: "c1" } });
+      assert.equal(cart.id, "c1");
+      assert.ok(Date.now() - t0 < 1500);
+    });
+  });
 });
