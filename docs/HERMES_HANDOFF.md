@@ -307,3 +307,14 @@ Backend needed:
 - `POST /checkout`: accept `shippingRateId: "park_driver"` (state-independent), `shipping_kobo = 0`, total = items − discount. Store the label "Sent through a park or driver". Reject any other rate id with 422 `invalid_shipping` (or ignore it), but never require shipping zones.
 - `fix/shipping-rates-stock-release`: keep the stock release for abandoned/failed payments; drop the requirement that a zone matches (with no zones it currently blocks every checkout).
 - Emails (Brevo): show delivery as "Pay the driver on arrival", and include the customer's phone in the owner's new-order alert.
+
+## Staff invites: new link for someone who hasn't set a password (6 Nov 2026)
+
+An invite for the owner's client failed ("invalid or expired"). The email can't be invited again (staff.email is unique and DELETE only suspends), and there's no way to issue a fresh link. The admin now has a "New invite link" button for staff with status `invited`; it needs:
+
+`POST /v1/admin/staff/:id/invitation` (admin session, same permission as inviting) → `201 { invitation: { token, expiresAt } }`
+- Only for staff with status `invited` → otherwise `409 { code: "already_active" }`. Unknown id → `404 not_found`.
+- In one transaction: mark that staff member's unaccepted invitations as expired (or delete them), insert a new `staff_invitations` row with `hash(token())`, 7-day expiry. Return the raw token once; never log it.
+- Audit-log who reissued it.
+
+Also: the accept page now reports `validation_error` and `invalid_invitation` separately, so a short/garbled token and an expired/used token show different messages.
