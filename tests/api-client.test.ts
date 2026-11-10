@@ -215,7 +215,7 @@ describe("settings adapter", () => {
     // Empty contact fields fall back to the details the owner gave us (admin values win).
     assert.equal(s.contactEmail, "omoboladefadipe@gmail.com");
     assert.equal(s.phone, "09019844327");
-    assert.equal(s.whatsapp, null);
+    assert.equal(s.whatsapp, "2349019844327");
     assert.equal(s.openingHours, null);
     assert.deepEqual(s.social, { instagram: "https://www.instagram.com/queenluxuryhair001/", tiktok: "https://www.tiktok.com/@queenpalace234", facebook: null });
   });
@@ -617,5 +617,14 @@ describe("Shop by collection tiles", () => {
     assert.equal(s.staff.isAccountOwner, true);
     const t = normalizeAdminSession({ staff: { id: "s2", name: "Client", email: "c@x.co", role: "owner", status: "active", isAccountOwner: false }, permissions: ["*"] }) as { staff: { isAccountOwner?: boolean } };
     assert.equal(t.staff.isAccountOwner, false);
+  });
+  it("store distance: Osogbo to the shop is about 28 km, under an hour by car", async () => {
+    const { haversineKm, roughDriveMinutes, formatDuration } = await import("../src/lib/distance");
+    const km = haversineKm({ lat: 7.7827, lng: 4.5418 }, { lat: 7.631163418406907, lng: 4.74636153085107 });
+    assert.ok(km > 27 && km < 29, String(km));
+    assert.ok(roughDriveMinutes(km) < 60);
+    assert.equal(roughDriveMinutes(0.2), 3);
+    assert.equal(formatDuration(45), "45 min");
+    assert.equal(formatDuration(130), "2 h 10 min");
   });
 });

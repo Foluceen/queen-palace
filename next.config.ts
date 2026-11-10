@@ -72,7 +72,8 @@ function apiOrigin(): string | null {
     return null;
   }
 }
-const imageSources = ["'self'", "data:", "blob:", ...mediaHosts.map((h) => `https://${h}`)];
+// Map tiles for the "Find the Queen" section (OpenStreetMap; attribution shown on the map).
+const imageSources = ["'self'", "data:", "blob:", "https://tile.openstreetmap.org", ...mediaHosts.map((h) => `https://${h}`)];
 const connectSources = ["'self'", ...(apiOrigin() ? [apiOrigin() as string] : [])];
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -94,7 +95,7 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 

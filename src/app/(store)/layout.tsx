@@ -1,3 +1,5 @@
+// Map styles for the "Find the Queen" section (the map script itself loads only when needed).
+import "leaflet/dist/leaflet.css";
 import { ModeBanner } from "@/components/ModeBanner";
 import { BrandStyle } from "@/components/store/BrandStyle";
 import { CartDrawer } from "@/components/store/cart/CartDrawer";

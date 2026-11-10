@@ -1,4 +1,5 @@
 import { LoopVideo } from "./LoopVideo";
+import { FindTheQueen } from "@/components/store/visit/FindTheQueen";
 import Image from "next/image";
 import { Fragment } from "react";
 import Link from "next/link";
@@ -436,22 +437,7 @@ export function LuxVisit({ settings }: { settings: StoreSettings }) {
       <div className="container">
         <Reveal className="lux-visit">
           <LookSpotlight looks={VISIT_LOOKS} portrait />
-          <div className="lux-visit__copy">
-            <p className="lux-kicker">Visit the store</p>
-            <h2 id="visit-title" className="lux-visit__title">
-              Try it on in <span className="script">person</span>
-            </h2>
-            <address className="lux-visit__address">{settings.address}</address>
-            {settings.openingHours ? <p className="muted">{settings.openingHours}</p> : null}
-            <div className="lux-arriving__ctas">
-              <a href={mapsHref(settings.address)} className="btn btn--blush" target="_blank" rel="noopener noreferrer">
-                Get directions
-              </a>
-              <Link href="/contact" className="btn btn--ghost lux-btn-ghost">
-                Contact us
-              </Link>
-            </div>
-          </div>
+          <FindTheQueen settings={settings} />
         </Reveal>
       </div>
     </section>

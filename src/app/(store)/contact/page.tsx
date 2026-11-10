@@ -1,7 +1,8 @@
+import { FindTheQueen } from "@/components/store/visit/FindTheQueen";
 import type { Metadata } from "next";
 import { ContactForm } from "@/components/store/ContactForm";
 import { Icon } from "@/components/ui/Icon";
-import { mailHref, mapsHref, telHref, whatsappHref } from "@/lib/contact";
+import { mailHref, telHref, whatsappHref } from "@/lib/contact";
 import { getSettings } from "@/lib/data/storefront";
 
 export const metadata: Metadata = { title: "Contact us", description: "Questions about an order, a texture or a style? Send us a message or visit the store in Ijoka, Ilesha." };
@@ -44,13 +45,8 @@ export default async function ContactPage() {
             </>
           ) : null}
           <h2 className="h3">Visit the store</h2>
-          <p>{s.address}</p>
           {s.openingHours ? <p className="muted">{s.openingHours}</p> : null}
-          <p>
-            <a href={mapsHref(s.address)} target="_blank" rel="noopener noreferrer" className="btn btn--ghost">
-              <Icon name="mapPin" size={18} /> Get directions
-            </a>
-          </p>
+          {s.address ? <FindTheQueen settings={s} compact /> : null}
         </aside>
       </div>
     </div>

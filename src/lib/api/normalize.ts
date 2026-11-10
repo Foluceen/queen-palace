@@ -50,7 +50,7 @@ export function normalizeSettings(raw: unknown): unknown {
     logoDark: (raw.logoDark as StoreSettings["logoDark"]) ?? null,
     contactEmail: str(raw.contactEmail) ?? str(raw.email) ?? DEFAULT_CONTACT.email,
     phone: str(raw.phone) ?? DEFAULT_CONTACT.phone,
-    whatsapp: str(raw.whatsapp),
+    whatsapp: str(raw.whatsapp) ?? DEFAULT_CONTACT.whatsapp,
     address,
     openingHours: hoursText(raw.openingHours ?? raw.hours),
     currency: (str(raw.currency) ?? "NGN") as StoreSettings["currency"],

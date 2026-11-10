@@ -5142,3 +5142,242 @@ html[data-shatter="1"] .lux-ed.is-formed .lux-ed__sweep {
     width: 120px;
   }
 }
+
+/* ---------------------------------------------------------------- Find the Queen (store map) */
+/* On the homepage the map and panel join the visit card's grid: photos | panel, then the map
+   across the full width underneath. */
+.lux-visit .ftq {
+  display: contents;
+}
+.lux-visit {
+  align-items: stretch;
+}
+.lux-visit .ftq__panel {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.lux-visit .ftq__map-wrap {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  aspect-ratio: 21 / 9;
+}
+.ftq--compact {
+  display: grid;
+  gap: 16px;
+}
+.ftq--compact .ftq__map-wrap {
+  order: 2;
+  aspect-ratio: 4 / 3;
+}
+.ftq__map-wrap {
+  position: relative;
+  overflow: hidden;
+  min-height: 260px;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--blush) 35%, var(--line));
+  background: #0d0d10;
+  box-shadow: 0 30px 80px -40px color-mix(in srgb, var(--blush) 60%, transparent);
+  isolation: isolate;
+}
+.ftq__map {
+  position: absolute;
+  inset: 0;
+  background: #0d0d10;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.ftq__map-wrap.is-ready .ftq__map {
+  opacity: 1;
+}
+/* Dark, on-brand tiles from the standard OpenStreetMap style. */
+.ftq__tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(1.35) contrast(1.25) saturate(0.4);
+}
+.ftq__map-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 0.95rem;
+}
+/* Soft vignette so the map melts into the card. */
+.ftq__map-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  background: radial-gradient(130% 100% at 50% 50%, transparent 62%, rgb(0 0 0 / 0.45));
+}
+.ftq__open {
+  position: absolute;
+  z-index: 500;
+  right: 12px;
+  bottom: 28px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.72);
+  border: 1px solid var(--line);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  backdrop-filter: blur(6px);
+}
+.ftq__open:hover {
+  border-color: var(--blush);
+}
+.ftq__pin {
+  position: relative;
+}
+.ftq__crown {
+  position: absolute;
+  inset: 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--blush);
+  color: #0b0b0b;
+  border: 2px solid #fff;
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--blush) 70%, transparent);
+}
+.ftq__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--blush) 45%, transparent);
+  animation: ftq-pulse 2.2s ease-out infinite;
+}
+@keyframes ftq-pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.ftq__you {
+  background: #0b0b0b;
+  color: #fff;
+  border: 1px solid var(--blush);
+  font-weight: 600;
+}
+.ftq .leaflet-control-attribution {
+  background: rgb(0 0 0 / 0.6);
+  color: rgb(255 255 255 / 0.7);
+  font-size: 10px;
+}
+.ftq .leaflet-control-attribution a {
+  color: rgb(255 255 255 / 0.85);
+}
+.ftq .leaflet-bar a {
+  background: #111;
+  color: #fff;
+  border-color: var(--line);
+}
+.ftq__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--step-4);
+  font-weight: 500;
+  line-height: 1.05;
+}
+.ftq__title .script {
+  color: var(--blush);
+  font-size: 1.1em;
+}
+.ftq__address {
+  margin: 14px 0 4px;
+  font-style: normal;
+  font-size: 1.05rem;
+  color: var(--text-2);
+}
+.ftq__landmark {
+  margin: 0 0 14px;
+  color: var(--text);
+}
+.ftq__distance {
+  margin: 0 0 16px;
+}
+.ftq__distance p {
+  margin: 0;
+}
+.ftq__howfar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--blush) 70%, transparent);
+  background: color-mix(in srgb, var(--blush) 10%, transparent);
+  color: var(--blush);
+  font-weight: 700;
+  cursor: pointer;
+}
+.ftq__howfar:disabled {
+  opacity: 0.7;
+}
+.ftq__error {
+  color: #ff8fa3;
+  margin-top: 6px !important;
+}
+.ftq__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ftq__coming {
+  display: grid;
+  gap: 2px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--blush) 45%, var(--line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blush) 14%, transparent), transparent);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.25s ease, border-color 0.25s ease;
+}
+.ftq__coming:hover {
+  transform: translateY(-2px);
+  border-color: var(--blush);
+}
+.ftq__coming-title {
+  font-weight: 700;
+  color: var(--blush);
+}
+.ftq__coming .small {
+  color: var(--text-2);
+}
+@media (max-width: 799px) {
+  .lux-visit .ftq__panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .lux-visit .ftq__map-wrap {
+    grid-column: 1;
+    grid-row: auto;
+    aspect-ratio: 4 / 5;
+  }
+  .lux-visit .ftq__actions {
+    justify-content: center;
+  }
+  .lux-visit .ftq__coming {
+    text-align: left;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ftq__pulse {
+    animation: none;
+  }
+}
+/* Tiles still loading show the map's own dark ground, not Leaflet's light grey. */
+.ftq .leaflet-container {
+  background: #0d0d10;
+}
