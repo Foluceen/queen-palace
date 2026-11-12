@@ -222,6 +222,11 @@ export default function OrderDetailPage() {
             {order.note ? <p className="notice small">Message from the customer: {order.note}</p> : null}
           </Panel>
           <Panel title="Payment">
+            {order.refundRequired ? (
+              <p role="alert" className="notice notice--warning small">
+                This order was paid twice on Paystack. Refund the extra payment from your Paystack dashboard, and send the order only once.
+              </p>
+            ) : null}
             <p>{paymentMethodLabel[order.paymentMethod]}</p>
             {order.paymentStatus === "awaiting_transfer" && can("orders:write") ? (
               <form

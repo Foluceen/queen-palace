@@ -489,6 +489,8 @@ export interface OrderSummary {
   accessToken: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  /** Set by the backend when a second successful charge landed on this order and needs refunding. */
+  refundRequired?: boolean;
   fulfillmentStatus: FulfillmentStatus;
   paymentMethod: PaymentMethod;
   email: string;

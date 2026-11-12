@@ -140,6 +140,11 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
       if (err instanceof ApiError) {
         if (err.fields) setFields(err.fields);
         if (err.code === "cart_changed" || err.code === "insufficient_stock") await refresh();
+        if (err.code === "idempotency_in_progress") {
+          // The first request is still creating this order; the same key is kept, so trying again is safe.
+          setSubmitError("We're still setting up your order. Wait a few seconds, then press the button again. It won't create a second order.");
+          return;
+        }
       }
       setSubmitError(errorMessage(err));
     }
