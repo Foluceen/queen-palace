@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { ApiError, buildPath, buildQuery, createApiClient } from "../src/lib/api/client";
 import { emitAuthEvent, onAuthEvent } from "../src/lib/api/auth-events";
-import { paystackOnly, safePaymentRedirect, shouldRotateIdempotencyKey } from "../src/lib/checkout";
+import { checkoutKeyFor, forgetCheckoutKey, paystackOnly, safePaymentRedirect, shouldRotateIdempotencyKey } from "../src/lib/checkout";
 import { safeNext } from "../src/lib/redirect";
 
 type Call = { url: string; init: RequestInit };
@@ -178,6 +178,22 @@ describe("checkout safety", () => {
     assert.equal(shouldRotateIdempotencyKey(new ApiError(429, "rate_limited", "x")), false);
     assert.equal(shouldRotateIdempotencyKey(new ApiError(409, "cart_changed", "x")), true);
     assert.equal(shouldRotateIdempotencyKey(new ApiError(422, "validation_failed", "x")), true);
+    assert.equal(shouldRotateIdempotencyKey(new ApiError(409, "idempotency_in_progress", "x")), false, "the first request is still creating the order");
+  });
+
+  it("keeps one checkout key per bag across reloads, and starts fresh after it is forgotten", () => {
+    const m = new Map<string, string>();
+    const store = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
+    let n = 0;
+    const make = () => `k${++n}`;
+    assert.equal(checkoutKeyFor("cart1", make, store), "k1");
+    assert.equal(checkoutKeyFor("cart1", make, store), "k1", "a reload reuses the same key");
+    assert.equal(checkoutKeyFor("cart2", make, store), "k2", "a different bag gets its own key");
+    forgetCheckoutKey(store);
+    assert.equal(checkoutKeyFor("cart2", make, store), "k3");
+    m.set("qp.checkoutKey", "not json");
+    assert.equal(checkoutKeyFor("cart2", make, store), "k4", "a damaged entry is replaced");
+    assert.equal(checkoutKeyFor("cart9", make, null), "k5", "works without storage");
   });
 });
 

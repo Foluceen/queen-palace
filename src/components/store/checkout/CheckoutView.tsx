@@ -15,7 +15,7 @@ import { api } from "@/lib/api/browser";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { isMockMode } from "@/lib/api/config";
 import { variantLabel } from "@/lib/format";
-import { safePaymentRedirect, shouldRotateIdempotencyKey } from "@/lib/checkout";
+import { browserStore, checkoutKeyFor, forgetCheckoutKey, safePaymentRedirect, shouldRotateIdempotencyKey } from "@/lib/checkout";
 import { PHONE_HINT } from "@/lib/phone";
 import { NIGERIAN_STATES, type Address, type PaymentMethod, type PublicPaymentOptions, type SavedAddress } from "@/lib/types";
 
@@ -41,9 +41,9 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
-  // One key per checkout attempt. Kept across retries of the same attempt (timeouts, 5xx), so the
-  // backend returns the same order instead of creating two; replaced after a definite rejection.
-  const [idempotencyKey, setIdempotencyKey] = useState(newKey);
+  // One key per checkout attempt, saved per bag so it also survives a reload. Kept across retries of
+  // the same attempt (timeouts, 5xx, lost replies), so the backend returns the same order instead of
+  // creating two; replaced only after a definite rejection.
   const submitting = useRef(false);
   const [saved, setSaved] = useState<SavedAddress[]>([]);
   const [signedIn, setSignedIn] = useState(false);
@@ -106,6 +106,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
     setPlacing(true);
     setFields({});
     setSubmitError(null);
+    const idempotencyKey = checkoutKeyFor(cart.id, newKey, browserStore());
     try {
       const result = await api().call("placeOrder", {
         body: {
@@ -118,6 +119,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
           idempotencyKey,
         },
       }, { timeoutMs: 45000 });
+      forgetCheckoutKey(browserStore());
       clear();
       const redirect = safePaymentRedirect(result.payment.redirectUrl);
       if (result.payment.redirectUrl && !redirect) {
@@ -134,7 +136,7 @@ export function CheckoutView({ payment }: { payment: PublicPaymentOptions }) {
     } catch (err) {
       setPlacing(false);
       submitting.current = false;
-      if (shouldRotateIdempotencyKey(err)) setIdempotencyKey(newKey());
+      if (shouldRotateIdempotencyKey(err)) forgetCheckoutKey(browserStore());
       if (err instanceof ApiError) {
         if (err.fields) setFields(err.fields);
         if (err.code === "cart_changed" || err.code === "insufficient_stock") await refresh();
